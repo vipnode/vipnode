@@ -15,7 +15,31 @@ var Version string = "dev"
 type Options struct {
 	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logging."`
 	Version bool   `long:"version" description:"Print version and exit."`
+
+	Client struct {
+		Args struct {
+			VIPNode string `required:"yes" positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
+		} `positional-args:"yes" required:"yes"`
+		RPC string `long:"rpc" description:"RPC path or URL of the client node." default:"~/.ethereum/geth.ipc"`
+	} `command:"client" description:"Connect to a vipnode as a client."`
+
+	Host struct {
+		Pool string `long:"pool" description:"Pool to participate in. (Optional)"`
+		RPC  string `long:"rpc" description:"RPC path or URL of the host node." default:"~/.ethereum/geth.ipc"`
+	} `command:"host" description:"Host a vipnode."`
+
+	Pool struct {
+		Bind string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
+	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
+
+const clientUsage = `Examples:
+* Connect to a stand-alone vipnode:
+  $ vipnode client "enode://6f8a80d143…b39763a4c0@123.123.123.123:30303?discport=30301"
+
+* Connect to a vipnode pool:
+  $ vipnode client "https://pool.vipnode.org/"
+`
 
 var logLevels = []log.Level{
 	log.Warning,
@@ -34,9 +58,15 @@ func main() {
 	p, err := parser.Parse()
 	if err != nil {
 		if p == nil {
-			fmt.Print(err)
+			fmt.Println(err)
 		}
-		os.Exit(1)
+		if flagErr, ok := err.(*flags.Error); ok && flagErr.Type == flags.ErrHelp && parser.Active != nil {
+			// Print additional usage help when run with --help
+			switch parser.Active.Name {
+			case "client":
+				exit(0, clientUsage)
+			}
+		}
 		return
 	}
 
@@ -57,5 +87,5 @@ func main() {
 		// TODO: ...
 	}
 
-	fmt.Println("success")
+	fmt.println("NOT IMPLEMENTED YET")
 }

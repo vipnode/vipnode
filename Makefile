@@ -17,7 +17,7 @@ clean:
 	rm $(BINARY)
 
 run: $(BINARY)
-	./$(BINARY)
+	./$(BINARY) --help
 
 debug: $(BINARY)
 	./$(BINARY) -vv
