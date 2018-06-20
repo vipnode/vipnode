@@ -6,6 +6,8 @@ import (
 
 	"github.com/alexcesaro/log"
 	flags "github.com/jessevdk/go-flags"
+	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/rpc"
 )
 
 // Version of the binary, assigned during build.
@@ -87,5 +89,28 @@ func main() {
 		// TODO: ...
 	}
 
-	fmt.println("NOT IMPLEMENTED YET")
+	switch parser.Active.Name {
+	case "client":
+	case "host":
+		log.Info("Connecting to RPC:", options.Host.RPC)
+		remote, err := rpc.Dial(options.Host.RPC)
+		if err != nil {
+			break
+		}
+
+		nodetype, err := rpc.DetectClient(remote)
+		if err != nil {
+			break
+		}
+
+		fmt.Println("Node detected: ", nodetype)
+
+		h := host.New()
+		err = h.Start()
+	case "pool":
+	}
+
+	if err != nil {
+		exit(2, "failed to start %s: %s", parser.Active.Name, err)
+	}
 }
