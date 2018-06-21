@@ -80,7 +80,7 @@ func subcommand(cmd string, options Options) error {
 
 		logger.Info("Node detected: ", nodetype)
 
-		h := host.New()
+		h := host.New(nil)
 		err = h.Start()
 	case "pool":
 	}

@@ -12,8 +12,11 @@ type client struct {
 	expire time.Time
 }
 
-func New() *Host {
-	return nil
+func New(node HostNode) *Host {
+	return &Host{
+		node:      node,
+		whitelist: make(map[nodeID]time.Time),
+	}
 }
 
 // HostNode represents the normalized interface required by the Ethereum node
