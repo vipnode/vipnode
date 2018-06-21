@@ -18,9 +18,14 @@ const (
 	Parity
 )
 
-// Dial is a wrapper around go-ethereum/rpc.Dial
-func Dial(uri string) (*rpc.Client, error) {
-	return rpc.Dial(uri)
+// Dial is a wrapper around go-ethereum/rpc.Dial with client detection.
+func Dial(uri string) (RPC, error) {
+	client, err := rpc.Dial(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	return RemoteNode(client)
 }
 
 // DetectClient queries the RPC API to determine which kind of node is running.
@@ -54,8 +59,9 @@ func RemoteNode(client *rpc.Client) (RPC, error) {
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
-		node := &gethNode{client}
-		if err := node.CheckCompatible(nil); err != nil {
+		node := &gethNode{client: client}
+		ctx := context.TODO()
+		if err := node.CheckCompatible(ctx); err != nil {
 			return nil, err
 		}
 		return node, nil
@@ -68,10 +74,18 @@ type gethNode struct {
 
 func (n *gethNode) CheckCompatible(ctx context.Context) error {
 	// TODO: Make sure we have the necessary APIs available, maybe version check?
+	var result interface{}
+	err := n.client.CallContext(ctx, &result, "admin_addTrustedPeer", "")
+	if err == nil {
+		return errors.New("failed to detect compatibility")
+	}
+	if strings.HasSuffix(err.Error(), "does not exist/is not available") {
+		return err
+	}
 	return nil
 }
 
 func (n *gethNode) TrustPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "eth_AddTrustedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "admin_AddTrustedPeer", nodeID)
 }

@@ -73,14 +73,7 @@ func subcommand(cmd string, options Options) error {
 			return err
 		}
 
-		nodetype, err := rpc.DetectClient(remote)
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Node detected: ", nodetype)
-
-		h := host.New(nil)
+		h := host.New(remote)
 		err = h.Start()
 	case "pool":
 	}
@@ -118,10 +111,12 @@ func main() {
 	}
 
 	logLevel := logLevels[numVerbose]
-	SetLogger(golog.New(os.Stderr, logLevel))
+	logWriter := os.Stderr
+
+	SetLogger(golog.New(logWriter, logLevel))
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
-		// TODO: ...
+		rpc.SetLogger(logWriter)
 	}
 
 	err = subcommand(parser.Active.Name, options)
