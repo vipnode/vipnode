@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/alexcesaro/log"
+	"github.com/alexcesaro/log/golog"
+	"github.com/ethereum/go-ethereum/node"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/vipnode/vipnode/host"
 	"github.com/vipnode/vipnode/rpc"
@@ -22,12 +25,12 @@ type Options struct {
 		Args struct {
 			VIPNode string `required:"yes" positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
 		} `positional-args:"yes" required:"yes"`
-		RPC string `long:"rpc" description:"RPC path or URL of the client node." default:"~/.ethereum/geth.ipc"`
+		RPC string `long:"rpc" description:"RPC path or URL of the client node."`
 	} `command:"client" description:"Connect to a vipnode as a client."`
 
 	Host struct {
 		Pool string `long:"pool" description:"Pool to participate in. (Optional)"`
-		RPC  string `long:"rpc" description:"RPC path or URL of the host node." default:"~/.ethereum/geth.ipc"`
+		RPC  string `long:"rpc" description:"RPC path or URL of the host node."`
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
@@ -43,15 +46,46 @@ const clientUsage = `Examples:
   $ vipnode client "https://pool.vipnode.org/"
 `
 
+func findIPC() string {
+	// TODO: Search multiple places?
+	// FIXME: Is the node dep too fat for this?
+	ipc := filepath.Join(node.DefaultDataDir(), "geth.ipc")
+	return ipc
+}
+
 var logLevels = []log.Level{
 	log.Warning,
 	log.Info,
 	log.Debug,
 }
 
-func exit(code int, format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	os.Exit(code)
+func subcommand(cmd string, options Options) error {
+	switch cmd {
+	case "client":
+	case "host":
+		rpcPath := options.Host.RPC
+		if rpcPath == "" {
+			rpcPath = findIPC()
+		}
+		logger.Info("Connecting to RPC:", rpcPath)
+		remote, err := rpc.Dial(rpcPath)
+		if err != nil {
+			return err
+		}
+
+		nodetype, err := rpc.DetectClient(remote)
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Node detected: ", nodetype)
+
+		h := host.New()
+		err = h.Start()
+	case "pool":
+	}
+
+	return nil
 }
 
 func main() {
@@ -84,33 +118,20 @@ func main() {
 	}
 
 	logLevel := logLevels[numVerbose]
+	SetLogger(golog.New(os.Stderr, logLevel))
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
 		// TODO: ...
 	}
 
-	switch parser.Active.Name {
-	case "client":
-	case "host":
-		log.Info("Connecting to RPC:", options.Host.RPC)
-		remote, err := rpc.Dial(options.Host.RPC)
-		if err != nil {
-			break
-		}
-
-		nodetype, err := rpc.DetectClient(remote)
-		if err != nil {
-			break
-		}
-
-		fmt.Println("Node detected: ", nodetype)
-
-		h := host.New()
-		err = h.Start()
-	case "pool":
-	}
+	err = subcommand(parser.Active.Name, options)
 
 	if err != nil {
-		exit(2, "failed to start %s: %s", parser.Active.Name, err)
+		exit(2, "failed to start %s: %s\n", parser.Active.Name, err)
 	}
+}
+
+func exit(code int, format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
+	os.Exit(code)
 }
