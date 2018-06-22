@@ -31,7 +31,31 @@ func (n *gethNode) CheckCompatible(ctx context.Context) error {
 	return nil
 }
 
-func (n *gethNode) TrustPeer(ctx context.Context, nodeID string) error {
+func (n *gethNode) ConnectPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "admin_AddTrustedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "admin_addPeer", nodeID)
+}
+
+func (n *gethNode) DisconnectPeer(ctx context.Context, nodeID string) error {
+	var result interface{}
+	return n.client.CallContext(ctx, &result, "admin_removePeer", nodeID)
+}
+
+func (n *gethNode) AddTrustedPeer(ctx context.Context, nodeID string) error {
+	var result interface{}
+	return n.client.CallContext(ctx, &result, "admin_addTrustedPeer", nodeID)
+}
+
+func (n *gethNode) RemoveTrustedPeer(ctx context.Context, nodeID string) error {
+	var result interface{}
+	return n.client.CallContext(ctx, &result, "admin_removeTrustedPeer", nodeID)
+}
+
+func (n *gethNode) Peers(ctx context.Context) ([]PeerInfo, error) {
+	var peers []PeerInfo
+	err := n.client.CallContext(ctx, &peers, "admin_peers")
+	if err != nil {
+		return nil, err
+	}
+	return peers, nil
 }

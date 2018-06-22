@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,6 +63,7 @@ var logLevels = []log.Level{
 func subcommand(cmd string, options Options) error {
 	switch cmd {
 	case "client":
+		return errors.New("not implemented")
 	case "host":
 		rpcPath := options.Host.RPC
 		if rpcPath == "" {
@@ -74,8 +76,9 @@ func subcommand(cmd string, options Options) error {
 		}
 
 		h := host.New(remote)
-		err = h.Start()
+		return h.Start()
 	case "pool":
+		return errors.New("not implemented")
 	}
 
 	return nil
@@ -116,6 +119,7 @@ func main() {
 	SetLogger(golog.New(logWriter, logLevel))
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
+		host.SetLogger(logWriter)
 		rpc.SetLogger(logWriter)
 	}
 

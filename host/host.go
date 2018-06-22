@@ -1,8 +1,11 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"time"
+
+	"github.com/vipnode/vipnode/rpc"
 )
 
 type nodeID string
@@ -22,6 +25,9 @@ func New(node HostNode) *Host {
 // HostNode represents the normalized interface required by the Ethereum node
 // to support a vipnode host.
 type HostNode interface {
+	// FIXME: Should we just use rpc.RPC or should each host/client package
+	// specify a subset interface?
+	rpc.RPC
 }
 
 // Host represents a single vipnode host.
@@ -38,6 +44,11 @@ func (h *Host) Whitelist(nodeID nodeID, expire time.Time) error {
 }
 
 func (h *Host) Start() error {
-	// TODO: ...
+	peers, err := h.node.Peers(context.TODO())
+	if err != nil {
+		return err
+	}
+	logger.Print("Received peers: ", peers)
+	// TODO: Resume tracking peers that we care about.
 	return nil
 }

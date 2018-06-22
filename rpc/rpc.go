@@ -41,11 +41,25 @@ func DetectClient(client *rpc.Client) (NodeKind, error) {
 	return Unknown, nil
 }
 
+// PeerInfo stores the node ID and client metadata about a peer.
+type PeerInfo struct {
+	ID   string `json:"id"`   // Unique node identifier (also the encryption key)
+	Name string `json:"name"` // Name of the node, including client type, version, OS, custom data
+}
+
 // RPC is the normalized interface between different kinds of nodes.
 type RPC interface {
-	// TrustPeer adds a nodeID to a set of nodes that can always connect, even
+	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
 	// if the maximum number of connections is reached.
-	TrustPeer(ctx context.Context, nodeID string) error
+	AddTrustedPeer(ctx context.Context, nodeID string) error
+	// RemoveTrustedPeer removes a nodeID from the trusted node set.
+	RemoveTrustedPeer(ctx context.Context, nodeID string) error
+	// ConnectPeer prompts a connection to the given nodeURI.
+	ConnectPeer(ctx context.Context, nodeURI string) error
+	// DisconnectPeer disconnects from the given nodeID, if connected.
+	DisconnectPeer(ctx context.Context, nodeID string) error
+	// Peers returns the list of connected peers
+	Peers(ctx context.Context) ([]PeerInfo, error)
 }
 
 func RemoteNode(client *rpc.Client) (RPC, error) {
