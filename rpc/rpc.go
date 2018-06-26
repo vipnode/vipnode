@@ -2,10 +2,8 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -31,11 +29,13 @@ func Dial(uri string) (RPC, error) {
 // DetectClient queries the RPC API to determine which kind of node is running.
 func DetectClient(client *rpc.Client) (NodeKind, error) {
 	// TODO: Detect Parity
-	var info p2p.NodeInfo
-	if err := client.Call(&info, "admin_nodeInfo"); err != nil {
+	var clientVersion string
+	if err := client.Call(&clientVersion, "web3_clientVersion"); err != nil {
 		return Unknown, err
 	}
-	if strings.HasPrefix(info.Name, "Geth/") {
+	if strings.HasPrefix(clientVersion, "Parity/") {
+		return Parity, nil
+	} else if strings.HasPrefix(clientVersion, "Geth/") {
 		return Geth, nil
 	}
 	return Unknown, nil
@@ -69,7 +69,7 @@ func RemoteNode(client *rpc.Client) (RPC, error) {
 	}
 	switch kind {
 	case Parity:
-		return nil, errors.New("parity not implemented yet")
+		return &parityNode{client: client}, nil
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
