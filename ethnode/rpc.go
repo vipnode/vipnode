@@ -1,4 +1,4 @@
-package rpc
+package ethnode
 
 import (
 	"context"
@@ -17,7 +17,7 @@ const (
 )
 
 // Dial is a wrapper around go-ethereum/rpc.Dial with client detection.
-func Dial(uri string) (RPC, error) {
+func Dial(uri string) (EthNode, error) {
 	client, err := rpc.Dial(uri)
 	if err != nil {
 		return nil, err
@@ -47,8 +47,8 @@ type PeerInfo struct {
 	Name string `json:"name"` // Name of the node, including client type, version, OS, custom data
 }
 
-// RPC is the normalized interface between different kinds of nodes.
-type RPC interface {
+// EthNode is the normalized interface between different kinds of nodes.
+type EthNode interface {
 	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
 	// if the maximum number of connections is reached.
 	AddTrustedPeer(ctx context.Context, nodeID string) error
@@ -62,7 +62,7 @@ type RPC interface {
 	Peers(ctx context.Context) ([]PeerInfo, error)
 }
 
-func RemoteNode(client *rpc.Client) (RPC, error) {
+func RemoteNode(client *rpc.Client) (EthNode, error) {
 	kind, err := DetectClient(client)
 	if err != nil {
 		return nil, err

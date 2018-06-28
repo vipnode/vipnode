@@ -10,8 +10,8 @@ import (
 	"github.com/alexcesaro/log/golog"
 	"github.com/ethereum/go-ethereum/node"
 	flags "github.com/jessevdk/go-flags"
+	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/host"
-	"github.com/vipnode/vipnode/rpc"
 )
 
 // Version of the binary, assigned during build.
@@ -70,7 +70,7 @@ func subcommand(cmd string, options Options) error {
 			rpcPath = findIPC()
 		}
 		logger.Info("Connecting to RPC:", rpcPath)
-		remote, err := rpc.Dial(rpcPath)
+		remote, err := ethnode.Dial(rpcPath)
 		if err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func main() {
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
 		host.SetLogger(logWriter)
-		rpc.SetLogger(logWriter)
+		ethnode.SetLogger(logWriter)
 	}
 
 	err = subcommand(parser.Active.Name, options)

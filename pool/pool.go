@@ -60,7 +60,7 @@ func (p *pool) register(nodeID nodeID, account account, credit amount) error {
 	return nil
 }
 
-// Update submits a list of peers that the node is conneucted to, returning the current account balance.
+// Update submits a list of peers that the node is connected to, returning the current account balance.
 func (p *pool) Update(ctx context.Context, sig string, nodeID nodeID, timestamp time.Time, peers string) (*Balance, error) {
 	return nil, errors.New("not implemented yet")
 }

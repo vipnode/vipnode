@@ -1,4 +1,4 @@
-package rpc
+package ethnode
 
 import (
 	"io"
@@ -10,7 +10,7 @@ var logger *log.Logger
 
 func SetLogger(w io.Writer) {
 	flags := log.Flags()
-	prefix := "[rpc] "
+	prefix := "[ethnode] "
 	logger = log.New(w, prefix, flags)
 }
 

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vipnode/vipnode/rpc"
+	"github.com/vipnode/vipnode/ethnode"
 )
 
 type nodeID string
@@ -25,9 +25,9 @@ func New(node HostNode) *Host {
 // HostNode represents the normalized interface required by the Ethereum node
 // to support a vipnode host.
 type HostNode interface {
-	// FIXME: Should we just use rpc.RPC or should each host/client package
+	// FIXME: Should we just use ethnode.RPC or should each host/client package
 	// specify a subset interface?
-	rpc.RPC
+	ethnode.EthNode
 }
 
 // Host represents a single vipnode host.
@@ -48,7 +48,7 @@ func (h *Host) Start() error {
 	if err != nil {
 		return err
 	}
-	logger.Print("Received peers: ", peers)
+	logger.Print("Received peers: ", len(peers))
 	// TODO: Resume tracking peers that we care about.
 	return nil
 }
