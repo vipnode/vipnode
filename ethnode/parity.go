@@ -44,3 +44,11 @@ func (n *parityNode) Peers(ctx context.Context) ([]PeerInfo, error) {
 	}
 	return result.Peers, nil
 }
+
+func (n *parityNode) Enode(ctx context.Context) (string, error) {
+	var result string
+	if err := n.client.CallContext(ctx, &result, "parity_enode"); err != nil {
+		return "", err
+	}
+	return result, nil
+}

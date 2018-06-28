@@ -61,3 +61,14 @@ func (n *gethNode) Peers(ctx context.Context) ([]PeerInfo, error) {
 	}
 	return peers, nil
 }
+
+func (n *gethNode) Enode(ctx context.Context) (string, error) {
+	var info struct {
+		Enode string `json:"enode"` // Enode URL for adding this peer from remote peers
+	}
+	err := n.client.CallContext(ctx, &info, "admin_nodeInfo")
+	if err != nil {
+		return "", err
+	}
+	return info.Enode, nil
+}

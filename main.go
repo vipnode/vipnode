@@ -74,7 +74,6 @@ func subcommand(cmd string, options Options) error {
 		if err != nil {
 			return err
 		}
-
 		h := host.New(remote)
 		return h.Start()
 	case "pool":

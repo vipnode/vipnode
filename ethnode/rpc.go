@@ -43,12 +43,14 @@ func DetectClient(client *rpc.Client) (NodeKind, error) {
 
 // PeerInfo stores the node ID and client metadata about a peer.
 type PeerInfo struct {
-	ID   string `json:"id"`   // Unique node identifier (also the encryption key)
+	ID   string `json:"id"`   // Unique node identifier (also the encryption pubkey)
 	Name string `json:"name"` // Name of the node, including client type, version, OS, custom data
 }
 
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
+	// Enode returns this node's enode://...
+	Enode(ctx context.Context) (string, error)
 	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
 	// if the maximum number of connections is reached.
 	AddTrustedPeer(ctx context.Context, nodeID string) error

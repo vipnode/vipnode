@@ -44,6 +44,12 @@ func (h *Host) Whitelist(nodeID nodeID, expire time.Time) error {
 }
 
 func (h *Host) Start() error {
+	enode, err := h.node.Enode(context.TODO())
+	if err != nil {
+		return err
+	}
+	logger.Print("Connected to node: ", enode)
+
 	peers, err := h.node.Peers(context.TODO())
 	if err != nil {
 		return err
