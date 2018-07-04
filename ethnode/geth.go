@@ -14,8 +14,14 @@ type codedError interface {
 	ErrorCode() int
 }
 
+var _ EthNode = &gethNode{}
+
 type gethNode struct {
 	client *rpc.Client
+}
+
+func (n *gethNode) Kind() NodeKind {
+	return Geth
 }
 
 func (n *gethNode) CheckCompatible(ctx context.Context) error {

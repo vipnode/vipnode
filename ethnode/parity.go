@@ -6,12 +6,18 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+var _ EthNode = &parityNode{}
+
 type parityPeers struct {
 	Peers []PeerInfo `json:"peers"`
 }
 
 type parityNode struct {
 	client *rpc.Client
+}
+
+func (n *parityNode) Kind() NodeKind {
+	return Parity
 }
 
 func (n *parityNode) ConnectPeer(ctx context.Context, nodeURI string) error {

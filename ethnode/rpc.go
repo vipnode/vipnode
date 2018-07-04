@@ -16,6 +16,16 @@ const (
 	Parity
 )
 
+func (n NodeKind) String() string {
+	switch n {
+	case Geth:
+		return "geth"
+	case Parity:
+		return "parity"
+	}
+	return "unknown"
+}
+
 // Dial is a wrapper around go-ethereum/rpc.Dial with client detection.
 func Dial(uri string) (EthNode, error) {
 	client, err := rpc.Dial(uri)
@@ -49,6 +59,8 @@ type PeerInfo struct {
 
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
+	// Kind returns the kind of node this is.
+	Kind() NodeKind
 	// Enode returns this node's enode://...
 	Enode(ctx context.Context) (string, error)
 	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
