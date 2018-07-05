@@ -11,6 +11,10 @@ import (
 type FakeNode struct {
 }
 
+func (n *FakeNode) Kind() ethnode.NodeKind {
+	return ethnode.Geth
+}
+
 func (n *FakeNode) Enode(ctx context.Context) (string, error) {
 	return "foo", nil
 }
