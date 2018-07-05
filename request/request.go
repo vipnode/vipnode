@@ -7,13 +7,14 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/vipnode/ethboot/forked/discv5"
 )
 
 // ErrBadSignature is returned when the signature does not verify the payload.
 var ErrBadSignature = errors.New("bad signature")
 
-// Assemble encodes an RPC request for signing or verifying.
-func Assemble(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
+// assemble encodes an RPC request for signing or verifying.
+func assemble(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
 	// The signed payload is the method concatenated with the JSON-encoded arg array.
 	// Example: foo["1234abcd",2]
 	var payload []interface{}
@@ -29,15 +30,25 @@ func Assemble(method string, nodeID string, nonce int, args ...interface{}) ([]b
 	return append([]byte(method), out...), nil
 }
 
-// Sign produces a base64-encoded signature from an RPC request.
-func Sign(prv *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
-	req, err := Assemble(method, nodeID, nonce, args...)
+// hash will assemble and hash an RPC request for signing and verifying.
+func hash(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
+	req, err := assemble(method, nodeID, nonce, args...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Keccak256 does not require a MAC: https://crypto.stackexchange.com/questions/17735/is-hmac-needed-for-a-sha-3-based-mac
 	hashed := crypto.Keccak256(req)
+	return hashed, nil
+}
+
+// Sign produces a base64-encoded signature from an RPC request.
+func Sign(prv *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
+	hashed, err := hash(method, nodeID, nonce, args...)
+	if err != nil {
+		return "", err
+	}
+
 	sigbytes, err := crypto.Sign(hashed, prv)
 	if err != nil {
 		return "", err
@@ -49,12 +60,12 @@ func Sign(prv *ecdsa.PrivateKey, method string, nodeID string, nonce int, args .
 
 // Verify checks a base64-encoded signature of an RPC request.
 func Verify(sig string, method string, nodeID string, nonce int, args ...interface{}) error {
-	pubkey, err := base64.StdEncoding.DecodeString(nodeID)
+	// Convert nodeID to public key
+	node, err := discv5.HexID(nodeID)
 	if err != nil {
 		return err
 	}
-
-	req, err := Assemble(method, nodeID, nonce, args...)
+	pubkey, err := node.Pubkey()
 	if err != nil {
 		return err
 	}
@@ -64,10 +75,20 @@ func Verify(sig string, method string, nodeID string, nonce int, args ...interfa
 		return err
 	}
 
-	hashed := crypto.Keccak256(req)
-	if !crypto.VerifySignature(pubkey, hashed, sigbytes) {
+	hashed, err := hash(method, nodeID, nonce, args...)
+	if err != nil {
+		return err
+	}
+
+	// XXX: This is hacky, ideally crypto.VerifySignature(...) should work but
+	// the types we're using here aren't compatible. Need to rework this a bit.
+	signkey, err := crypto.SigToPub(hashed, sigbytes)
+	if err != nil {
+		return err
+	}
+	if crypto.PubkeyToAddress(*signkey) != crypto.PubkeyToAddress(*pubkey) {
 		return ErrBadSignature
 	}
-	// Success!
-	return nil
+
+	return nil // Success
 }

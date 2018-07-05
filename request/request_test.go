@@ -62,7 +62,7 @@ func TestRequestSigning(t *testing.T) {
 	}
 
 	want := fmt.Sprintf(`somemethod["%s",42,"foo",1234]`, nodeID)
-	got, err := Assemble(request.method, request.nodeID, request.nonce, request.args...)
+	got, err := assemble(request.method, request.nodeID, request.nonce, request.args...)
 	if err != nil {
 		t.Fatalf("failed to assemble: %s", err)
 	}
@@ -76,7 +76,9 @@ func TestRequestSigning(t *testing.T) {
 	}
 
 	err = Verify(sig, request.method, request.nodeID, request.nonce, request.args...)
-	if err != nil {
+	if err == ErrBadSignature {
+		t.Errorf("bad signature: %s", sig)
+	} else if err != nil {
 		t.Errorf("failed to verify: %s", err)
 	}
 }
