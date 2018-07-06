@@ -20,7 +20,7 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return err
 	}
-	timestamp := time.Now()
+	timestamp := time.Now().Unix()
 	sig := "XXX" // TODO
 	kind := c.EthNode.Kind().String()
 	nodes, err := c.Pool.Connect(ctx, sig, nodeID, timestamp, kind)
