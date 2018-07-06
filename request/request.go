@@ -43,13 +43,13 @@ func hash(method string, nodeID string, nonce int, args ...interface{}) ([]byte,
 }
 
 // Sign produces a base64-encoded signature from an RPC request.
-func Sign(prv *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
+func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
 	hashed, err := hash(method, nodeID, nonce, args...)
 	if err != nil {
 		return "", err
 	}
 
-	sigbytes, err := crypto.Sign(hashed, prv)
+	sigbytes, err := crypto.Sign(hashed, privkey)
 	if err != nil {
 		return "", err
 	}
@@ -74,21 +74,19 @@ func Verify(sig string, method string, nodeID string, nonce int, args ...interfa
 	if err != nil {
 		return err
 	}
+	// crypto.Sign produces a signature in the form [R || S || V] (65 bytes) where V is 0 or 1
+	// crypto.VerifySignature wants [R || S] (64 bytes). ¯\_(ツ)_/¯
+	sigbytes = sigbytes[:64]
 
 	hashed, err := hash(method, nodeID, nonce, args...)
 	if err != nil {
 		return err
 	}
 
-	// XXX: This is hacky, ideally crypto.VerifySignature(...) should work but
-	// the types we're using here aren't compatible. Need to rework this a bit.
-	signkey, err := crypto.SigToPub(hashed, sigbytes)
-	if err != nil {
-		return err
-	}
-	if crypto.PubkeyToAddress(*signkey) != crypto.PubkeyToAddress(*pubkey) {
-		return ErrBadSignature
+	if crypto.VerifySignature(crypto.FromECDSAPub(pubkey), hashed, sigbytes) {
+		// Success!
+		return nil
 	}
 
-	return nil // Success
+	return ErrBadSignature
 }

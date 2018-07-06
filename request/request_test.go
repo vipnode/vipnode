@@ -40,6 +40,17 @@ func TestKeyConversion(t *testing.T) {
 	if nodeID != nodeID2 {
 		t.Errorf("re-encoded pubkey does not match:\n  %s !=\n  %s", nodeID, nodeID2)
 	}
+
+	hashed := crypto.Keccak256([]byte("foo"))
+	sig, err := crypto.Sign(hashed, privkey)
+	if err != nil {
+		t.Fatalf("failed to sign: %s", err)
+	}
+
+	pubkeyBytes := crypto.FromECDSAPub(pubkey)
+	if ok := crypto.VerifySignature(pubkeyBytes, hashed, sig[:64]); !ok {
+		t.Errorf("failed to verify: %q", sig)
+	}
 }
 
 func TestRequestSigning(t *testing.T) {
@@ -80,5 +91,11 @@ func TestRequestSigning(t *testing.T) {
 		t.Errorf("bad signature: %s", sig)
 	} else if err != nil {
 		t.Errorf("failed to verify: %s", err)
+	}
+
+	// Change the request a bit and see that it fails
+	err = Verify(sig, "newmethod", request.nodeID, request.nonce, request.args...)
+	if err != ErrBadSignature {
+		t.Errorf("expected bad signature, got: %s", err)
 	}
 }
