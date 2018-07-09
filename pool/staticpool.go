@@ -14,18 +14,18 @@ type StaticPool struct {
 	Nodes []HostNode
 }
 
-func (s *StaticPool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]HostNode, error) {
+func (s *StaticPool) Connect(ctx context.Context, sig string, nodeID string, nonce int, kind string) ([]HostNode, error) {
 	return s.Nodes, nil
 }
 
-func (s *StaticPool) Disconnect(ctx context.Context, sig string, nodeID string, nonce int64) error {
+func (s *StaticPool) Disconnect(ctx context.Context, sig string, nodeID string, nonce int) error {
 	return nil
 }
 
-func (s *StaticPool) Update(ctx context.Context, sig string, nodeID string, nonce int64, peers string) (*Balance, error) {
+func (s *StaticPool) Update(ctx context.Context, sig string, nodeID string, nonce int, peers string) (*Balance, error) {
 	return &Balance{}, nil
 }
 
-func (s *StaticPool) Withdraw(ctx context.Context, sig string, nodeID string, nonce int64) error {
+func (s *StaticPool) Withdraw(ctx context.Context, sig string, nodeID string, nonce int) error {
 	return errors.New("not implemented")
 }

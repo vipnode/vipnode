@@ -1,66 +1,21 @@
 package request
 
 import (
-	"crypto/ecdsa"
-	"encoding/base64"
 	"fmt"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/vipnode/ethboot/forked/discv5"
+	"github.com/vipnode/vipnode/internal/keygen"
 )
 
-func getTestingKey(t *testing.T) *ecdsa.PrivateKey {
-	const hardcodedKey = `Qz7wmX+MXfvY85IsJMnMFd8fOI4msOT24bp6Iw/NuPo=`
-	data, err := base64.StdEncoding.DecodeString(hardcodedKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	privkey, err := crypto.ToECDSA(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return privkey
-}
-
-func TestKeyConversion(t *testing.T) {
-	// This is mostly self-serving documentation for how to do the conversion
-	privkey := getTestingKey(t)
-
-	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
-	node, err := discv5.HexID(nodeID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pubkey, err := node.Pubkey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	nodeID2 := discv5.PubkeyID(pubkey).String()
-	if nodeID != nodeID2 {
-		t.Errorf("re-encoded pubkey does not match:\n  %s !=\n  %s", nodeID, nodeID2)
-	}
-
-	hashed := crypto.Keccak256([]byte("foo"))
-	sig, err := crypto.Sign(hashed, privkey)
-	if err != nil {
-		t.Fatalf("failed to sign: %s", err)
-	}
-
-	pubkeyBytes := crypto.FromECDSAPub(pubkey)
-	if ok := crypto.VerifySignature(pubkeyBytes, hashed, sig[:64]); !ok {
-		t.Errorf("failed to verify: %q", sig)
-	}
-}
-
 func TestRequestSigning(t *testing.T) {
-	privkey := getTestingKey(t)
+	privkey := keygen.HardcodedKey(t)
 	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 
 	request := struct {
 		method string
 		nodeID string
-		nonce  int64
+		nonce  int
 		args   []interface{}
 	}{
 		"somemethod",

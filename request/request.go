@@ -14,7 +14,7 @@ import (
 var ErrBadSignature = errors.New("bad signature")
 
 // assemble encodes an RPC request for signing or verifying.
-func assemble(method string, nodeID string, nonce int64, args ...interface{}) ([]byte, error) {
+func assemble(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
 	// The signed payload is the method concatenated with the JSON-encoded arg array.
 	// Example: foo["1234abcd",2]
 	var payload []interface{}
@@ -31,7 +31,7 @@ func assemble(method string, nodeID string, nonce int64, args ...interface{}) ([
 }
 
 // hash will assemble and hash an RPC request for signing and verifying.
-func hash(method string, nodeID string, nonce int64, args ...interface{}) ([]byte, error) {
+func hash(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
 	req, err := assemble(method, nodeID, nonce, args...)
 	if err != nil {
 		return nil, err
@@ -43,8 +43,51 @@ func hash(method string, nodeID string, nonce int64, args ...interface{}) ([]byt
 }
 
 // Sign produces a base64-encoded signature from an RPC request.
-func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int64, args ...interface{}) (string, error) {
-	hashed, err := hash(method, nodeID, nonce, args...)
+func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
+	return Request{
+		Method:    method,
+		NodeID:    nodeID,
+		Nonce:     nonce,
+		ExtraArgs: args,
+	}.Sign(privkey)
+}
+
+// Verify checks a base64-encoded signature of an RPC request.
+func Verify(sig string, method string, nodeID string, nonce int, args ...interface{}) error {
+	return Request{
+		Method:    method,
+		NodeID:    nodeID,
+		Nonce:     nonce,
+		ExtraArgs: args,
+	}.Verify(sig)
+}
+
+// Request represents the components of an RPC request that we want to sign and verify.
+type Request struct {
+	Method    string
+	NodeID    string
+	Nonce     int
+	ExtraArgs []interface{}
+}
+
+// SignedArgs returns a slice of arguments with the first element containing
+// the signature for the remaining arguments. This is a convenient form factor
+// for doing signed RPC calls.
+func (r Request) SignedArgs(privkey *ecdsa.PrivateKey) ([]interface{}, error) {
+	sig, err := r.Sign(privkey)
+	if err != nil {
+		return nil, err
+	}
+
+	args := make([]interface{}, 0, 3+len(r.ExtraArgs))
+	args = append(args, sig, r.NodeID, r.Nonce)
+	args = append(args, r.ExtraArgs...)
+	return args, nil
+}
+
+// Sign produces a base64-encoded signature of this request.
+func (r Request) Sign(privkey *ecdsa.PrivateKey) (string, error) {
+	hashed, err := hash(r.Method, r.NodeID, r.Nonce, r.ExtraArgs...)
 	if err != nil {
 		return "", err
 	}
@@ -58,10 +101,11 @@ func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int64, 
 	return out, nil
 }
 
-// Verify checks a base64-encoded signature of an RPC request.
-func Verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
+// Verify validates this request against a base64-encoded signature (presumably
+// produced by Request.Sign).
+func (r Request) Verify(sig string) error {
 	// Convert nodeID to public key
-	node, err := discv5.HexID(nodeID)
+	node, err := discv5.HexID(r.NodeID)
 	if err != nil {
 		return err
 	}
@@ -78,7 +122,7 @@ func Verify(sig string, method string, nodeID string, nonce int64, args ...inter
 	// crypto.VerifySignature wants [R || S] (64 bytes). ¯\_(ツ)_/¯
 	sigbytes = sigbytes[:64]
 
-	hashed, err := hash(method, nodeID, nonce, args...)
+	hashed, err := hash(r.Method, r.NodeID, r.Nonce, r.ExtraArgs...)
 	if err != nil {
 		return err
 	}
