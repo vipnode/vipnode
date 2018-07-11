@@ -76,6 +76,8 @@ type EthNode interface {
 	Peers(ctx context.Context) ([]PeerInfo, error)
 }
 
+// RemoteNode autodetects the node kind and returns the appropriate EthNode
+// implementation.
 func RemoteNode(client *rpc.Client) (EthNode, error) {
 	kind, err := DetectClient(client)
 	if err != nil {

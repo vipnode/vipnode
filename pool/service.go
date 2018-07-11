@@ -22,6 +22,8 @@ func (err ErrVerifyFailed) Error() string {
 	return fmt.Sprintf("failed to verify signature: %s", err.Cause)
 }
 
+// New returns a VipnodePool implementation of Pool with the default memory
+// store, which includes balance tracking.
 func New() *VipnodePool {
 	return &VipnodePool{
 		// TODO: Replace with persistent store

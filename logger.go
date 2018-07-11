@@ -9,6 +9,7 @@ import (
 
 var logger *golog.Logger
 
+// SetLogger overrides the main logger of this command.
 func SetLogger(l *golog.Logger) {
 	logger = l
 }

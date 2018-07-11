@@ -5,6 +5,7 @@ import (
 )
 
 // FIXME: placeholder types, replace with go-ethereum types
+
 type Account string
 type NodeID string
 type Amount int
