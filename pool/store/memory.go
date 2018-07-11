@@ -1,11 +1,11 @@
 package store
 
 import (
-	"errors"
 	"sync"
 )
 
-// MemoryStore implements an ephemeral in-memory store.
+// MemoryStore implements an ephemeral in-memory store. It may not be a
+// complete implementation but it's useful for testing.
 func MemoryStore() *memoryStore {
 	return &memoryStore{
 		balances:    map[Account]Balance{},
@@ -31,6 +31,7 @@ type memoryStore struct {
 	nonces map[NodeID]int64
 }
 
+// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 func (s *memoryStore) CheckAndSaveNonce(nodeID NodeID, nonce int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -42,23 +43,44 @@ func (s *memoryStore) CheckAndSaveNonce(nodeID NodeID, nonce int64) error {
 	return nil
 }
 
+// GetBalance returns the current balance for an account.
 func (s *memoryStore) GetBalance(account Account) Balance {
-	// XXX: ...
-	return Balance{}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.balances[account]
 }
+
+// AddBalance adds some credit amount to that account balance.
 func (s *memoryStore) AddBalance(account Account, credit Amount) error {
-	return errors.New("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	b, ok := s.balances[account]
+	b.Credit += credit
+	if !ok {
+		s.balances[account] = b
+	}
+	return nil
 }
-func (s *memoryStore) AddHostNode(n HostNode) error {
+
+// SetHostNode adds a HostNode to the set of active host nodes.
+func (s *memoryStore) SetHostNode(n HostNode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hostnodes[n.ID] = n
 	return nil
 }
+
+// RemoveHostNode removes a HostNode.
 func (s *memoryStore) RemoveHostNode(nodeID NodeID) error {
-	return errors.New("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.hostnodes, nodeID)
+	return nil
 }
 
+// GetHostNodes returns `limit`-number of `kind` nodes. This could be an
+// empty list, if none are available.
 func (s *memoryStore) GetHostNodes(kind string, limit int) []HostNode {
 	r := make([]HostNode, 0, limit)
 

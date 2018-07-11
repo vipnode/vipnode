@@ -19,6 +19,7 @@ type Balance struct {
 // ClientNode stores metadata for tracking VIPs
 type ClientNode struct {
 	LastSeen time.Time `json:"last_seen"`
+	Kind     string    `json:"kind"`
 
 	balance *Balance
 	peers   map[NodeID]time.Time // Last seen
@@ -29,6 +30,7 @@ type HostNode struct {
 	ID       NodeID
 	URI      string    `json:"uri"`
 	LastSeen time.Time `json:"last_seen"`
+	Kind     string    `json:"kind"`
 
 	balance *Balance
 	peers   map[NodeID]time.Time // Last seen
@@ -37,6 +39,7 @@ type HostNode struct {
 
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
 type Store interface {
+	// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 	CheckAndSaveNonce(nodeID NodeID, nonce int64) error
 
 	// GetBalance returns the current balance for an account.
@@ -47,8 +50,8 @@ type Store interface {
 	// GetHostNodes returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
 	GetHostNodes(kind string, limit int) []HostNode
-	// AddHostNode adds a HostNode to the set of active host nodes.
-	AddHostNode(HostNode) error
+	// SetHostNode adds a HostNode to the set of active host nodes.
+	SetHostNode(HostNode) error
 	// RemoveHostNode removes a HostNode.
 	RemoveHostNode(nodeID NodeID) error
 }
