@@ -14,7 +14,7 @@ import (
 var ErrBadSignature = errors.New("bad signature")
 
 // assemble encodes an RPC request for signing or verifying.
-func assemble(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
+func assemble(method string, nodeID string, nonce int64, args ...interface{}) ([]byte, error) {
 	// The signed payload is the method concatenated with the JSON-encoded arg array.
 	// Example: foo["1234abcd",2]
 	var payload []interface{}
@@ -31,7 +31,7 @@ func assemble(method string, nodeID string, nonce int, args ...interface{}) ([]b
 }
 
 // hash will assemble and hash an RPC request for signing and verifying.
-func hash(method string, nodeID string, nonce int, args ...interface{}) ([]byte, error) {
+func hash(method string, nodeID string, nonce int64, args ...interface{}) ([]byte, error) {
 	req, err := assemble(method, nodeID, nonce, args...)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func hash(method string, nodeID string, nonce int, args ...interface{}) ([]byte,
 }
 
 // Sign produces a base64-encoded signature from an RPC request.
-func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int, args ...interface{}) (string, error) {
+func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int64, args ...interface{}) (string, error) {
 	return Request{
 		Method:    method,
 		NodeID:    nodeID,
@@ -53,7 +53,7 @@ func Sign(privkey *ecdsa.PrivateKey, method string, nodeID string, nonce int, ar
 }
 
 // Verify checks a base64-encoded signature of an RPC request.
-func Verify(sig string, method string, nodeID string, nonce int, args ...interface{}) error {
+func Verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
 	return Request{
 		Method:    method,
 		NodeID:    nodeID,
@@ -66,7 +66,7 @@ func Verify(sig string, method string, nodeID string, nonce int, args ...interfa
 type Request struct {
 	Method    string
 	NodeID    string
-	Nonce     int
+	Nonce     int64
 	ExtraArgs []interface{}
 }
 

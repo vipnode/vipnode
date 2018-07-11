@@ -15,7 +15,7 @@ func TestRequestSigning(t *testing.T) {
 	request := struct {
 		method string
 		nodeID string
-		nonce  int
+		nonce  int64
 		args   []interface{}
 	}{
 		"somemethod",

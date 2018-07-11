@@ -9,14 +9,14 @@ type amount int
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
-	Account      account
-	Credit       amount
-	NextWithdraw time.Time
+	Account      account   `json:"account"`
+	Credit       amount    `json:"credit"`
+	NextWithdraw time.Time `json:"next_withdraw"`
 }
 
 // ClientNode stores metadata for tracking VIPs
 type ClientNode struct {
-	LastSeen time.Time
+	LastSeen time.Time `json:"last_seen"`
 
 	balance *Balance
 	peers   map[nodeID]time.Time // Last seen
@@ -24,8 +24,9 @@ type ClientNode struct {
 
 // HostNode stores metadata requires for tracking full nodes.
 type HostNode struct {
-	URI      string
-	LastSeen time.Time
+	ID       string
+	URI      string    `json:"uri"`
+	LastSeen time.Time `json:"last_seen"`
 
 	balance *Balance
 	peers   map[nodeID]time.Time // Last seen
