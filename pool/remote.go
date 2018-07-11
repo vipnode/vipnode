@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/ethboot/forked/discv5"
+	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
 
@@ -32,7 +33,7 @@ func (p *RemotePool) getNonce() int64 {
 	return atomic.AddInt64(&p.nonce, 1)
 }
 
-func (p *RemotePool) Connect(ctx context.Context, kind string) ([]HostNode, error) {
+func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
 	req := request.Request{
 		Method:    "vipnode_connect",
 		NodeID:    p.nodeID,
@@ -44,7 +45,7 @@ func (p *RemotePool) Connect(ctx context.Context, kind string) ([]HostNode, erro
 	if err != nil {
 		return nil, err
 	}
-	var result []HostNode
+	var result []store.HostNode
 	if err := p.client.CallContext(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 	return p.client.CallContext(ctx, &result, req.Method, args...)
 }
 
-func (p *RemotePool) Update(ctx context.Context, sig string, nodeID string, nonce int, peers []string) (*Balance, error) {
+func (p *RemotePool) Update(ctx context.Context, sig string, nodeID string, nonce int, peers []string) (*store.Balance, error) {
 	req := request.Request{
 		Method: "vipnode_update",
 		NodeID: p.nodeID,
@@ -79,7 +80,7 @@ func (p *RemotePool) Update(ctx context.Context, sig string, nodeID string, nonc
 		return nil, err
 	}
 
-	var result Balance
+	var result store.Balance
 	if err := p.client.CallContext(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}

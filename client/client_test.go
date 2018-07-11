@@ -6,6 +6,7 @@ import (
 
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/store"
 )
 
 type FakeNode struct {
@@ -50,7 +51,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("unexpected no nodes error, got: %q", err)
 	}
 
-	p.Nodes = append(p.Nodes, pool.HostNode{
+	p.Nodes = append(p.Nodes, store.HostNode{
 		URI: "foo",
 	})
 

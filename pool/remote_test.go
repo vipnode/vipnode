@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/pool/store"
 )
 
 func TestRemotePool(t *testing.T) {
@@ -21,7 +22,7 @@ func TestRemotePool(t *testing.T) {
 
 	// Add self to pool first, then let's see if we're advised to connect to
 	// self (this probably should error at some point but good test for now).
-	if err := pool.store.AddHostNode(HostNode{URI: "foo"}); err != nil {
+	if err := pool.Store.AddHostNode(store.HostNode{URI: "foo"}); err != nil {
 		t.Fatal("failed to add host node:", err)
 	}
 
