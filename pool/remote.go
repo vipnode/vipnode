@@ -21,6 +21,9 @@ func Remote(client *rpc.Client, privkey *ecdsa.PrivateKey) *RemotePool {
 	}
 }
 
+// Type assert for Pool implementation.
+var _ Pool = &RemotePool{}
+
 // RemotePool wraps a Pool with an RPC service and handles all the signging.
 type RemotePool struct {
 	client  *rpc.Client
@@ -68,7 +71,7 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 	return p.client.CallContext(ctx, &result, req.Method, args...)
 }
 
-func (p *RemotePool) Update(ctx context.Context, sig string, nodeID string, nonce int, peers []string) (*store.Balance, error) {
+func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance, error) {
 	req := request.Request{
 		Method: "vipnode_update",
 		NodeID: p.nodeID,
@@ -88,7 +91,7 @@ func (p *RemotePool) Update(ctx context.Context, sig string, nodeID string, nonc
 	return &result, nil
 }
 
-func (p *RemotePool) Withdraw(ctx context.Context, sig string, nodeID string, nonce int) error {
+func (p *RemotePool) Withdraw(ctx context.Context) error {
 	req := request.Request{
 		Method: "vipnode_withdraw",
 		NodeID: p.nodeID,

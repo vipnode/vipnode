@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/pool"
@@ -16,14 +15,8 @@ type Client struct {
 
 func (c *Client) Connect() error {
 	ctx := context.TODO()
-	nodeID, err := c.EthNode.Enode(ctx)
-	if err != nil {
-		return err
-	}
-	timestamp := time.Now().Unix()
-	sig := "XXX" // TODO
 	kind := c.EthNode.Kind().String()
-	nodes, err := c.Pool.Connect(ctx, sig, nodeID, timestamp, kind)
+	nodes, err := c.Pool.Connect(ctx, kind)
 	if err != nil {
 		return err
 	}

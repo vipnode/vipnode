@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
@@ -31,12 +32,17 @@ func New() *VipnodePool {
 	}
 }
 
-// Assert Pool implementation
-var _ Pool = &VipnodePool{}
-
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
 	Store store.Store
+}
+
+func (p *VipnodePool) ServeRPC() (*rpc.Server, error) {
+	server := rpc.NewServer()
+	if err := server.RegisterName("vipnode", p); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {

@@ -11,8 +11,8 @@ import (
 
 func TestRemotePool(t *testing.T) {
 	pool := New()
-	server := rpc.NewServer()
-	if err := server.RegisterName("vipnode", pool); err != nil {
+	server, err := pool.ServeRPC()
+	if err != nil {
 		t.Fatal(err)
 	}
 
