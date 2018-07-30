@@ -16,6 +16,14 @@ type StaticPool struct {
 	Nodes []store.HostNode
 }
 
+func (s *StaticPool) AddNode(nodeURI string) error {
+	// TODO: Parse ID etc?
+	s.Nodes = append(s.Nodes, store.HostNode{
+		URI: nodeURI,
+	})
+	return nil
+}
+
 func (s *StaticPool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
 	return s.Nodes, nil
 }
