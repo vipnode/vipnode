@@ -73,6 +73,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 
 // Connect returns a list of enodes who are ready for the client node to connect.
 func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]store.HostNode, error) {
+	// FIXME: Kind might be insufficient: We need to distinguish between full node vs parity LES and geth LES.
 	// TODO: Send a whitelist request, only return subset of nodes that responded in time.
 	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, kind); err != nil {
 		return nil, err
