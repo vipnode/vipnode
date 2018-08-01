@@ -90,14 +90,21 @@ func subcommand(cmd string, options Options) error {
 		if err != nil {
 			return err
 		}
+		var c client.Client
 		if u.Scheme == "enode" {
 			pool := &pool.StaticPool{}
 			pool.AddNode(poolURI)
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-			client := client.Client{remote, pool}
-			return client.Connect()
+			c = client.Client{
+				EthNode: remote,
+				Pool:    pool,
+			}
 		}
-		return errors.New("not implemented")
+		if err := c.Connect(); err != nil {
+			return err
+		}
+		// TODO: Register c.Disconnect() on signal?
+		return c.ServeUpdates()
 	case "host":
 		remote, err := findrpc(options.Host.RPC)
 		if err != nil {
@@ -147,6 +154,7 @@ func main() {
 	SetLogger(golog.New(logWriter, logLevel))
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
+		client.SetLogger(logWriter)
 		host.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
 	}
