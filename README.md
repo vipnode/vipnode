@@ -10,6 +10,8 @@ yet.
 
 ## Design
 
+![Diagram](https://raw.githubusercontent.com/vipnode/vipnode.org/master/docs/clientflow.png)
+
 The vipnode system can be run in a few different configurations.
 
 By default, it's designed for a client to connect to a set of hosts discovered
@@ -21,6 +23,11 @@ client and host. Clients provide a deposit of a spending balance to the pool,
 and the pool keeps track of which hosts the client is connected to. At the end
 of some period (e.g. a week), the pool withdraws the necessary balances from the
 clients' deposits to settle the hosts' earnings.
+
+The payment mechanism is managed by a smart contract maintained here:
+https://github.com/vipnode/vipnode-contract
+
+The goal is to keep the payment and pool registration optional and replaceable.
 
 
 ## License
