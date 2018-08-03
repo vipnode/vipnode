@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -42,7 +43,8 @@ type Options struct {
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
-		Bind string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
+		Bind  string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
+		Store string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
 
@@ -103,7 +105,7 @@ func subcommand(cmd string, options Options) error {
 		if err := c.Connect(); err != nil {
 			return err
 		}
-		// TODO: Register c.Disconnect() on signal?
+		// TODO: Register c.Disconnect() on ctrl+c signal?
 		return c.ServeUpdates()
 	case "host":
 		remote, err := findrpc(options.Host.RPC)
@@ -113,7 +115,17 @@ func subcommand(cmd string, options Options) error {
 		h := host.New(remote)
 		return h.Start()
 	case "pool":
-		return errors.New("not implemented")
+		if options.Pool.Store != "memory" {
+			return errors.New("storage driver not implemented yet")
+		}
+		p := pool.New()
+		server, err := p.ServeRPC()
+		if err != nil {
+			return err
+		}
+		defer server.Stop()
+		handler := server.WebsocketHandler([]string{"*"})
+		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
 
 	return nil

@@ -8,6 +8,7 @@ import (
 
 var logger *log.Logger
 
+// SetLogger overrides the logger output for this package.
 func SetLogger(w io.Writer) {
 	flags := log.Flags()
 	prefix := "[client] "
