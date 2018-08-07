@@ -5,8 +5,8 @@ import (
 	"crypto/ecdsa"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/vipnode/ethboot/forked/discv5"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )

@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/vipnode/ethboot/forked/discv5"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 )
 
 // ErrBadSignature is returned when the signature does not verify the payload.

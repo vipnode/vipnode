@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/vipnode/ethboot/forked/discv5"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/internal/keygen"
 )
 
