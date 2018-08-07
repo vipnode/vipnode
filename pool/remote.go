@@ -36,6 +36,22 @@ func (p *RemotePool) getNonce() int64 {
 	return atomic.AddInt64(&p.nonce, 1)
 }
 
+func (p *RemotePool) Host(ctx context.Context, kind string) error {
+	req := request.Request{
+		Method:    "vipnode_host",
+		NodeID:    p.nodeID,
+		Nonce:     p.getNonce(),
+		ExtraArgs: []interface{}{kind},
+	}
+
+	args, err := req.SignedArgs(p.privkey)
+	if err != nil {
+		return err
+	}
+	var result interface{}
+	return p.client.CallContext(ctx, &result, req.Method, args...)
+}
+
 func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
 	req := request.Request{
 		Method:    "vipnode_connect",

@@ -24,6 +24,10 @@ func (s *StaticPool) AddNode(nodeURI string) error {
 	return nil
 }
 
+func (s *StaticPool) Host(ctx context.Context, kind string) error {
+	return nil
+}
+
 func (s *StaticPool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
 	return s.Nodes, nil
 }
