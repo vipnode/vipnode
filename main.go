@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
+	"runtime"
 
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
-	"github.com/ethereum/go-ethereum/node"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
@@ -58,9 +59,25 @@ const clientUsage = `Examples:
 
 func findIPC() string {
 	// TODO: Search multiple places?
-	// FIXME: Is the node dep too fat for this?
-	ipc := filepath.Join(node.DefaultDataDir(), "geth.ipc")
-	return ipc
+	// TODO: Search for parity?
+	home := os.Getenv("HOME")
+	if home == "" {
+		if usr, err := user.Current(); err == nil {
+			home = usr.HomeDir
+		}
+	}
+	if home == "" {
+		return ""
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library", "Ethereum", "geth.ipc")
+	case "windows":
+		return filepath.Join(home, "AppData", "Roaming", "Ethereum", "geth.ipc")
+	default:
+		return filepath.Join(home, ".ethereum", "geth.ipc")
+	}
 }
 
 var logLevels = []log.Level{
