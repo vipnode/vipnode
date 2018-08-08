@@ -36,6 +36,10 @@ func (e *invalidParamsError) Error() string { return e.message }
 // given types. It returns the parsed values or an error when the args could not be
 // parsed. Missing optional arguments are returned as reflect.Zero values.
 func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]reflect.Value, error) {
+	// No args
+	if len(rawArgs) == 0 || string(rawArgs) == "null" {
+		return []reflect.Value{}, nil
+	}
 	// Read beginning of the args array.
 	dec := json.NewDecoder(bytes.NewReader(rawArgs))
 	if tok, _ := dec.Token(); tok != json.Delim('[') {

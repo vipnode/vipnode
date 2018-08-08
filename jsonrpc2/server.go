@@ -64,6 +64,9 @@ func (s *Server) Handle(req *Request) *Response {
 		}
 		return r
 	}
+	if res == nil {
+		return r
+	}
 	if r.Result, err = json.Marshal(res); err != nil {
 		r.Error = &ErrResponse{
 			Code:    ErrCodeServer,

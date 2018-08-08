@@ -28,12 +28,17 @@ func methodErrPos(methodType reflect.Type) (int, bool) {
 	case 0:
 	case 1:
 		if methodType.Out(0) == typeOfError {
+			// Single error return value
 			return 0, true
 		}
+		// Single non-error return value
+		return -1, true
 	case 2:
 		if methodType.Out(1) == typeOfError {
+			// Two return values, one error type
 			return 1, true
 		}
+		// Two return values, no error type, unsupported.
 		return -1, false
 	}
 	return -1, false
