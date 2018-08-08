@@ -1,6 +1,7 @@
 package jsonrpc2
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -85,6 +86,15 @@ type Method struct {
 	Method   reflect.Method
 	ArgTypes []reflect.Type
 	ErrPos   int
+}
+
+// CallJSON wraps Call but supports JSON-encoded args
+func (m *Method) CallJSON(rawArgs json.RawMessage) (interface{}, error) {
+	args, err := parsePositionalArguments(rawArgs, m.ArgTypes)
+	if err != nil {
+		return nil, err
+	}
+	return m.Call(args)
 }
 
 // Call executes the method with the given arguments.
