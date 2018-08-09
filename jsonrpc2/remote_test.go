@@ -7,29 +7,17 @@ import (
 	"testing"
 )
 
-type Foo struct{}
-
-func (f *Foo) Ping() string {
-	return "ping"
-}
-
-type Bar struct{}
-
-func (b *Bar) Pong() string {
-	return "pong"
-}
-
 func TestRemoteManual(t *testing.T) {
 	c1, c2 := net.Pipe()
 	defer c1.Close()
 	defer c2.Close()
 
 	r1 := Remote{Conn: c1}
-	r1.Register("", &Foo{})
+	r1.Register("", &Pinger{})
 	//go r1.Serve()
 
 	r2 := Remote{Conn: c2}
-	r2.Register("", &Bar{})
+	r2.Register("", &Ponger{})
 	//go r2.Serve()
 
 	req, err := r1.Client.Request("pong")
@@ -55,40 +43,42 @@ func TestRemoteManual(t *testing.T) {
 	}
 }
 
-func TestRemoteServing(t *testing.T) {
-	connFoo, connBar := net.Pipe()
-	defer connFoo.Close()
-	defer connBar.Close()
+func TestRemoteBidirectional(t *testing.T) {
+	connPinger, connPonger := net.Pipe()
+	defer connPinger.Close()
+	defer connPonger.Close()
 
-	remoteFoo := Remote{Conn: connFoo}
-	remoteFoo.Register("", &Bar{})
-	go func() {
-		if err := remoteFoo.Serve(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	pingerClient := Remote{Conn: connPinger}
+	pongerClient := Remote{Conn: connPonger}
 
-	remoteBar := Remote{Conn: connBar}
-	remoteBar.Register("", &Foo{})
-	go func() {
-		if err := remoteBar.Serve(); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	ponger := &Ponger{}
+	pingerClient.Register("", ponger)
+
+	pinger := &Pinger{
+		PongService: &pongerClient,
+	}
+	pongerClient.Register("", pinger)
+
+	// These should serve until the connection is closed
+	go pingerClient.Serve()
+	go pongerClient.Serve()
 
 	var got string
-	if err := remoteFoo.Call(&got, "ping"); err != nil {
-		t.Error(err)
-	}
-	if want := "ping"; got != want {
-		t.Errorf("got: %q; want %q", got, want)
-	}
-
-	// FIXME: This fails right now (timeout)
-	if err := remoteBar.Call(&got, "pong"); err != nil {
+	if err := pongerClient.Call(&got, "pong"); err != nil {
 		t.Error(err)
 	}
 	if want := "pong"; got != want {
+		t.Errorf("got: %q; want %q", got, want)
+	}
+
+	if got, want := pinger.PingPong(), "pingpong"; got != want {
+		t.Errorf("got: %q; want %q", got, want)
+	}
+
+	if err := pingerClient.Call(&got, "pingPong"); err != nil {
+		t.Error(err)
+	}
+	if want := "pingpong"; got != want {
 		t.Errorf("got: %q; want %q", got, want)
 	}
 }

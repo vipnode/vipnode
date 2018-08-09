@@ -7,21 +7,9 @@ import (
 	"testing"
 )
 
-type Foo struct{}
-
-func (f *Foo) Ping() string {
-	return "ping"
-}
-
-type Bar struct{}
-
-func (b *Bar) Pong() string {
-	return "pong"
-}
-
 func TestBidirectionalService(t *testing.T) {
-	f := &Foo{}
-	b := &Bar{}
+	f := &Pinger{}
+	b := &Ponger{}
 
 	fooServer := Server{}
 	if err := fooServer.Register("foo_", f); err != nil {

@@ -14,6 +14,10 @@ type pendingMsg struct {
 	timestamp time.Time
 }
 
+type Service interface {
+	Call(result interface{}, method string, params ...interface{}) error
+}
+
 type Remote struct {
 	Conn io.ReadWriteCloser
 	Client
@@ -47,9 +51,9 @@ func (r *Remote) handleRequest(msg *Message) error {
 
 func (r *Remote) Serve() error {
 	// TODO: Discard old pending messages
-	var msg Message
 	decoder := json.NewDecoder(r.Conn)
 	for {
+		var msg Message
 		if err := decoder.Decode(&msg); err != nil {
 			return err
 		}
