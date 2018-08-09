@@ -13,17 +13,19 @@ func (c *Client) NextID() int {
 	return int(atomic.AddInt32(&c.id, 1))
 }
 
-func (c *Client) Request(method string, params ...interface{}) (*Request, error) {
-	req := &Request{
+func (c *Client) Request(method string, params ...interface{}) (*Message, error) {
+	msg := &Message{
+		Request: &Request{
+			Method: method,
+		},
 		Version: Version,
-		Method:  method,
 	}
 	var err error
-	if req.ID, err = json.Marshal(c.NextID()); err != nil {
+	if msg.ID, err = json.Marshal(c.NextID()); err != nil {
 		return nil, err
 	}
-	if req.Params, err = json.Marshal(params); err != nil {
+	if msg.Request.Params, err = json.Marshal(params); err != nil {
 		return nil, err
 	}
-	return req, nil
+	return msg, nil
 }

@@ -35,14 +35,22 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 	return nil
 }
 
-func (s *Server) Handle(req *Request) *Response {
-	r := &Response{
-		ID:      req.ID,
-		Version: Version,
+func (s *Server) Handle(req *Message) *Message {
+	r := &Message{
+		Response: &Response{},
+		ID:       req.ID,
+		Version:  Version,
 	}
-	m, ok := s.registry[req.Method]
-	if !ok {
+	if req.Request == nil {
 		r.Error = &ErrResponse{
+			Code:    ErrCodeInvalidRequest,
+			Message: "server received misformed request",
+		}
+		return r
+	}
+	m, ok := s.registry[req.Request.Method]
+	if !ok {
+		r.Response.Error = &ErrResponse{
 			Code:    ErrCodeMethodNotFound,
 			Message: fmt.Sprintf("method not found: %s", req.Method),
 		}

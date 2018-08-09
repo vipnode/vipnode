@@ -46,7 +46,7 @@ func TestBidirectionalService(t *testing.T) {
 	}
 	go json.NewEncoder(fooPipe).Encode(reqClient)
 
-	var reqServer Request
+	var reqServer Message
 	if err := json.NewDecoder(barPipe).Decode(&reqServer); err != nil {
 		t.Fatal(err)
 	}

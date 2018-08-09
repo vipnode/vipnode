@@ -16,18 +16,21 @@ const (
 	ErrCodeServer         = -32000
 )
 
-type Request struct {
+type Message struct {
+	*Request
+	*Response
 	ID      json.RawMessage `json:"id,omitempty"`
 	Version string          `json:"jsonrpc"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+type Request struct {
+	Method string          `json:"method"`
+	Params json.RawMessage `json:"params,omitempty"`
 }
 
 type Response struct {
-	ID      json.RawMessage `json:"id,omitempty"`
-	Version string          `json:"jsonrpc"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Error   *ErrResponse    `json:"error,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *ErrResponse    `json:"error,omitempty"`
 }
 
 type ErrResponse struct {

@@ -31,10 +31,12 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := s.Handle(&Request{
+	resp := s.Handle(&Message{
 		ID:      json.RawMessage([]byte("1")),
 		Version: Version,
-		Method:  "foo_apple",
+		Request: &Request{
+			Method: "foo_apple",
+		},
 	})
 	if resp.Error != nil {
 		t.Errorf("unexpected error: %q", resp)
@@ -44,10 +46,12 @@ func TestServer(t *testing.T) {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 
-	resp = s.Handle(&Request{
+	resp = s.Handle(&Message{
 		ID:      json.RawMessage([]byte("2")),
 		Version: Version,
-		Method:  "foo_banana",
+		Request: &Request{
+			Method: "foo_banana",
+		},
 	})
 	if resp.Error != nil {
 		t.Errorf("unexpected error: %q", resp)
