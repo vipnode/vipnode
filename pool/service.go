@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/pool/store"
@@ -69,6 +71,30 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 
 	return nil, errors.New("not implemented yet")
+}
+
+// Host registers a full node to participate as a vipnode host in this pool.
+func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, nodeURI string) error {
+	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind); err != nil {
+		return err
+	}
+
+	// Confirm that nodeURI matches nodeID
+	uri, err := url.Parse(nodeURI)
+	if err != nil {
+		return err
+	}
+
+	if uri.Hostname() != nodeID {
+		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
+	}
+
+	return p.Store.SetHostNode(store.HostNode{
+		ID:       store.NodeID(nodeID),
+		URI:      nodeURI,
+		Kind:     kind,
+		LastSeen: time.Now(),
+	})
 }
 
 // Connect returns a list of enodes who are ready for the client node to connect.

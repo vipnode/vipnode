@@ -9,7 +9,7 @@ import (
 // Pool represents a vipnode pool for coordinating between clients and hosts.
 type Pool interface {
 	// Host subscribes a host to receive vipnode_whitelist instructions.
-	Host(ctx context.Context, kind string) error
+	Host(ctx context.Context, kind string, nodeURI string) error
 
 	// TODO: Do we need a Ready(ctx context.Context, peer string) to receive Whitelist responses?
 	// Or would it be easier to fork ethereum's rpc to allow bidirectional services?

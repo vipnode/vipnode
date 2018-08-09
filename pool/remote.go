@@ -36,12 +36,12 @@ func (p *RemotePool) getNonce() int64 {
 	return atomic.AddInt64(&p.nonce, 1)
 }
 
-func (p *RemotePool) Host(ctx context.Context, kind string) error {
+func (p *RemotePool) Host(ctx context.Context, kind string, nodeURI string) error {
 	req := request.Request{
 		Method:    "vipnode_host",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
-		ExtraArgs: []interface{}{kind},
+		ExtraArgs: []interface{}{kind, nodeURI},
 	}
 
 	args, err := req.SignedArgs(p.privkey)
