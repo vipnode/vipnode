@@ -1,24 +1,33 @@
 package jsonrpc2
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 )
 
+var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+var typeOfContext = reflect.TypeOf((*context.Context)(nil)).Elem()
+
 // methodArgTypes returns the arg types and whether all the types are valid
 // (exported or builtin).
-func methodArgTypes(methodType reflect.Type) ([]reflect.Type, bool) {
+func methodArgTypes(methodType reflect.Type) (argTypes []reflect.Type, hasCtx bool, ok bool) {
 	argNum := methodType.NumIn()
-	argTypes := make([]reflect.Type, 0, argNum-1)
-	for j := 1; j < argNum; j++ {
-		argType := methodType.In(j)
+	argTypes = make([]reflect.Type, 0, argNum-1)
+	argPos := 1 // Skip receiver
+	for ; argPos < argNum; argPos++ {
+		argType := methodType.In(argPos)
 		if !isExportedOrBuiltin(argType) {
-			return nil, false
+			return nil, hasCtx, false
+		}
+		if argType == typeOfContext {
+			hasCtx = true
+			continue
 		}
 		argTypes = append(argTypes, argType)
 	}
-	return argTypes, true
+	return argTypes, hasCtx, true
 }
 
 // methodErrPos returns the return value index position of an error type for
@@ -62,11 +71,13 @@ func Methods(receiver interface{}) (map[string]Method, error) {
 		}
 
 		// Load arg types (skip first arg, the receiver)
-		argTypes, ok := methodArgTypes(method.Type)
+		argTypes, hasCtx, ok := methodArgTypes(method.Type)
 		if !ok {
 			// Skip methods with unexported arg types
 			continue
 		}
+
+		// Substitute injected types
 
 		// Find ErrPos, if any.
 		errPos, ok := methodErrPos(method.Type)
@@ -79,6 +90,7 @@ func Methods(receiver interface{}) (map[string]Method, error) {
 			Method:   method,
 			ArgTypes: argTypes,
 			ErrPos:   errPos,
+			HasCtx:   hasCtx,
 		}
 	}
 
@@ -91,24 +103,28 @@ type Method struct {
 	Method   reflect.Method
 	ArgTypes []reflect.Type
 	ErrPos   int
+	HasCtx   bool
 }
 
 // CallJSON wraps Call but supports JSON-encoded args
-func (m *Method) CallJSON(rawArgs json.RawMessage) (interface{}, error) {
+func (m *Method) CallJSON(ctx context.Context, rawArgs json.RawMessage) (interface{}, error) {
 	args, err := parsePositionalArguments(rawArgs, m.ArgTypes)
 	if err != nil {
 		return nil, err
 	}
-	return m.Call(args)
+	return m.Call(ctx, args)
 }
 
 // Call executes the method with the given arguments.
-func (m *Method) Call(args []reflect.Value) (interface{}, error) {
+func (m *Method) Call(ctx context.Context, args []reflect.Value) (interface{}, error) {
 	if len(args) != len(m.ArgTypes) {
 		return nil, fmt.Errorf("invalid number of args: expected %d, got %d", len(m.ArgTypes), len(args))
 	}
 
 	arguments := []reflect.Value{m.Receiver}
+	if m.HasCtx {
+		arguments = append(arguments, reflect.ValueOf(ctx))
+	}
 	if len(args) > 0 {
 		arguments = append(arguments, args...)
 	}

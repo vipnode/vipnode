@@ -1,6 +1,7 @@
 package jsonrpc2
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 )
@@ -12,7 +13,7 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := s.Handle(&Message{
+	resp := s.Handle(context.TODO(), &Message{
 		ID:      json.RawMessage([]byte("1")),
 		Version: Version,
 		Request: &Request{
@@ -27,7 +28,7 @@ func TestServer(t *testing.T) {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 
-	resp = s.Handle(&Message{
+	resp = s.Handle(context.TODO(), &Message{
 		ID:      json.RawMessage([]byte("2")),
 		Version: Version,
 		Request: &Request{

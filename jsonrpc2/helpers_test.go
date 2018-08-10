@@ -1,6 +1,7 @@
 package jsonrpc2
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -44,4 +45,21 @@ type Ponger struct{}
 
 func (b *Ponger) Pong() string {
 	return "pong"
+}
+
+type Fib struct{}
+
+func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, error) {
+	service, err := CtxService(ctx)
+	if err != nil {
+		return 0, err
+	}
+	a, b = b, a+b
+	if steps <= 0 {
+		return b, nil
+	}
+	if err := service.Call(&b, "fibonacci", a, b, steps-1); err != nil {
+		return 0, err
+	}
+	return b, nil
 }

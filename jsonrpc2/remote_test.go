@@ -1,6 +1,7 @@
 package jsonrpc2
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"reflect"
@@ -33,7 +34,7 @@ func TestRemoteManual(t *testing.T) {
 	if !reflect.DeepEqual(req, &req2) {
 		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
 	}
-	resp := r2.Server.Handle(req)
+	resp := r2.Server.Handle(context.TODO(), req)
 	var got string
 	if err := json.Unmarshal(resp.Response.Result, &got); err != nil {
 		t.Error(err)
@@ -80,5 +81,31 @@ func TestRemoteBidirectional(t *testing.T) {
 	}
 	if want := "pingpong"; got != want {
 		t.Errorf("got: %q; want %q", got, want)
+	}
+}
+
+func TestRemoteContextService(t *testing.T) {
+	conn1, conn2 := net.Pipe()
+	defer conn1.Close()
+	defer conn2.Close()
+
+	client1 := Remote{Conn: conn2}
+	client2 := Remote{Conn: conn1}
+
+	fib := &Fib{}
+	client1.Register("", fib)
+	client2.Register("", fib)
+
+	// These should serve until the connection is closed
+	go client1.Serve()
+	go client2.Serve()
+
+	// 0, 1, 1, 2, 3, 5, 8, 13, 21
+	var got int
+	if err := client1.Call(&got, "fibonacci", 0, 1, 6); err != nil {
+		t.Error(err)
+	}
+	if want := 21; got != want {
+		t.Errorf("got: %d; want %d", got, want)
 	}
 }

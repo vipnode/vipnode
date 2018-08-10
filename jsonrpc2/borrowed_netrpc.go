@@ -12,10 +12,6 @@ import (
 	"unicode/utf8"
 )
 
-// Precompute the reflect type for error. Can't use error directly
-// because Typeof takes an empty interface value. This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
-
 // isExported returns true of a string is an exported (upper case) name.
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)

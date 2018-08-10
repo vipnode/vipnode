@@ -2,6 +2,7 @@ package jsonrpc2
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"unicode"
@@ -35,7 +36,7 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 	return nil
 }
 
-func (s *Server) Handle(req *Message) *Message {
+func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 	r := &Message{
 		Response: &Response{},
 		ID:       req.ID,
@@ -64,7 +65,7 @@ func (s *Server) Handle(req *Message) *Message {
 		}
 		return r
 	}
-	res, err := m.Call(args)
+	res, err := m.Call(ctx, args)
 	if err != nil {
 		r.Error = &ErrResponse{
 			Code:    ErrCodeInternal,

@@ -1,7 +1,9 @@
 package jsonrpc2
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -9,15 +11,37 @@ import (
 
 // TODO: Handle batch?
 
+var ErrContextMissingValue = errors.New("context missing value")
+
+type serviceContext string
+
+var ctxService serviceContext = "service"
+
+// CtxService returns a Service associated with this request from a context
+// used within a call. This is useful for initiating bidirectional calls.
+func CtxService(ctx context.Context) (Service, error) {
+	s, ok := ctx.Value(ctxService).(Service)
+	if !ok {
+		return nil, ErrContextMissingValue
+	}
+	return s, nil
+}
+
 type pendingMsg struct {
 	msgChan   chan Message
 	timestamp time.Time
 }
 
+// Service represents a remote service that can be called.
 type Service interface {
 	Call(result interface{}, method string, params ...interface{}) error
 }
 
+var _ Service = &Remote{}
+
+// Remote is a wrapper around a connection that can be both a Client and a
+// Server. It implements the Service interface, and manages async message
+// routing.
 type Remote struct {
 	Conn io.ReadWriteCloser
 	Client
@@ -45,7 +69,8 @@ func (r *Remote) getPendingChan(key string) chan Message {
 }
 
 func (r *Remote) handleRequest(msg *Message) error {
-	resp := r.Server.Handle(msg)
+	ctx := context.WithValue(context.TODO(), ctxService, r)
+	resp := r.Server.Handle(ctx, msg)
 	return json.NewEncoder(r.Conn).Encode(resp)
 }
 
@@ -57,6 +82,7 @@ func (r *Remote) Serve() error {
 		if err := decoder.Decode(&msg); err != nil {
 			return err
 		}
+		// TODO: Handle err == io.EOF?
 		if msg.Response != nil {
 			r.getPendingChan(string(msg.ID)) <- msg
 		} else {
@@ -66,10 +92,14 @@ func (r *Remote) Serve() error {
 	}
 }
 
+// Send encodes the Message and sends it to the Connection. Use Call for an
+// end-to-end solution.
 func (r *Remote) Send(req *Message) error {
 	return json.NewEncoder(r.Conn).Encode(req)
 }
 
+// Receive blocks until the given message ID is received. Use Call for an
+// end-to-end solution.
 func (r *Remote) Receive(ID json.RawMessage) *Message {
 	key := string(ID)
 	msg := <-r.getPendingChan(key)
@@ -79,6 +109,7 @@ func (r *Remote) Receive(ID json.RawMessage) *Message {
 	return &msg
 }
 
+// Call handles sending an RPC and receiving the corresponding response synchronously.
 func (r *Remote) Call(result interface{}, method string, params ...interface{}) error {
 	req, err := r.Client.Request(method, params...)
 	if err != nil {

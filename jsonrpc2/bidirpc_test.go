@@ -1,6 +1,7 @@
 package jsonrpc2
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"reflect"
@@ -43,7 +44,7 @@ func TestBidirectionalService(t *testing.T) {
 		t.Errorf("server/client request mismatch: %q != %q", reqServer, reqClient)
 	}
 
-	resp := barServer.Handle(&reqServer)
+	resp := barServer.Handle(context.TODO(), &reqServer)
 	if string(resp.ID) != string(reqClient.ID) {
 		t.Errorf("server/client request ID mismatch: %s", resp)
 	}
