@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/request"
 )
 
@@ -40,15 +40,12 @@ func TestPoolInstance(t *testing.T) {
 
 func TestPoolService(t *testing.T) {
 	pool := New()
-	server := rpc.NewServer()
-	if err := server.RegisterName("vipnode", pool); err != nil {
-		t.Fatal(err)
-	}
+	server, client := jsonrpc2.ServePipe()
+	server.Register("vipnode_", pool)
 
-	client := rpc.DialInProc(server)
 	{
 		var result interface{}
-		if err := client.Call(&result, "vipnode_ping"); err != nil {
+		if err := client.Call(context.TODO(), &result, "vipnode_ping"); err != nil {
 			t.Error(err)
 		}
 		if result.(string) != "pong" {
@@ -72,7 +69,7 @@ func TestPoolService(t *testing.T) {
 			t.Fatal(err)
 		}
 		var result interface{}
-		if err := client.Call(&result, req.Method, args...); err.Error() != ErrNoHostNodes.Error() {
+		if err := client.Call(context.TODO(), &result, req.Method, args...); err.Error() != ErrNoHostNodes.Error() {
 			t.Error(err)
 		}
 	}

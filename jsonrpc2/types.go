@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 const Version = "2.0"
@@ -40,5 +39,9 @@ type ErrResponse struct {
 }
 
 func (err *ErrResponse) Error() string {
-	return fmt.Sprintf("%d: %s", err.Code, err.Message)
+	return err.Message
+}
+
+func (err *ErrResponse) ErrorCode() int {
+	return err.Code
 }

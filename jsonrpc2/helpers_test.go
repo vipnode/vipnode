@@ -34,7 +34,7 @@ func (f *Pinger) Ping() string {
 
 func (f *Pinger) PingPong() string {
 	var pong string
-	err := f.PongService.Call(&pong, "pong")
+	err := f.PongService.Call(context.TODO(), &pong, "pong")
 	if err != nil {
 		return fmt.Sprintf("err: %s", err)
 	}
@@ -58,7 +58,7 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 	if steps <= 0 {
 		return b, nil
 	}
-	if err := service.Call(&b, "fibonacci", a, b, steps-1); err != nil {
+	if err := service.Call(ctx, &b, "fibonacci", a, b, steps-1); err != nil {
 		return 0, err
 	}
 	return b, nil

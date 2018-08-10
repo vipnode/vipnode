@@ -4,20 +4,18 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
 )
 
 func TestRemotePool(t *testing.T) {
 	pool := New()
-	server, err := pool.ServeRPC()
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	server, client := jsonrpc2.ServePipe()
+	server.Register("vipnode_", pool)
 
 	privkey := keygen.HardcodedKey(t)
-	client := rpc.DialInProc(server)
 	remote := Remote(client, privkey)
 
 	// Add self to pool first, then let's see if we're advised to connect to

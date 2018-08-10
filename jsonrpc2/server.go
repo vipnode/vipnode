@@ -5,17 +5,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"unicode"
 )
 
 // Server contains the method registry.
 type Server struct {
+	mu       sync.Mutex
 	registry map[string]Method
 }
 
 // Register adds valid methods from the receiver to the registry with the given
 // prefix. Method names are lowercased.
 func (s *Server) Register(prefix string, receiver interface{}) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.registry == nil {
 		s.registry = map[string]Method{}
 	}
@@ -36,6 +41,7 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 	return nil
 }
 
+// Handle executes a request message against the server registry.
 func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 	r := &Message{
 		Response: &Response{},
@@ -49,7 +55,11 @@ func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 		}
 		return r
 	}
+
+	s.mu.Lock()
 	m, ok := s.registry[req.Request.Method]
+	s.mu.Unlock()
+
 	if !ok {
 		r.Response.Error = &ErrResponse{
 			Code:    ErrCodeMethodNotFound,

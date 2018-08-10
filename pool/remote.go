@@ -6,14 +6,14 @@ import (
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
 
 // Remote returns a RemotePool abstraction which proxies an RPC pool client but
 // takes care of all the request signing.
-func Remote(client *rpc.Client, privkey *ecdsa.PrivateKey) *RemotePool {
+func Remote(client *jsonrpc2.Remote, privkey *ecdsa.PrivateKey) *RemotePool {
 	return &RemotePool{
 		client:  client,
 		privkey: privkey,
@@ -26,7 +26,7 @@ var _ Pool = &RemotePool{}
 
 // RemotePool wraps a Pool with an RPC service and handles all the signging.
 type RemotePool struct {
-	client  *rpc.Client
+	client  *jsonrpc2.Remote
 	privkey *ecdsa.PrivateKey
 	nodeID  string
 	nonce   int64
@@ -49,7 +49,7 @@ func (p *RemotePool) Host(ctx context.Context, kind string, nodeURI string) erro
 		return err
 	}
 	var result interface{}
-	return p.client.CallContext(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, req.Method, args...)
 }
 
 func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
@@ -65,7 +65,7 @@ func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode
 		return nil, err
 	}
 	var result []store.HostNode
-	if err := p.client.CallContext(ctx, &result, req.Method, args...); err != nil {
+	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}
 
@@ -84,7 +84,7 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 		return err
 	}
 	var result interface{}
-	return p.client.CallContext(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, req.Method, args...)
 }
 
 func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance, error) {
@@ -100,7 +100,7 @@ func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance
 	}
 
 	var result store.Balance
-	if err := p.client.CallContext(ctx, &result, req.Method, args...); err != nil {
+	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}
 
@@ -119,5 +119,5 @@ func (p *RemotePool) Withdraw(ctx context.Context) error {
 		return err
 	}
 	var result interface{}
-	return p.client.CallContext(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, req.Method, args...)
 }

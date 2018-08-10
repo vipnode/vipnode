@@ -5,11 +5,23 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"sync"
 	"time"
 )
 
 // TODO: Handle batch?
+
+// ServePipe sets up symmetric server/clients over a net.Pipe() and starts
+// both in goroutines. Useful for testing. Services still need to be registered.
+func ServePipe() (*Remote, *Remote) {
+	c1, c2 := net.Pipe()
+	client := Remote{Conn: c1}
+	server := Remote{Conn: c2}
+	go server.Serve()
+	go client.Serve()
+	return &server, &client
+}
 
 var ErrContextMissingValue = errors.New("context missing value")
 
@@ -34,7 +46,7 @@ type pendingMsg struct {
 
 // Service represents a remote service that can be called.
 type Service interface {
-	Call(result interface{}, method string, params ...interface{}) error
+	Call(ctx context.Context, result interface{}, method string, params ...interface{}) error
 }
 
 var _ Service = &Remote{}
@@ -110,7 +122,8 @@ func (r *Remote) Receive(ID json.RawMessage) *Message {
 }
 
 // Call handles sending an RPC and receiving the corresponding response synchronously.
-func (r *Remote) Call(result interface{}, method string, params ...interface{}) error {
+func (r *Remote) Call(ctx context.Context, result interface{}, method string, params ...interface{}) error {
+	// TODO: Plumb ctx
 	req, err := r.Client.Request(method, params...)
 	if err != nil {
 		return err

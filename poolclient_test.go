@@ -4,10 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
 )
@@ -16,14 +16,8 @@ func TestPoolClient(t *testing.T) {
 	privkey := keygen.HardcodedKey(t)
 
 	p := pool.New()
-	server, err := p.ServeRPC()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Stop()
-
-	poolrpc := rpc.DialInProc(server)
-	defer poolrpc.Close()
+	poolserver, poolrpc := jsonrpc2.ServePipe()
+	poolserver.Register("vipnode_", p)
 
 	node := fakenode.Node("foo")
 	remote := pool.Remote(poolrpc, privkey)
