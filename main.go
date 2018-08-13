@@ -17,6 +17,7 @@ import (
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 )
 
@@ -136,13 +137,9 @@ func subcommand(cmd string, options Options) error {
 			return errors.New("storage driver not implemented yet")
 		}
 		p := pool.New()
-		server, err := p.ServeRPC()
-		if err != nil {
-			return err
-		}
-		defer server.Stop()
-		handler := server.WebsocketHandler([]string{"*"})
-		return http.ListenAndServe(options.Pool.Bind, handler)
+		server := jsonrpc2.Server{}
+		server.Register("vipnode_", p)
+		return http.ListenAndServe(options.Pool.Bind, http.HandlerFunc(server.WebsocketHandler))
 	}
 
 	return nil
