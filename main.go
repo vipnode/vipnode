@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -98,7 +99,7 @@ func findrpc(rpcPath string) (ethnode.EthNode, error) {
 func subcommand(cmd string, options Options) error {
 	switch cmd {
 	case "client":
-		remote, err := findrpc(options.Client.RPC)
+		remoteNode, err := findrpc(options.Client.RPC)
 		if err != nil {
 			return err
 		}
@@ -116,7 +117,7 @@ func subcommand(cmd string, options Options) error {
 			pool.AddNode(poolURI)
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
 			c = client.Client{
-				EthNode: remote,
+				EthNode: remoteNode,
 				Pool:    pool,
 			}
 		}
@@ -126,15 +127,17 @@ func subcommand(cmd string, options Options) error {
 		// TODO: Register c.Disconnect() on ctrl+c signal?
 		return c.ServeUpdates()
 	case "host":
-		remote, err := findrpc(options.Host.RPC)
+		remoteNode, err := findrpc(options.Host.RPC)
 		if err != nil {
 			return err
 		}
-		h := host.New(remote)
-		return h.Start()
+		fakepool := &pool.StaticPool{}
+		nodeURI := "XXX-need-to-get-nodeuri"
+		h := host.New(nodeURI, remoteNode)
+		return h.ServeUpdates(context.TODO(), fakepool)
 	case "pool":
 		if options.Pool.Store != "memory" {
-			return errors.New("storage driver not implemented yet")
+			return errors.New("storage driver not implemented")
 		}
 		p := pool.New()
 		server := jsonrpc2.Server{}

@@ -2,10 +2,10 @@ package host
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/pool"
 )
 
 type nodeID string
@@ -15,46 +15,57 @@ type client struct {
 	expire time.Time
 }
 
-func New(node HostNode) *Host {
+func New(nodeURI string, node ethnode.EthNode) *Host {
 	return &Host{
-		node:      node,
-		whitelist: make(map[nodeID]time.Time),
+		node: node,
+		uri:  nodeURI,
 	}
-}
-
-// HostNode represents the normalized interface required by the Ethereum node
-// to support a vipnode host.
-type HostNode interface {
-	// FIXME: Should we just use ethnode.RPC or should each host/client package
-	// specify a subset interface?
-	ethnode.EthNode
 }
 
 // Host represents a single vipnode host.
 type Host struct {
-	node HostNode
-
-	whitelist map[nodeID]time.Time
+	node ethnode.EthNode
+	uri  string
 }
 
 // Whitelist a client for this host.
-func (h *Host) Whitelist(nodeID nodeID, expire time.Time) error {
-	//e.node.Whitelist(nodeID)
-	return errors.New("not implemented")
+func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
+	return h.node.AddTrustedPeer(ctx, nodeID)
 }
 
-func (h *Host) Start() error {
+func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	enode, err := h.node.Enode(context.TODO())
 	if err != nil {
 		return err
 	}
 	logger.Print("Connected to node: ", enode)
 
-	peers, err := h.node.Peers(context.TODO())
-	if err != nil {
+	if err := p.Host(context.TODO(), h.node.Kind().String(), h.uri); err != nil {
 		return err
 	}
-	logger.Print("Received peers: ", len(peers))
-	// TODO: Resume tracking peers that we care about.
-	return nil
+
+	// TODO: Resume tracking peers that we care about (in case of interrupted
+	// shutdown)
+
+	ticker := time.Tick(60 * time.Second)
+	for {
+		select {
+		case <-ticker:
+			peers, err := h.node.Peers(ctx)
+			if err != nil {
+				return err
+			}
+			peerUpdate := make([]string, 0, len(peers))
+			for _, peer := range peers {
+				peerUpdate = append(peerUpdate, peer.ID)
+			}
+			balance, err := p.Update(ctx, peerUpdate)
+			if err != nil {
+				return err
+			}
+			logger.Print("Pool.Update: %d peers, %q balance", len(peerUpdate), balance)
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }
