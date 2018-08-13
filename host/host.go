@@ -47,23 +47,34 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	// TODO: Resume tracking peers that we care about (in case of interrupted
 	// shutdown)
 
+	updatePeers := func() error {
+		peers, err := h.node.Peers(ctx)
+		if err != nil {
+			return err
+		}
+		peerUpdate := make([]string, 0, len(peers))
+		for _, peer := range peers {
+			peerUpdate = append(peerUpdate, peer.ID)
+		}
+		balance, err := p.Update(ctx, peerUpdate)
+		if err != nil {
+			return err
+		}
+		logger.Print("Pool.Update: %d peers, %q balance", len(peerUpdate), balance)
+		return nil
+	}
+
+	if err := updatePeers(); err != nil {
+		return err
+	}
+
 	ticker := time.Tick(60 * time.Second)
 	for {
 		select {
 		case <-ticker:
-			peers, err := h.node.Peers(ctx)
-			if err != nil {
+			if err := updatePeers(); err != nil {
 				return err
 			}
-			peerUpdate := make([]string, 0, len(peers))
-			for _, peer := range peers {
-				peerUpdate = append(peerUpdate, peer.ID)
-			}
-			balance, err := p.Update(ctx, peerUpdate)
-			if err != nil {
-				return err
-			}
-			logger.Print("Pool.Update: %d peers, %q balance", len(peerUpdate), balance)
 		case <-ctx.Done():
 			return nil
 		}

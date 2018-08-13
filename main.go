@@ -155,7 +155,7 @@ func subcommand(cmd string, options Options) error {
 		}
 		privkey, err := findNodeKey(options.Host.NodeKey)
 		if err != nil {
-			return fmt.Errorf("failed to find node private key: %s", err)
+			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path. "}
 		}
 		// Confirm that nodeID matches the private key
 		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
@@ -163,8 +163,10 @@ func subcommand(cmd string, options Options) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse enode URI: %s", err)
 		}
-		if u.Hostname() != nodeID {
-			return errors.New("enode URI does not match node private key.")
+		if u.User.Username() != nodeID {
+			return ErrExplain{
+				fmt.Errorf("enode URI does not match node private key"),
+				"Make sure the --nodekey used is corresponding to the public node that is running."}
 		}
 
 		// Dial host to pool
@@ -249,6 +251,8 @@ func main() {
 		default:
 			err = ErrExplain{err, fmt.Sprintf(`Unexpected RPC error occurred: %T. Please open an issue at https://github.com/vipnode/vipnode`, typedErr)}
 		}
+	case ErrExplain:
+		// All good.
 	default:
 		err = ErrExplain{err, fmt.Sprintf(`Error type %T is missing an explanation. Please open an issue at https://github.com/vipnode/vipnode`, err)}
 	}
