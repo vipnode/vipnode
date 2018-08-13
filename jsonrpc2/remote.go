@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -16,8 +15,8 @@ import (
 // both in goroutines. Useful for testing. Services still need to be registered.
 func ServePipe() (*Remote, *Remote) {
 	c1, c2 := net.Pipe()
-	client := Remote{Conn: c1}
-	server := Remote{Conn: c2}
+	client := Remote{Codec: IOCodec(c1, c1)}
+	server := Remote{Codec: IOCodec(c2, c2)}
 	go server.Serve()
 	go client.Serve()
 	return &server, &client
@@ -55,7 +54,7 @@ var _ Service = &Remote{}
 // Server. It implements the Service interface, and manages async message
 // routing.
 type Remote struct {
-	Conn io.ReadWriteCloser
+	Codec
 	Client
 	Server
 
@@ -83,31 +82,24 @@ func (r *Remote) getPendingChan(key string) chan Message {
 func (r *Remote) handleRequest(msg *Message) error {
 	ctx := context.WithValue(context.TODO(), ctxService, r)
 	resp := r.Server.Handle(ctx, msg)
-	return json.NewEncoder(r.Conn).Encode(resp)
+	return r.Codec.WriteMessage(resp)
 }
 
 func (r *Remote) Serve() error {
 	// TODO: Discard old pending messages
-	decoder := json.NewDecoder(r.Conn)
 	for {
-		var msg Message
-		if err := decoder.Decode(&msg); err != nil {
+		msg, err := r.Codec.ReadMessage()
+		if err != nil {
 			return err
 		}
 		// TODO: Handle err == io.EOF?
 		if msg.Response != nil {
-			r.getPendingChan(string(msg.ID)) <- msg
+			r.getPendingChan(string(msg.ID)) <- *msg
 		} else {
 			// FIXME: Anything we can do with error handling here?
-			go r.handleRequest(&msg)
+			go r.handleRequest(msg)
 		}
 	}
-}
-
-// Send encodes the Message and sends it to the Connection. Use Call for an
-// end-to-end solution.
-func (r *Remote) Send(req *Message) error {
-	return json.NewEncoder(r.Conn).Encode(req)
 }
 
 // Receive blocks until the given message ID is received. Use Call for an
@@ -128,7 +120,7 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 	if err != nil {
 		return err
 	}
-	if err = r.Send(req); err != nil {
+	if err = r.Codec.WriteMessage(req); err != nil {
 		return err
 	}
 	resp := r.Receive(req.ID)

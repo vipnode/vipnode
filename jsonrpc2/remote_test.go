@@ -9,29 +9,21 @@ import (
 )
 
 func TestRemoteManual(t *testing.T) {
-	c1, c2 := net.Pipe()
-	defer c1.Close()
-	defer c2.Close()
-
-	r1 := Remote{Conn: c1}
+	r1, r2 := ServePipe()
 	r1.Register("", &Pinger{})
-	//go r1.Serve()
-
-	r2 := Remote{Conn: c2}
 	r2.Register("", &Ponger{})
-	//go r2.Serve()
 
 	req, err := r1.Client.Request("pong")
 	if err != nil {
 		t.Error(err)
 	}
+	go r1.Codec.WriteMessage(req)
 
-	go json.NewEncoder(c1).Encode(req)
-	var req2 Message
-	if err := json.NewDecoder(c2).Decode(&req2); err != nil {
+	var req2 *Message
+	if req2, err = r2.ReadMessage(); err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(req, &req2) {
+	if !reflect.DeepEqual(req, req2) {
 		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
 	}
 	resp := r2.Server.Handle(context.TODO(), req)
@@ -45,24 +37,15 @@ func TestRemoteManual(t *testing.T) {
 }
 
 func TestRemoteBidirectional(t *testing.T) {
-	connPinger, connPonger := net.Pipe()
-	defer connPinger.Close()
-	defer connPonger.Close()
-
-	pingerClient := Remote{Conn: connPinger}
-	pongerClient := Remote{Conn: connPonger}
+	pingerClient, pongerClient := ServePipe()
 
 	ponger := &Ponger{}
 	pingerClient.Register("", ponger)
 
 	pinger := &Pinger{
-		PongService: &pongerClient,
+		PongService: pongerClient,
 	}
 	pongerClient.Register("", pinger)
-
-	// These should serve until the connection is closed
-	go pingerClient.Serve()
-	go pongerClient.Serve()
 
 	var got string
 	if err := pongerClient.Call(context.TODO(), &got, "pong"); err != nil {
@@ -89,8 +72,8 @@ func TestRemoteContextService(t *testing.T) {
 	defer conn1.Close()
 	defer conn2.Close()
 
-	client1 := Remote{Conn: conn2}
-	client2 := Remote{Conn: conn1}
+	client1 := Remote{Codec: IOCodec(conn2, conn2)}
+	client2 := Remote{Codec: IOCodec(conn1, conn1)}
 
 	fib := &Fib{}
 	client1.Register("", fib)
