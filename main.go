@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -14,6 +15,9 @@ import (
 
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
+	"github.com/gobwas/ws"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
@@ -37,12 +41,15 @@ type Options struct {
 		Args struct {
 			VIPNode string `positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
 		} `positional-args:"yes"`
-		RPC string `long:"rpc" description:"RPC path or URL of the client node."`
+		RPC     string `long:"rpc" description:"RPC path or URL of the client node."`
+		NodeKey string `long:"nodekey" description:"Path to the client node's private key."`
 	} `command:"client" description:"Connect to a vipnode as a client."`
 
 	Host struct {
-		Pool string `long:"pool" description:"Pool to participate in. (Optional)"`
-		RPC  string `long:"rpc" description:"RPC path or URL of the host node."`
+		Pool    string `long:"pool" description:"Pool to participate in." default:"https://pool.vipnode.org/"`
+		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to."`
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
@@ -59,7 +66,7 @@ const clientUsage = `Examples:
   $ vipnode client "https://pool.vipnode.org/"
 `
 
-func findIPC() string {
+func findGethDir() string {
 	// TODO: Search multiple places?
 	// TODO: Search for parity?
 	home := os.Getenv("HOME")
@@ -74,11 +81,11 @@ func findIPC() string {
 
 	switch runtime.GOOS {
 	case "darwin":
-		return filepath.Join(home, "Library", "Ethereum", "geth.ipc")
+		return filepath.Join(home, "Library", "Ethereum")
 	case "windows":
-		return filepath.Join(home, "AppData", "Roaming", "Ethereum", "geth.ipc")
+		return filepath.Join(home, "AppData", "Roaming", "Ethereum")
 	default:
-		return filepath.Join(home, ".ethereum", "geth.ipc")
+		return filepath.Join(home, ".ethereum")
 	}
 }
 
@@ -88,9 +95,23 @@ var logLevels = []log.Level{
 	log.Debug,
 }
 
-func findrpc(rpcPath string) (ethnode.EthNode, error) {
+func findNodeKey(nodeKeyPath string) (*ecdsa.PrivateKey, error) {
+	if nodeKeyPath == "" {
+		nodeKeyPath = findGethDir()
+		if nodeKeyPath != "" {
+			nodeKeyPath = filepath.Join(nodeKeyPath, "geth", "nodekey")
+		}
+	}
+
+	return crypto.LoadECDSA(nodeKeyPath)
+}
+
+func findRPC(rpcPath string) (ethnode.EthNode, error) {
 	if rpcPath == "" {
-		rpcPath = findIPC()
+		rpcPath = findGethDir()
+		if rpcPath != "" {
+			rpcPath = filepath.Join(rpcPath, "geth.ipc")
+		}
 	}
 	logger.Info("Connecting to RPC:", rpcPath)
 	return ethnode.Dial(rpcPath)
@@ -99,7 +120,7 @@ func findrpc(rpcPath string) (ethnode.EthNode, error) {
 func subcommand(cmd string, options Options) error {
 	switch cmd {
 	case "client":
-		remoteNode, err := findrpc(options.Client.RPC)
+		remoteNode, err := findRPC(options.Client.RPC)
 		if err != nil {
 			return err
 		}
@@ -126,15 +147,40 @@ func subcommand(cmd string, options Options) error {
 		}
 		// TODO: Register c.Disconnect() on ctrl+c signal?
 		return c.ServeUpdates()
+
 	case "host":
-		remoteNode, err := findrpc(options.Host.RPC)
+		remoteNode, err := findRPC(options.Host.RPC)
 		if err != nil {
 			return err
 		}
-		fakepool := &pool.StaticPool{}
-		nodeURI := "XXX-need-to-get-nodeuri"
-		h := host.New(nodeURI, remoteNode)
-		return h.ServeUpdates(context.TODO(), fakepool)
+		privkey, err := findNodeKey(options.Host.NodeKey)
+		if err != nil {
+			return fmt.Errorf("failed to find node private key: %s", err)
+		}
+		// Confirm that nodeID matches the private key
+		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+		u, err := url.Parse(options.Host.NodeURI)
+		if err != nil {
+			return fmt.Errorf("failed to parse enode URI: %s", err)
+		}
+		if u.Hostname() != nodeID {
+			return errors.New("enode URI does not match node private key.")
+		}
+
+		// Dial host to pool
+		h := host.New(options.Host.NodeURI, remoteNode)
+		ctx := context.TODO()
+		conn, _, _, err := ws.Dial(ctx, options.Host.Pool)
+		if err != nil {
+			return err
+		}
+		rpcPool := jsonrpc2.Remote{
+			Codec: jsonrpc2.WebSocketCodec(conn),
+		}
+		rpcPool.Register("vipnode_", h) // For bidirectional vipnode_whitelist
+		remotePool := pool.Remote(&rpcPool, privkey)
+		return h.ServeUpdates(ctx, remotePool)
+
 	case "pool":
 		if options.Pool.Store != "memory" {
 			return errors.New("storage driver not implemented")
