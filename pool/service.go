@@ -80,6 +80,8 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
 	}
 
+	logger.Printf("New host: %s", nodeURI)
+
 	return p.Store.SetHostNode(store.HostNode{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,

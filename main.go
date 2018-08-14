@@ -12,6 +12,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
@@ -22,6 +24,7 @@ import (
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 )
@@ -107,6 +110,10 @@ func findNodeKey(nodeKeyPath string) (*ecdsa.PrivateKey, error) {
 }
 
 func findRPC(rpcPath string) (ethnode.EthNode, error) {
+	if strings.HasPrefix(rpcPath, "fakenode://") {
+		nodeID := rpcPath[len("fakenode://"):]
+		return fakenode.Node(nodeID), nil
+	}
 	if rpcPath == "" {
 		rpcPath = findGethDir()
 		if rpcPath != "" {
@@ -114,7 +121,15 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 		}
 	}
 	logger.Info("Connecting to RPC:", rpcPath)
-	return ethnode.Dial(rpcPath)
+	node, err := ethnode.Dial(rpcPath)
+	if err != nil {
+		err = ErrExplain{
+			err,
+			fmt.Sprintf(`Could not find the RPC path of the running Ethereum node (such as Geth or Parity). Tried "%s". Make sure your node is running with RPC enabled. You can specify the path with the --rpc="..." flag.`, rpcPath),
+		}
+		return nil, err
+	}
+	return node, nil
 }
 
 func subcommand(cmd string, options Options) error {
@@ -155,7 +170,7 @@ func subcommand(cmd string, options Options) error {
 		}
 		privkey, err := findNodeKey(options.Host.NodeKey)
 		if err != nil {
-			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path. "}
+			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
 		}
 		// Confirm that nodeID matches the private key
 		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
@@ -172,16 +187,28 @@ func subcommand(cmd string, options Options) error {
 		// Dial host to pool
 		h := host.New(options.Host.NodeURI, remoteNode)
 		ctx := context.TODO()
-		conn, _, _, err := ws.Dial(ctx, options.Host.Pool)
+		conn, _, _, err := ws.Dialer{
+			Timeout: 10 * time.Second,
+		}.Dial(ctx, options.Host.Pool)
 		if err != nil {
-			return err
+			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
+		logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
+
 		rpcPool := jsonrpc2.Remote{
 			Codec: jsonrpc2.WebSocketCodec(conn),
 		}
 		rpcPool.Register("vipnode_", h) // For bidirectional vipnode_whitelist
+
+		errChan := make(chan error)
+		go func() {
+			errChan <- rpcPool.Serve()
+		}()
 		remotePool := pool.Remote(&rpcPool, privkey)
-		return h.ServeUpdates(ctx, remotePool)
+		go func() {
+			errChan <- h.ServeUpdates(ctx, remotePool)
+		}()
+		return <-errChan
 
 	case "pool":
 		if options.Pool.Store != "memory" {
@@ -190,6 +217,7 @@ func subcommand(cmd string, options Options) error {
 		p := pool.New()
 		server := jsonrpc2.Server{}
 		server.Register("vipnode_", p)
+		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, http.HandlerFunc(server.WebsocketHandler))
 	}
 
@@ -231,6 +259,7 @@ func main() {
 	SetLogger(golog.New(logWriter, logLevel))
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
+		pool.SetLogger(logWriter)
 		client.SetLogger(logWriter)
 		host.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
@@ -243,7 +272,7 @@ func main() {
 
 	switch typedErr := err.(type) {
 	case *net.OpError:
-		err = ErrExplain{err, `Could not find the RPC path of the running Ethereum node (such as Geth or Parity). Make sure your node is running with RPC enabled. You can specify the path with the --rpc="..." flag.`}
+		err = ErrExplain{err, `Disconnected from server unexpectedly. Could be a connectivity issue or the server is down. Try again?`}
 	case interface{ ErrorCode() int }:
 		switch typedErr.ErrorCode() {
 		case -32601:

@@ -40,9 +40,11 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	}
 	logger.Print("Connected to node: ", enode)
 
-	if err := p.Host(context.TODO(), h.node.Kind().String(), h.uri); err != nil {
+	// TODO: Send wallet address too
+	if err := p.Host(ctx, h.node.Kind().String(), h.uri); err != nil {
 		return err
 	}
+	logger.Print("Registered on pool.")
 
 	// TODO: Resume tracking peers that we care about (in case of interrupted
 	// shutdown)
@@ -60,7 +62,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 		if err != nil {
 			return err
 		}
-		logger.Print("Pool.Update: %d peers, %q balance", len(peerUpdate), balance)
+		logger.Print("Sent pool update: %d peers; received balance: %q", len(peerUpdate), balance)
 		return nil
 	}
 
