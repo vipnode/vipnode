@@ -49,6 +49,7 @@ func WebSocketCodec(conn net.Conn) wsCodec {
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
 	return wsCodec{
 		jsonCodec: IOCodec(r, w),
+		conn:      conn,
 		r:         r,
 		w:         w,
 	}
@@ -58,14 +59,19 @@ var _ Codec = wsCodec{}
 
 type wsCodec struct {
 	jsonCodec
-	r *wsutil.Reader
-	w *wsutil.Writer
+	conn net.Conn
+	r    *wsutil.Reader
+	w    *wsutil.Writer
 }
 
 func (codec wsCodec) ReadMessage() (*Message, error) {
-	if _, err := codec.r.NextFrame(); err != nil {
+	header, err := codec.r.NextFrame()
+	if err != nil {
 		return nil, err
 	}
+
+	// FIXME: This is broken because of server/client websocket asymmetry
+
 	return codec.jsonCodec.ReadMessage()
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -89,10 +90,10 @@ func (r *Remote) Serve() error {
 	// TODO: Discard old pending messages
 	for {
 		msg, err := r.Codec.ReadMessage()
+		fmt.Printf("ReadMessage: %s, %s", msg, err)
 		if err != nil {
 			return err
 		}
-		// TODO: Handle err == io.EOF?
 		if msg.Response != nil {
 			r.getPendingChan(string(msg.ID)) <- *msg
 		} else {
