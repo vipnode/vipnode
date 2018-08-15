@@ -126,5 +126,9 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 	if resp.Error != nil {
 		return resp.Error
 	}
+	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+		// No result
+		return nil
+	}
 	return json.Unmarshal(resp.Result, result)
 }
