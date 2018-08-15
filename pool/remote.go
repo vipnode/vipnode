@@ -13,7 +13,7 @@ import (
 
 // Remote returns a RemotePool abstraction which proxies an RPC pool client but
 // takes care of all the request signing.
-func Remote(client *jsonrpc2.Remote, privkey *ecdsa.PrivateKey) *RemotePool {
+func Remote(client jsonrpc2.Service, privkey *ecdsa.PrivateKey) *RemotePool {
 	return &RemotePool{
 		client:  client,
 		privkey: privkey,
@@ -26,7 +26,7 @@ var _ Pool = &RemotePool{}
 
 // RemotePool wraps a Pool with an RPC service and handles all the signging.
 type RemotePool struct {
-	client  *jsonrpc2.Remote
+	client  jsonrpc2.Service
 	privkey *ecdsa.PrivateKey
 	nodeID  string
 	nonce   int64

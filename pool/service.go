@@ -17,11 +17,12 @@ var ErrNoHostNodes = errors.New("no host nodes available")
 // ErrVerifyFailed is returned when a signature fails to verify. It embeds
 // the underlying Cause.
 type ErrVerifyFailed struct {
-	Cause error
+	Cause  error
+	Method string
 }
 
 func (err ErrVerifyFailed) Error() string {
-	return fmt.Sprintf("failed to verify signature: %s", err.Cause)
+	return fmt.Sprintf("method %q failed to verify signature: %s", err.Method, err.Cause)
 }
 
 // New returns a VipnodePool implementation of Pool with the default memory
@@ -40,18 +41,18 @@ type VipnodePool struct {
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
 	if err := p.Store.CheckAndSaveNonce(store.NodeID(nodeID), nonce); err != nil {
-		return ErrVerifyFailed{err}
+		return ErrVerifyFailed{Cause: err, Method: method}
 	}
 
 	if err := request.Verify(sig, method, nodeID, nonce, args...); err != nil {
-		return ErrVerifyFailed{err}
+		return ErrVerifyFailed{Cause: err, Method: method}
 	}
 	return nil
 }
 
 // register associates a wallet account with a nodeID, and increments the account's credit.
 func (p *VipnodePool) register(nodeID store.NodeID, account store.Account, credit store.Amount) error {
-	// TODO: Check if nodeID is already registered to another balance, if so remove it.
+	// TODO: Check if nodeID is already registered to another balance, if so remove it
 	return p.Store.AddBalance(account, credit)
 }
 

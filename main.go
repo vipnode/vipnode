@@ -183,9 +183,20 @@ func subcommand(cmd string, options Options) error {
 				"Make sure the --nodekey used is corresponding to the public node that is running."}
 		}
 
-		// Dial host to pool
+		ctx := context.Background()
 		h := host.New(options.Host.NodeURI, remoteNode)
-		ctx := context.TODO()
+
+		if options.Host.Pool == ":memory:" {
+			// Support for in-memory pool. This is primarily for testing.
+			logger.Infof("Starting in-memory vipnode pool.")
+			p := pool.New()
+			rpcPool := &jsonrpc2.Local{}
+			rpcPool.Register("vipnode_", p)
+			remotePool := pool.Remote(rpcPool, privkey)
+			return h.ServeUpdates(ctx, remotePool)
+		}
+
+		// Dial host to pool
 		poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
 		if err != nil {
 			return ErrExplain{err, "Failed to connect to the pool RPC API."}
@@ -212,9 +223,9 @@ func subcommand(cmd string, options Options) error {
 			return errors.New("storage driver not implemented")
 		}
 		p := pool.New()
-		server := jsonrpc2.Server{}
-		server.Register("vipnode_", p)
-		handler := ws.WebsocketHandler(server)
+		remote := jsonrpc2.Remote{}
+		remote.Register("vipnode_", p)
+		handler := ws.WebsocketHandler(&remote)
 		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
