@@ -67,7 +67,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 
 // Host registers a full node to participate as a vipnode host in this pool.
 func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, nodeURI string) error {
-	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind); err != nil {
+	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind, nodeURI); err != nil {
 		return err
 	}
 
@@ -77,7 +77,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		return err
 	}
 
-	if uri.Hostname() != nodeID {
+	if uri.User.Username() != nodeID {
 		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
 	}
 
