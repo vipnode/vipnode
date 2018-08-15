@@ -13,19 +13,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/gobwas/ws"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/host"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/jsonrpc2/ws"
 	"github.com/vipnode/vipnode/pool"
 )
 
@@ -187,16 +186,14 @@ func subcommand(cmd string, options Options) error {
 		// Dial host to pool
 		h := host.New(options.Host.NodeURI, remoteNode)
 		ctx := context.TODO()
-		conn, _, _, err := ws.Dialer{
-			Timeout: 10 * time.Second,
-		}.Dial(ctx, options.Host.Pool)
+		poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
 		if err != nil {
 			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
 		logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
 
 		rpcPool := jsonrpc2.Remote{
-			Codec: jsonrpc2.WebSocketCodec(conn),
+			Codec: poolCodec,
 		}
 		rpcPool.Register("vipnode_", h) // For bidirectional vipnode_whitelist
 
@@ -217,8 +214,9 @@ func subcommand(cmd string, options Options) error {
 		p := pool.New()
 		server := jsonrpc2.Server{}
 		server.Register("vipnode_", p)
+		handler := ws.WebsocketHandler(server)
 		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
-		return http.ListenAndServe(options.Pool.Bind, http.HandlerFunc(server.WebsocketHandler))
+		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
 
 	return nil

@@ -5,11 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"unicode"
-
-	"github.com/gobwas/ws"
 )
 
 // Server contains the method registry.
@@ -96,16 +93,4 @@ func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 		}
 	}
 	return r
-}
-
-func (s *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
-	conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-	remote := &Remote{
-		Server: *s,
-		Codec:  WebSocketCodec(conn),
-	}
-	remote.Serve()
 }
