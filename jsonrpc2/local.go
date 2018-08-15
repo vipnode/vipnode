@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-var _ Service = Local{}
+var _ Service = &Local{}
 
 // Local is a Service implementation for a local Server. It's like Remote, but
 // no Codec.
@@ -14,7 +14,7 @@ type Local struct {
 	Server
 }
 
-func (loc Local) Call(ctx context.Context, result interface{}, method string, params ...interface{}) error {
+func (loc *Local) Call(ctx context.Context, result interface{}, method string, params ...interface{}) error {
 	req, err := loc.Client.Request(method, params...)
 	if err != nil {
 		return err

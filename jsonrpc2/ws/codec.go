@@ -57,8 +57,6 @@ func (codec wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
 		return nil, err
 	}
 
-	// FIXME: This is broken because of server/client websocket asymmetry
-
 	return codec.inner.ReadMessage()
 }
 
@@ -73,16 +71,13 @@ func (codec wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
 	return nil
 }
 
-func WebsocketHandler(s jsonrpc2.Server) http.HandlerFunc {
+func WebsocketHandler(remote *jsonrpc2.Remote) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
-		remote := &jsonrpc2.Remote{
-			Server: s,
-			Codec:  WebSocketCodec(conn),
-		}
+		remote.Codec = WebSocketCodec(conn)
 		remote.Serve()
 	}
 }
