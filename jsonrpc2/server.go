@@ -71,7 +71,7 @@ func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 	if err != nil {
 		r.Error = &ErrResponse{
 			Code:    ErrCodeInvalidParams,
-			Message: fmt.Sprintf("invalid params: %s", req.Params),
+			Message: fmt.Sprintf("invalid params: %s %s", req.Method, req.Params),
 		}
 		return r
 	}
