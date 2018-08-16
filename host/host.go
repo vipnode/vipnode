@@ -62,7 +62,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 		if err != nil {
 			return err
 		}
-		logger.Print("Sent pool update: %d peers; received balance: %q", len(peerUpdate), balance)
+		logger.Printf("Sent pool update: %d peers; received balance: %s", len(peerUpdate), balance)
 		return nil
 	}
 
