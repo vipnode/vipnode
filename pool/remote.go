@@ -89,9 +89,10 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 
 func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance, error) {
 	req := request.Request{
-		Method: "vipnode_update",
-		NodeID: p.nodeID,
-		Nonce:  p.getNonce(),
+		Method:    "vipnode_update",
+		NodeID:    p.nodeID,
+		Nonce:     p.getNonce(),
+		ExtraArgs: []interface{}{peers},
 	}
 
 	args, err := req.SignedArgs(p.privkey)

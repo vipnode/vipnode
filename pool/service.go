@@ -62,7 +62,9 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		return nil, err
 	}
 
-	return nil, errors.New("not implemented yet")
+	// XXX: Track peers.
+	// XXX: Return proper balance
+	return &store.Balance{}, nil
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
@@ -83,6 +85,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 
 	logger.Printf("New host: %s", nodeURI)
 
+	// XXX: Register account to nodeID
 	return p.Store.SetHostNode(store.HostNode{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,

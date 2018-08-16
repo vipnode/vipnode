@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -15,6 +16,14 @@ type Balance struct {
 	Account      Account   `json:"account"`
 	Credit       Amount    `json:"credit"`
 	NextWithdraw time.Time `json:"next_withdraw"`
+}
+
+func (b *Balance) String() string {
+	account := b.Account
+	if account == "" {
+		account = "(null account)"
+	}
+	return fmt.Sprintf("Balance(%q, %d)", account, b.Credit)
 }
 
 // ClientNode stores metadata for tracking VIPs
