@@ -28,4 +28,9 @@ func TestPoolHost(t *testing.T) {
 	if err := remotePool.Host(ctx, "geth", nodeURI); err != nil {
 		t.Error(err)
 	}
+
+	_, err := remotePool.Update(ctx, []string{"foo"})
+	if err != nil {
+		t.Error(err)
+	}
 }
