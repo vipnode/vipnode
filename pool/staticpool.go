@@ -24,7 +24,7 @@ func (s *StaticPool) AddNode(nodeURI string) error {
 	return nil
 }
 
-func (s *StaticPool) Host(ctx context.Context, kind string, nodeURI string) error {
+func (s *StaticPool) Host(ctx context.Context, kind string, payout string, nodeURI string) error {
 	return nil
 }
 

@@ -52,6 +52,7 @@ type Options struct {
 		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
 		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
 		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to."`
+		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
@@ -183,8 +184,12 @@ func subcommand(cmd string, options Options) error {
 				"Make sure the --nodekey used is corresponding to the public node that is running."}
 		}
 
+		if options.Host.Payout == "" {
+			logger.Warning("No --payout address provided, will not receive pool payments.")
+		}
+
 		ctx := context.Background()
-		h := host.New(options.Host.NodeURI, remoteNode)
+		h := host.New(options.Host.NodeURI, remoteNode, options.Host.Payout)
 
 		if options.Host.Pool == ":memory:" {
 			// Support for in-memory pool. This is primarily for testing.

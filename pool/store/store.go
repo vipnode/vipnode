@@ -61,7 +61,7 @@ type Store interface {
 	// empty list, if none are available.
 	GetHostNodes(kind string, limit int) []HostNode
 	// SetHostNode adds a HostNode to the set of active host nodes.
-	SetHostNode(HostNode) error
+	SetHostNode(HostNode, Account) error
 	// RemoveHostNode removes a HostNode.
 	RemoveHostNode(nodeID NodeID) error
 }

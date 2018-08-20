@@ -30,7 +30,7 @@ func TestPoolClient(t *testing.T) {
 		t.Errorf("expected ErrNoHostNodes, got: %s", err)
 	}
 
-	if err := p.Store.SetHostNode(store.HostNode{URI: "foo"}); err != nil {
+	if err := p.Store.SetHostNode(store.HostNode{URI: "foo"}, ""); err != nil {
 		t.Fatal(err)
 	}
 

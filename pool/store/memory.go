@@ -64,9 +64,13 @@ func (s *memoryStore) AddBalance(account Account, credit Amount) error {
 }
 
 // SetHostNode adds a HostNode to the set of active host nodes.
-func (s *memoryStore) SetHostNode(n HostNode) error {
+func (s *memoryStore) SetHostNode(n HostNode, a Account) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if a != "" && n.balance == nil {
+		b := s.balances[a]
+		n.balance = &b
+	}
 	s.hostnodes[n.ID] = n
 	return nil
 }

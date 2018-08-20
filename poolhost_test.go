@@ -25,7 +25,7 @@ func TestPoolHost(t *testing.T) {
 	remotePool := pool.Remote(poolserver, privkey)
 
 	ctx := context.TODO()
-	if err := remotePool.Host(ctx, "geth", nodeURI); err != nil {
+	if err := remotePool.Host(ctx, "geth", "", nodeURI); err != nil {
 		t.Error(err)
 	}
 

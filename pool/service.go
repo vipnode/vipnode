@@ -68,8 +68,8 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
-func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, nodeURI string) error {
-	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind, nodeURI); err != nil {
+func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, payout string, nodeURI string) error {
+	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind, payout, nodeURI); err != nil {
 		return err
 	}
 
@@ -85,13 +85,12 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 
 	logger.Printf("New host: %s", nodeURI)
 
-	// XXX: Register account to nodeID
 	return p.Store.SetHostNode(store.HostNode{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,
 		Kind:     kind,
 		LastSeen: time.Now(),
-	})
+	}, store.Account(payout))
 }
 
 // Connect returns a list of enodes who are ready for the client node to connect.

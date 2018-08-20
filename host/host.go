@@ -15,17 +15,19 @@ type client struct {
 	expire time.Time
 }
 
-func New(nodeURI string, node ethnode.EthNode) *Host {
+func New(nodeURI string, node ethnode.EthNode, payout string) *Host {
 	return &Host{
-		node: node,
-		uri:  nodeURI,
+		node:   node,
+		uri:    nodeURI,
+		payout: payout,
 	}
 }
 
 // Host represents a single vipnode host.
 type Host struct {
-	node ethnode.EthNode
-	uri  string
+	node   ethnode.EthNode
+	uri    string
+	payout string
 }
 
 // Whitelist a client for this host.
@@ -41,7 +43,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	logger.Print("Connected to node: ", enode)
 
 	// TODO: Send wallet address too
-	if err := p.Host(ctx, h.node.Kind().String(), h.uri); err != nil {
+	if err := p.Host(ctx, h.node.Kind().String(), h.payout, h.uri); err != nil {
 		return err
 	}
 	logger.Print("Registered on pool.")
