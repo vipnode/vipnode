@@ -24,7 +24,7 @@ func TestPoolHost(t *testing.T) {
 	//h := host.New(nodeURI, node)
 	remotePool := pool.Remote(poolserver, privkey)
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	if err := remotePool.Host(ctx, "geth", "", nodeURI); err != nil {
 		t.Error(err)
 	}
@@ -32,5 +32,18 @@ func TestPoolHost(t *testing.T) {
 	_, err := remotePool.Update(ctx, []string{"foo"})
 	if err != nil {
 		t.Error(err)
+	}
+
+	hosts, err := remotePool.Connect(context.Background(), "geth")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(hosts) != 1 {
+		t.Errorf("wrong number of hosts: %d", len(hosts))
+	}
+
+	if hosts[0].URI != nodeURI {
+		t.Errorf("wrong host returned: %s", hosts[0].URI)
 	}
 }
