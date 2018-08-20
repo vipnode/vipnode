@@ -6,10 +6,15 @@ import (
 	"net"
 	"reflect"
 	"testing"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func TestRemoteManual(t *testing.T) {
-	r1, r2 := ServePipe()
+	c1, c2 := net.Pipe()
+	r1 := Remote{Codec: IOCodec(c1)}
+	r2 := Remote{Codec: IOCodec(c2)}
+
 	r1.Register("", &Pinger{})
 	r2.Register("", &Ponger{})
 
@@ -17,7 +22,10 @@ func TestRemoteManual(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	go r1.Codec.WriteMessage(req)
+	var g errgroup.Group
+	g.Go(func() error {
+		return r1.Codec.WriteMessage(req)
+	})
 
 	var req2 *Message
 	if req2, err = r2.ReadMessage(); err != nil {
@@ -26,6 +34,10 @@ func TestRemoteManual(t *testing.T) {
 	if !reflect.DeepEqual(req, req2) {
 		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
 	}
+	if err := g.Wait(); err != nil {
+		t.Error(err)
+	}
+
 	resp := r2.Server.Handle(context.TODO(), req)
 	var got string
 	if err := json.Unmarshal(resp.Response.Result, &got); err != nil {
@@ -72,8 +84,8 @@ func TestRemoteContextService(t *testing.T) {
 	defer conn1.Close()
 	defer conn2.Close()
 
-	client1 := Remote{Codec: IOCodec(conn2, conn2)}
-	client2 := Remote{Codec: IOCodec(conn1, conn1)}
+	client1 := Remote{Codec: IOCodec(conn2)}
+	client2 := Remote{Codec: IOCodec(conn1)}
 
 	fib := &Fib{}
 	client1.Register("", fib)

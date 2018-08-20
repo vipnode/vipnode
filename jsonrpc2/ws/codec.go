@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 
@@ -9,6 +10,12 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"github.com/vipnode/vipnode/jsonrpc2"
 )
+
+type rwc struct {
+	io.Reader
+	io.Writer
+	io.Closer
+}
 
 // WebSocketDial returns a Codec that wraps a client-side connection with JSON
 // encoding and decoding.
@@ -25,7 +32,7 @@ func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateClientSide)
 	w := wsutil.NewWriter(conn, ws.StateClientSide, ws.OpText)
 	return wsCodec{
-		inner: jsonrpc2.IOCodec(r, w),
+		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
 		w:     w,
 	}
@@ -37,7 +44,7 @@ func WebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
 	return wsCodec{
-		inner: jsonrpc2.IOCodec(r, w),
+		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
 		w:     w,
 	}
@@ -69,6 +76,10 @@ func (codec wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
 		return err
 	}
 	return nil
+}
+
+func (codec wsCodec) Close() error {
+	return codec.inner.Close()
 }
 
 func WebsocketHandler(remote *jsonrpc2.Remote) http.HandlerFunc {

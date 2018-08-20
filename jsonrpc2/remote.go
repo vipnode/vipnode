@@ -15,8 +15,8 @@ import (
 // both in goroutines. Useful for testing. Services still need to be registered.
 func ServePipe() (*Remote, *Remote) {
 	c1, c2 := net.Pipe()
-	client := Remote{Codec: IOCodec(c1, c1)}
-	server := Remote{Codec: IOCodec(c2, c2)}
+	client := Remote{Codec: IOCodec(c1)}
+	server := Remote{Codec: IOCodec(c2)}
 	go server.Serve()
 	go client.Serve()
 	return &server, &client
