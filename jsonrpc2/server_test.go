@@ -39,7 +39,7 @@ func TestServer(t *testing.T) {
 		t.Errorf("unexpected error: %q", resp)
 	}
 
-	if resp.Result != nil {
+	if string(resp.Response.Result) != "null" {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 }
