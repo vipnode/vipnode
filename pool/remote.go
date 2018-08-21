@@ -3,7 +3,7 @@ package pool
 import (
 	"context"
 	"crypto/ecdsa"
-	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/jsonrpc2"
@@ -29,11 +29,10 @@ type RemotePool struct {
 	client  jsonrpc2.Service
 	privkey *ecdsa.PrivateKey
 	nodeID  string
-	nonce   int64
 }
 
 func (p *RemotePool) getNonce() int64 {
-	return atomic.AddInt64(&p.nonce, 1)
+	return time.Now().UnixNano()
 }
 
 func (p *RemotePool) Host(ctx context.Context, kind string, payout string, nodeURI string) error {

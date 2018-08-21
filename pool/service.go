@@ -143,6 +143,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	if err != nil {
 		return err
 	}
+	// FIXME: Clean up disconnected hosts
 	p.mu.Lock()
 	p.remoteHosts[node.ID] = service
 	p.mu.Unlock()
