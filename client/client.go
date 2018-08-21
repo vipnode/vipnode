@@ -100,7 +100,6 @@ func (c *Client) ServeUpdates() error {
 			return nil
 		}
 	}
-	return nil
 }
 
 // Disconnect from hosts, also stop serving updates.
