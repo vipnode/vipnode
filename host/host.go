@@ -32,6 +32,7 @@ type Host struct {
 
 // Whitelist a client for this host.
 func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
+	logger.Print("Received whitelist request: %s", nodeID)
 	return h.node.AddTrustedPeer(ctx, nodeID)
 }
 
@@ -40,7 +41,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	if err != nil {
 		return err
 	}
-	logger.Print("Connected to node: ", enode)
+	logger.Printf("Connected to local node: %s", enode)
 
 	// TODO: Send wallet address too
 	if err := p.Host(ctx, h.node.Kind().String(), h.payout, h.uri); err != nil {

@@ -46,7 +46,7 @@ func (c *Client) Connect() error {
 		return err
 	}
 	if len(nodes) == 0 {
-		return pool.ErrNoHostNodes
+		return pool.ErrNoHostNodes{}
 	}
 	for _, node := range nodes {
 		if err := c.EthNode.ConnectPeer(ctx, node.URI); err != nil {
@@ -54,6 +54,7 @@ func (c *Client) Connect() error {
 		}
 	}
 	c.connectedHosts = nodes
+	logger.Printf("Received %d host candidates, connecting.", len(nodes))
 	return nil
 }
 

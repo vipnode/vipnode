@@ -17,7 +17,8 @@ func TestClient(t *testing.T) {
 		Pool: &p,
 	}
 
-	if err := client.Connect(); err != pool.ErrNoHostNodes {
+	err := client.Connect()
+	if _, ok := err.(pool.ErrNoHostNodes); !ok {
 		t.Errorf("unexpected no nodes error, got: %q", err)
 	}
 

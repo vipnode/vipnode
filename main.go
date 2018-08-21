@@ -147,15 +147,29 @@ func subcommand(cmd string, options Options) error {
 		if err != nil {
 			return err
 		}
-		var c client.Client
+
+		c := client.Client{
+			EthNode: remoteNode,
+		}
 		if u.Scheme == "enode" {
 			pool := &pool.StaticPool{}
 			pool.AddNode(poolURI)
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-			c = client.Client{
-				EthNode: remoteNode,
-				Pool:    pool,
+			c.Pool = pool
+		} else {
+			privkey, err := findNodeKey(options.Client.NodeKey)
+			if err != nil {
+				return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
 			}
+
+			poolCodec, err := ws.WebSocketDial(context.Background(), poolURI)
+			if err != nil {
+				return ErrExplain{err, "Failed to connect to the pool RPC API."}
+			}
+			logger.Infof("Connected to vipnode pool: %s", poolURI)
+			c.Pool = pool.Remote(&jsonrpc2.Remote{
+				Codec: poolCodec,
+			}, privkey)
 		}
 		if err := c.Connect(); err != nil {
 			return err

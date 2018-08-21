@@ -11,6 +11,7 @@ import (
 
 func TestRemotePool(t *testing.T) {
 	pool := New()
+	pool.skipWhitelist = true
 
 	server, client := jsonrpc2.ServePipe()
 	server.Register("vipnode_", pool)

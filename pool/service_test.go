@@ -33,7 +33,7 @@ func TestPoolInstance(t *testing.T) {
 	}
 
 	_, err = pool.Connect(context.Background(), sig, req.NodeID, req.Nonce, req.ExtraArgs[0].(string))
-	if err != ErrNoHostNodes {
+	if _, ok := err.(ErrNoHostNodes); !ok {
 		t.Errorf("pool.Connect direct call failed: %s", err)
 	}
 }
@@ -69,7 +69,7 @@ func TestPoolService(t *testing.T) {
 			t.Fatal(err)
 		}
 		var result interface{}
-		if err := client.Call(context.TODO(), &result, req.Method, args...); err.Error() != ErrNoHostNodes.Error() {
+		if err := client.Call(context.TODO(), &result, req.Method, args...); err.Error() != (ErrNoHostNodes{}).Error() {
 			t.Error(err)
 		}
 	}

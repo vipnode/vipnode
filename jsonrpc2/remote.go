@@ -3,7 +3,7 @@ package jsonrpc2
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -22,7 +22,14 @@ func ServePipe() (*Remote, *Remote) {
 	return &server, &client
 }
 
-var ErrContextMissingValue = errors.New("context missing value")
+// ErrContextMissingValue is returned when a context is missing an expected value.
+type ErrContextMissingValue struct {
+	Key serviceContext
+}
+
+func (err ErrContextMissingValue) Error() string {
+	return fmt.Sprintf("context missing value: %s", err.Key)
+}
 
 type serviceContext string
 
@@ -33,7 +40,7 @@ var ctxService serviceContext = "service"
 func CtxService(ctx context.Context) (Service, error) {
 	s, ok := ctx.Value(ctxService).(Service)
 	if !ok {
-		return nil, ErrContextMissingValue
+		return nil, ErrContextMissingValue{ctxService}
 	}
 	return s, nil
 }
@@ -80,7 +87,7 @@ func (r *Remote) getPendingChan(key string) chan Message {
 }
 
 func (r *Remote) handleRequest(msg *Message) error {
-	ctx := context.WithValue(context.TODO(), ctxService, r)
+	ctx := context.WithValue(context.Background(), ctxService, r)
 	resp := r.Server.Handle(ctx, msg)
 	return r.Codec.WriteMessage(resp)
 }

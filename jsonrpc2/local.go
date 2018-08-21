@@ -19,6 +19,7 @@ func (loc *Local) Call(ctx context.Context, result interface{}, method string, p
 	if err != nil {
 		return err
 	}
+	ctx = context.WithValue(ctx, ctxService, loc)
 	resp := loc.Server.Handle(ctx, req)
 	if resp.Error != nil {
 		return resp.Error

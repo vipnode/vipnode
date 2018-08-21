@@ -5,14 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
 
 // ErrNoHostNodes is returned when the pool does not have any hosts available.
-var ErrNoHostNodes = errors.New("no host nodes available")
+type ErrNoHostNodes struct {
+	NumTried int
+}
+
+func (err ErrNoHostNodes) Error() string {
+	if err.NumTried == 0 {
+		return "no host nodes available"
+	}
+	return fmt.Sprintf("no available host nodes found after trying %d nodes", err.NumTried)
+}
 
 // ErrVerifyFailed is returned when a signature fails to verify. It embeds
 // the underlying Cause.
@@ -25,18 +37,49 @@ func (err ErrVerifyFailed) Error() string {
 	return fmt.Sprintf("method %q failed to verify signature: %s", err.Method, err.Cause)
 }
 
+// ErrConnectFailed is returned when connect fails to
+// whitelist the client on remote hosts.
+type ErrConnectFailed struct {
+	Errors []error
+}
+
+func (err ErrConnectFailed) Error() string {
+	if len(err.Errors) == 0 {
+		return "no host connection errors"
+	}
+	var s strings.Builder
+	fmt.Fprintf(&s, "failed to connect to %d hosts: ", len(err.Errors))
+	for i, e := range err.Errors {
+		s.WriteString(e.Error())
+		if i != len(err.Errors)-1 {
+			s.WriteString("; ")
+		}
+	}
+	return s.String()
+}
+
+type hostService struct {
+	store.HostNode
+	jsonrpc2.Service
+}
+
 // New returns a VipnodePool implementation of Pool with the default memory
 // store, which includes balance tracking.
 func New() *VipnodePool {
 	return &VipnodePool{
 		// TODO: Replace with persistent store
-		Store: store.MemoryStore(),
+		Store:       store.MemoryStore(),
+		remoteHosts: map[store.NodeID]jsonrpc2.Service{},
 	}
 }
 
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
-	Store store.Store
+	Store         store.Store
+	skipWhitelist bool
+
+	mu          sync.Mutex
+	remoteHosts map[store.NodeID]jsonrpc2.Service
 }
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
@@ -85,12 +128,26 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 
 	logger.Printf("New host: %s", nodeURI)
 
-	return p.Store.SetHostNode(store.HostNode{
+	node := store.HostNode{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,
 		Kind:     kind,
 		LastSeen: time.Now(),
-	}, store.Account(payout))
+	}
+	err = p.Store.SetHostNode(node, store.Account(payout))
+	if err != nil {
+		return err
+	}
+
+	service, err := jsonrpc2.CtxService(ctx)
+	if err != nil {
+		return err
+	}
+	p.mu.Lock()
+	p.remoteHosts[node.ID] = service
+	p.mu.Unlock()
+
+	return nil
 }
 
 // Connect returns a list of enodes who are ready for the client node to connect.
@@ -101,13 +158,57 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		return nil, err
 	}
 
+	logger.Printf("New client: %s", nodeID)
+
 	// TODO: Unhardcode 3?
-	r := p.Store.GetHostNodes(kind, 3)
+	numRequestHosts := 3
+	r := p.Store.GetHostNodes(kind, numRequestHosts)
 	if len(r) == 0 {
-		return nil, ErrNoHostNodes
+		return nil, ErrNoHostNodes{}
 	}
 
-	return r, nil
+	if p.skipWhitelist {
+		return r, nil
+	}
+
+	errors := []error{}
+	remotes := make([]hostService, 0, len(r))
+	p.mu.Lock()
+	for _, node := range r {
+		remote, ok := p.remoteHosts[node.ID]
+		if ok {
+			remotes = append(remotes, hostService{
+				node, remote,
+			})
+		} else {
+			errors = append(errors, fmt.Errorf("missing remote service for candidate host: %q", node.ID))
+		}
+	}
+	p.mu.Unlock()
+
+	// TODO: Set deadline
+	// TODO: Parallelize
+	accepted := make([]store.HostNode, 0, len(remotes))
+	for _, remote := range remotes {
+		if err := remote.Service.Call(ctx, nil, "vipnode_whitelist", nodeID); err != nil {
+			errors = append(errors, err)
+			continue
+		}
+		accepted = append(accepted, remote.HostNode)
+	}
+
+	if len(accepted) >= 1 {
+		if len(errors) > 0 {
+			logger.Printf("Connect succeeded despite errors: %s", ErrConnectFailed{errors})
+		}
+		return accepted, nil
+	}
+
+	if len(errors) > 0 {
+		return nil, ErrConnectFailed{errors}
+	}
+
+	return nil, ErrNoHostNodes{len(r)}
 }
 
 // Disconnect removes the node from the pool and stops accumulating respective balances.
