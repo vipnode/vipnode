@@ -39,6 +39,7 @@ func (c *Client) Connect() error {
 	}
 	c.disconnectChan = make(chan struct{}, 1)
 
+	logger.Printf("Requesting host candidates...")
 	ctx := context.TODO()
 	kind := c.EthNode.Kind().String()
 	nodes, err := c.Pool.Connect(ctx, kind)

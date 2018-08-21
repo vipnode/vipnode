@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -296,6 +297,10 @@ func main() {
 	err = subcommand(parser.Active.Name, options)
 	if err == nil {
 		return
+	}
+
+	if err == io.EOF {
+		exit(3, "Connection closed.\n")
 	}
 
 	switch typedErr := err.(type) {
