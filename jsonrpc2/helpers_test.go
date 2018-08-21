@@ -8,19 +8,19 @@ import (
 
 type FruitService struct{}
 
-func (_ *FruitService) Apple() string {
+func (f *FruitService) Apple() string {
 	return "Apple"
 }
 
-func (_ *FruitService) Banana() error {
+func (f *FruitService) Banana() error {
 	return nil
 }
 
-func (_ *FruitService) Cherry() (string, error) {
+func (f *FruitService) Cherry() (string, error) {
 	return "Cherry", nil
 }
 
-func (_ *FruitService) Durian() error {
+func (f *FruitService) Durian() error {
 	return errors.New("durian failure")
 }
 

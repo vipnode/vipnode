@@ -7,13 +7,19 @@ import (
 
 func TestLocal(t *testing.T) {
 	rpc := Local{}
-	rpc.Register("", &Pinger{})
+	if err := rpc.Register("", &FruitService{}); err != nil {
+		t.Fatal(err)
+	}
 
 	var got string
-	if err := rpc.Call(context.TODO(), &got, "ping"); err != nil {
+	if err := rpc.Call(context.Background(), &got, "apple"); err != nil {
 		t.Error(err)
 	}
-	if want := "ping"; got != want {
+	if want := "Apple"; got != want {
 		t.Errorf("got: %q; want %q", got, want)
+	}
+
+	if err := rpc.Call(context.Background(), nil, "banana"); err != nil {
+		t.Error(err)
 	}
 }

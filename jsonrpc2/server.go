@@ -9,6 +9,8 @@ import (
 	"unicode"
 )
 
+var nullResult = json.RawMessage([]byte("null"))
+
 // Server contains the method registry.
 type Server struct {
 	mu       sync.Mutex
@@ -44,9 +46,11 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 // Handle executes a request message against the server registry.
 func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 	r := &Message{
-		Response: &Response{},
-		ID:       req.ID,
-		Version:  Version,
+		Response: &Response{
+			Result: nullResult,
+		},
+		ID:      req.ID,
+		Version: Version,
 	}
 	if req.Request == nil {
 		r.Error = &ErrResponse{

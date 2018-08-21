@@ -99,11 +99,11 @@ func (r *Remote) Serve() error {
 		if err != nil {
 			return err
 		}
-		if msg.Response != nil {
-			r.getPendingChan(string(msg.ID)) <- *msg
-		} else {
+		if msg.Request != nil {
 			// FIXME: Anything we can do with error handling here?
 			go r.handleRequest(msg)
+		} else {
+			r.getPendingChan(string(msg.ID)) <- *msg
 		}
 	}
 }
@@ -130,10 +130,10 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 		return err
 	}
 	resp := r.Receive(req.ID)
-	if resp.Error != nil {
-		return resp.Error
+	if resp.Response != nil && resp.Response.Error != nil {
+		return resp.Response.Error
 	}
-	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+	if resp.Response == nil || len(resp.Result) == 0 || string(resp.Result) == "null" {
 		// No result
 		return nil
 	}

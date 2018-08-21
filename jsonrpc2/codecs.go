@@ -2,6 +2,7 @@ package jsonrpc2
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -31,13 +32,20 @@ type jsonCodec struct {
 	closer io.Closer
 }
 
+func dump(prefix string, msg *Message) {
+	out, _ := json.Marshal(msg)
+	fmt.Printf("%s %s\n", prefix, out)
+}
+
 func (codec *jsonCodec) ReadMessage() (*Message, error) {
 	var msg Message
 	err := codec.dec.Decode(&msg)
+	//dump(" <- ", &msg)
 	return &msg, err
 }
 
 func (codec *jsonCodec) WriteMessage(msg *Message) error {
+	//dump("-> ", msg)
 	return codec.enc.Encode(msg)
 }
 
