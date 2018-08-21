@@ -149,12 +149,15 @@ func subcommand(cmd string, options Options) error {
 			return err
 		}
 
+		errChan := make(chan error)
 		c := client.Client{
 			EthNode: remoteNode,
 		}
 		if u.Scheme == "enode" {
 			pool := &pool.StaticPool{}
-			pool.AddNode(poolURI)
+			if err := pool.AddNode(poolURI); err != nil {
+				return err
+			}
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
 			c.Pool = pool
 		} else {
@@ -168,15 +171,22 @@ func subcommand(cmd string, options Options) error {
 				return ErrExplain{err, "Failed to connect to the pool RPC API."}
 			}
 			logger.Infof("Connected to vipnode pool: %s", poolURI)
-			c.Pool = pool.Remote(&jsonrpc2.Remote{
+			rpcPool := &jsonrpc2.Remote{
 				Codec: poolCodec,
-			}, privkey)
+			}
+			c.Pool = pool.Remote(rpcPool, privkey)
+			go func() {
+				errChan <- rpcPool.Serve()
+			}()
 		}
 		if err := c.Connect(); err != nil {
 			return err
 		}
 		// TODO: Register c.Disconnect() on ctrl+c signal?
-		return c.ServeUpdates()
+		go func() {
+			errChan <- c.ServeUpdates()
+		}()
+		return <-errChan
 
 	case "host":
 		remoteNode, err := findRPC(options.Host.RPC)
