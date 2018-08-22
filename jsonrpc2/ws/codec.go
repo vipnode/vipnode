@@ -91,6 +91,10 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 		remote := &jsonrpc2.Remote{
 			Codec:  WebSocketCodec(conn),
 			Server: srv,
+
+			// TODO: Unhardcode these?
+			PendingLimit:   50,
+			PendingDiscard: 10,
 		}
 		if err := remote.Serve(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
