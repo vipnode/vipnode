@@ -90,7 +90,7 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 		}
 		remote := &jsonrpc2.Remote{
 			Codec:  WebSocketCodec(conn),
-			Server: *srv,
+			Server: srv,
 		}
 		if err := remote.Serve(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

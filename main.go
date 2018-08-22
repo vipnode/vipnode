@@ -221,7 +221,7 @@ func subcommand(cmd string, options Options) error {
 			logger.Infof("Starting in-memory vipnode pool.")
 			p := pool.New()
 			rpcPool := &jsonrpc2.Local{}
-			rpcPool.Register("vipnode_", p)
+			rpcPool.Server.Register("vipnode_", p)
 			remotePool := pool.Remote(rpcPool, privkey)
 			return h.ServeUpdates(ctx, remotePool)
 		}
@@ -236,7 +236,7 @@ func subcommand(cmd string, options Options) error {
 		rpcPool := jsonrpc2.Remote{
 			Codec: poolCodec,
 		}
-		rpcPool.Register("vipnode_", h) // For bidirectional vipnode_whitelist
+		rpcPool.Server.Register("vipnode_", h) // For bidirectional vipnode_whitelist
 
 		errChan := make(chan error)
 		go func() {

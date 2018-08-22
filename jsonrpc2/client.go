@@ -5,6 +5,14 @@ import (
 	"sync/atomic"
 )
 
+type Requester interface {
+	// Request takes call inputs and creates a valid request Message.
+	Request(method string, params ...interface{}) (*Message, error)
+}
+
+var _ Requester = &Client{}
+
+// Client is responsible for making request messages.
 type Client struct {
 	id int32
 }

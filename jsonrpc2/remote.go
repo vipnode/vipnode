@@ -15,8 +15,16 @@ import (
 // both in goroutines. Useful for testing. Services still need to be registered.
 func ServePipe() (*Remote, *Remote) {
 	c1, c2 := net.Pipe()
-	client := Remote{Codec: IOCodec(c1)}
-	server := Remote{Codec: IOCodec(c2)}
+	client := Remote{
+		Codec:  IOCodec(c1),
+		Client: &Client{},
+		Server: &Server{},
+	}
+	server := Remote{
+		Codec:  IOCodec(c2),
+		Client: &Client{},
+		Server: &Server{},
+	}
 	go server.Serve()
 	go client.Serve()
 	return &server, &client
@@ -45,11 +53,6 @@ func CtxService(ctx context.Context) (Service, error) {
 	return s, nil
 }
 
-type pendingMsg struct {
-	msgChan   chan Message
-	timestamp time.Time
-}
-
 // Service represents a remote service that can be called.
 type Service interface {
 	Call(ctx context.Context, result interface{}, method string, params ...interface{}) error
@@ -62,11 +65,24 @@ var _ Service = &Remote{}
 // routing.
 type Remote struct {
 	Codec
-	Client
-	Server
+	Client Requester
+	Server Handler
+
+	// PendingLimit is the number of messages to hold before oldest messages get discarded.
+	PendingLimit int
+	// PendingDiscard is the number of oldest messages that get discarded when PendingLimit is reached.
+	PendingDiscard int
 
 	mu      sync.Mutex
 	pending map[string]pendingMsg
+}
+
+// clearPending removes num oldest entries, must hold the r.mu lock.
+func (r *Remote) cleanPending(num int) {
+	// Clear oldest entries
+	for _, item := range pendingOldest(r.pending, num) {
+		delete(r.pending, item.key)
+	}
 }
 
 func (r *Remote) getPendingChan(key string) chan Message {
@@ -75,6 +91,10 @@ func (r *Remote) getPendingChan(key string) chan Message {
 	if r.pending == nil {
 		r.pending = map[string]pendingMsg{}
 	}
+	if r.PendingLimit > 0 && len(r.pending) >= r.PendingLimit && r.PendingDiscard > 0 {
+		r.cleanPending(r.PendingDiscard)
+	}
+
 	pending, ok := r.pending[key]
 	if !ok {
 		pending = pendingMsg{

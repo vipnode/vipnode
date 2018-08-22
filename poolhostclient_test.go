@@ -22,13 +22,13 @@ func TestPoolHostClient(t *testing.T) {
 
 	p := pool.New()
 	rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
-	rpcPool2Host.Register("vipnode_", p)
+	rpcPool2Host.Server.Register("vipnode_", p)
 
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
 	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1", hostNodeID)
 	h := host.New(hostNodeURI, hostNode, "")
-	rpcHost2Pool.Register("vipnode_", h)
+	rpcHost2Pool.Server.Register("vipnode_", h)
 	remotePool := pool.Remote(rpcHost2Pool, privkey)
 
 	ctx := context.Background()
@@ -42,7 +42,7 @@ func TestPoolHostClient(t *testing.T) {
 	}
 
 	rpcPool2Client, rpcClient2Pool := jsonrpc2.ServePipe()
-	rpcPool2Client.Register("vipnode_", p)
+	rpcPool2Client.Server.Register("vipnode_", p)
 
 	clientPrivkey := keygen.HardcodedKeyIdx(t, 1)
 	clientNodeID := discv5.PubkeyID(&clientPrivkey.PublicKey).String()

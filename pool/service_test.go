@@ -41,7 +41,7 @@ func TestPoolInstance(t *testing.T) {
 func TestPoolService(t *testing.T) {
 	pool := New()
 	server, client := jsonrpc2.ServePipe()
-	server.Register("vipnode_", pool)
+	server.Server.Register("vipnode_", pool)
 
 	{
 		var result interface{}

@@ -9,7 +9,18 @@ import (
 	"unicode"
 )
 
+// Handler is a server that executes an RPC request message, returning an RPC
+// response message.
+type Handler interface {
+	// Handle takes a request message and returns a response message.
+	Handle(ctx context.Context, request *Message) (response *Message)
+	// FIXME: Register really shouldn't be par tof tihs signature, right?
+	Register(prefix string, receiver interface{}) error
+}
+
 var nullResult = json.RawMessage([]byte("null"))
+
+var _ Handler = &Server{}
 
 // Server contains the method registry.
 type Server struct {

@@ -14,7 +14,7 @@ func TestRemotePool(t *testing.T) {
 	pool.skipWhitelist = true
 
 	server, client := jsonrpc2.ServePipe()
-	server.Register("vipnode_", pool)
+	server.Server.Register("vipnode_", pool)
 
 	privkey := keygen.HardcodedKey(t)
 	remote := Remote(client, privkey)

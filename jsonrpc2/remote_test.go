@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"net"
 	"reflect"
+	"sort"
 	"testing"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
 
 func TestRemoteManual(t *testing.T) {
 	c1, c2 := net.Pipe()
-	r1 := Remote{Codec: IOCodec(c1)}
-	r2 := Remote{Codec: IOCodec(c2)}
+	s1, s2 := Server{}, Server{}
+	r1 := Remote{Codec: IOCodec(c1), Server: &s1, Client: &Client{}}
+	r2 := Remote{Codec: IOCodec(c2), Server: &s2, Client: &Client{}}
 
-	r1.Register("", &Pinger{})
-	r2.Register("", &Ponger{})
+	s1.Register("", &Pinger{})
+	s2.Register("", &Ponger{})
 
 	req, err := r1.Client.Request("pong")
 	if err != nil {
@@ -52,12 +55,12 @@ func TestRemoteBidirectional(t *testing.T) {
 	pingerClient, pongerClient := ServePipe()
 
 	ponger := &Ponger{}
-	pingerClient.Register("", ponger)
+	pingerClient.Server.Register("", ponger)
 
 	pinger := &Pinger{
 		PongService: pongerClient,
 	}
-	pongerClient.Register("", pinger)
+	pongerClient.Server.Register("", pinger)
 
 	var got string
 	if err := pongerClient.Call(context.Background(), &got, "pong"); err != nil {
@@ -84,12 +87,13 @@ func TestRemoteContextService(t *testing.T) {
 	defer conn1.Close()
 	defer conn2.Close()
 
-	client1 := Remote{Codec: IOCodec(conn2)}
-	client2 := Remote{Codec: IOCodec(conn1)}
+	s1, s2 := Server{}, Server{}
+	client1 := Remote{Codec: IOCodec(conn1), Server: &s1, Client: &Client{}}
+	client2 := Remote{Codec: IOCodec(conn2), Server: &s2, Client: &Client{}}
 
 	fib := &Fib{}
-	client1.Register("", fib)
-	client2.Register("", fib)
+	s1.Register("", fib)
+	s2.Register("", fib)
 
 	// These should serve until the connection is closed
 	go client1.Serve()
@@ -102,5 +106,40 @@ func TestRemoteContextService(t *testing.T) {
 	}
 	if want := 21; got != want {
 		t.Errorf("got: %d; want %d", got, want)
+	}
+}
+
+func TestRemoteCleanPending(t *testing.T) {
+	r := Remote{
+		PendingLimit:   5,
+		PendingDiscard: 3,
+	}
+	now := time.Now().Add(-time.Second * 100)
+	r.pending = map[string]pendingMsg{
+		"1": pendingMsg{timestamp: now.Add(time.Second * 1)},
+		"2": pendingMsg{timestamp: now.Add(time.Second * 2)},
+		"3": pendingMsg{timestamp: now.Add(time.Second * 3)},
+		"4": pendingMsg{timestamp: now.Add(time.Second * 4)},
+		"5": pendingMsg{timestamp: now.Add(time.Second * 5)},
+	}
+
+	if want, got := 5, len(r.pending); got != want {
+		t.Errorf("got: %d; want: %d", got, want)
+	}
+
+	// Should trigger a cleanup of 3, add 1.
+	r.getPendingChan("6")
+	if want, got := 3, len(r.pending); got != want {
+		t.Errorf("got: %d; want: %d", got, want)
+	}
+
+	keys := []string{}
+	for k, _ := range r.pending {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	if want, got := []string{"4", "5", "6"}, keys; !reflect.DeepEqual(got, want) {
+		t.Errorf("got: %q; want %q", got, want)
 	}
 }
