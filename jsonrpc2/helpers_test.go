@@ -34,7 +34,7 @@ func (f *Pinger) Ping() string {
 
 func (f *Pinger) PingPong() string {
 	var pong string
-	err := f.PongService.Call(context.TODO(), &pong, "pong")
+	err := f.PongService.Call(context.Background(), &pong, "pong")
 	if err != nil {
 		return fmt.Sprintf("err: %s", err)
 	}

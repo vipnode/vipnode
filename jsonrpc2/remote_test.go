@@ -38,7 +38,7 @@ func TestRemoteManual(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := r2.Server.Handle(context.TODO(), req)
+	resp := r2.Server.Handle(context.Background(), req)
 	var got string
 	if err := json.Unmarshal(resp.Response.Result, &got); err != nil {
 		t.Error(err)
@@ -60,7 +60,7 @@ func TestRemoteBidirectional(t *testing.T) {
 	pongerClient.Register("", pinger)
 
 	var got string
-	if err := pongerClient.Call(context.TODO(), &got, "pong"); err != nil {
+	if err := pongerClient.Call(context.Background(), &got, "pong"); err != nil {
 		t.Error(err)
 	}
 	if want := "pong"; got != want {
@@ -71,7 +71,7 @@ func TestRemoteBidirectional(t *testing.T) {
 		t.Errorf("got: %q; want %q", got, want)
 	}
 
-	if err := pingerClient.Call(context.TODO(), &got, "pingPong"); err != nil {
+	if err := pingerClient.Call(context.Background(), &got, "pingPong"); err != nil {
 		t.Error(err)
 	}
 	if want := "pingpong"; got != want {
@@ -97,7 +97,7 @@ func TestRemoteContextService(t *testing.T) {
 
 	// 0, 1, 1, 2, 3, 5, 8, 13, 21
 	var got int
-	if err := client1.Call(context.TODO(), &got, "fibonacci", 0, 1, 6); err != nil {
+	if err := client1.Call(context.Background(), &got, "fibonacci", 0, 1, 6); err != nil {
 		t.Error(err)
 	}
 	if want := 21; got != want {

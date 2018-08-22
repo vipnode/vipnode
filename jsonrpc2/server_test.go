@@ -13,7 +13,7 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := s.Handle(context.TODO(), &Message{
+	resp := s.Handle(context.Background(), &Message{
 		ID:      json.RawMessage([]byte("1")),
 		Version: Version,
 		Request: &Request{
@@ -28,7 +28,7 @@ func TestServer(t *testing.T) {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 
-	resp = s.Handle(context.TODO(), &Message{
+	resp = s.Handle(context.Background(), &Message{
 		ID:      json.RawMessage([]byte("2")),
 		Version: Version,
 		Request: &Request{
