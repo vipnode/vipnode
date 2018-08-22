@@ -82,13 +82,18 @@ func (codec wsCodec) Close() error {
 	return codec.inner.Close()
 }
 
-func WebsocketHandler(remote *jsonrpc2.Remote) http.HandlerFunc {
+func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
-		remote.Codec = WebSocketCodec(conn)
-		remote.Serve()
+		remote := &jsonrpc2.Remote{
+			Codec:  WebSocketCodec(conn),
+			Server: *srv,
+		}
+		if err := remote.Serve(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

@@ -253,9 +253,9 @@ func subcommand(cmd string, options Options) error {
 			return errors.New("storage driver not implemented")
 		}
 		p := pool.New()
-		remote := jsonrpc2.Remote{}
-		remote.Register("vipnode_", p)
-		handler := ws.WebsocketHandler(&remote)
+		srv := jsonrpc2.Server{}
+		srv.Register("vipnode_", p)
+		handler := ws.WebsocketHandler(&srv)
 		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
