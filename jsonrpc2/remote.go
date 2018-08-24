@@ -113,7 +113,6 @@ func (r *Remote) handleRequest(msg *Message) error {
 }
 
 func (r *Remote) Serve() error {
-	// TODO: Discard old pending messages
 	for {
 		msg, err := r.Codec.ReadMessage()
 		if err != nil {
@@ -128,20 +127,23 @@ func (r *Remote) Serve() error {
 	}
 }
 
-// Receive blocks until the given message ID is received. Use Call for an
+// receive blocks until the given message ID is received. Use Call for an
 // end-to-end solution.
-func (r *Remote) Receive(ID json.RawMessage) *Message {
+func (r *Remote) receive(ctx context.Context, ID json.RawMessage) (*Message, error) {
 	key := string(ID)
-	msg := <-r.getPendingChan(key)
-	r.mu.Lock()
-	delete(r.pending, key)
-	r.mu.Unlock()
-	return &msg
+	select {
+	case msg := <-r.getPendingChan(key):
+		r.mu.Lock()
+		delete(r.pending, key)
+		r.mu.Unlock()
+		return &msg, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // Call handles sending an RPC and receiving the corresponding response synchronously.
 func (r *Remote) Call(ctx context.Context, result interface{}, method string, params ...interface{}) error {
-	// TODO: Plumb ctx
 	req, err := r.Client.Request(method, params...)
 	if err != nil {
 		return err
@@ -149,7 +151,10 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 	if err = r.Codec.WriteMessage(req); err != nil {
 		return err
 	}
-	resp := r.Receive(req.ID)
+	resp, err := r.receive(ctx, req.ID)
+	if err != nil {
+		return err
+	}
 	if resp.Response != nil && resp.Response.Error != nil {
 		return resp.Response.Error
 	}
