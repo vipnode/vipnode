@@ -6,8 +6,6 @@ import (
 	"io"
 )
 
-// TODO: Does WriteMessage need to be mutexed?
-
 // Codec is an straction for receiving and sending JSONRPC messages.
 type Codec interface {
 	ReadMessage() (*Message, error)

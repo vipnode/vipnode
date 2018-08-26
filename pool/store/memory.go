@@ -2,16 +2,16 @@ package store
 
 import (
 	"sync"
+	"time"
 )
 
 // MemoryStore implements an ephemeral in-memory store. It may not be a
 // complete implementation but it's useful for testing.
 func MemoryStore() *memoryStore {
 	return &memoryStore{
-		balances:    map[Account]Balance{},
-		clientnodes: map[NodeID]ClientNode{},
-		hostnodes:   map[NodeID]HostNode{},
-		nonces:      map[NodeID]int64{},
+		balances: map[Account]Balance{},
+		nodes:    map[NodeID]Node{},
+		nonces:   map[NodeID]int64{},
 	}
 }
 
@@ -25,8 +25,7 @@ type memoryStore struct {
 	balances map[Account]Balance
 
 	// Connected nodes
-	clientnodes map[NodeID]ClientNode
-	hostnodes   map[NodeID]HostNode
+	nodes map[NodeID]Node
 
 	nonces map[NodeID]int64
 }
@@ -63,36 +62,45 @@ func (s *memoryStore) AddBalance(account Account, credit Amount) error {
 	return nil
 }
 
-// SetHostNode adds a HostNode to the set of active host nodes.
-func (s *memoryStore) SetHostNode(n HostNode, a Account) error {
+// SetNode adds a HostNode to the set of active host nodes.
+func (s *memoryStore) SetNode(n Node, a Account) error {
+	if n.ID == "" {
+		return ErrMalformedNode
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if a != "" && n.balance == nil {
 		b := s.balances[a]
 		n.balance = &b
 	}
-	s.hostnodes[n.ID] = n
+	s.nodes[n.ID] = n
 	return nil
 }
 
-// RemoveHostNode removes a HostNode.
-func (s *memoryStore) RemoveHostNode(nodeID NodeID) error {
+// RemoveNode removes a HostNode.
+func (s *memoryStore) RemoveNode(nodeID NodeID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.hostnodes, nodeID)
+	delete(s.nodes, nodeID)
 	return nil
 }
 
 // GetHostNodes returns `limit`-number of `kind` nodes. This could be an
 // empty list, if none are available.
-func (s *memoryStore) GetHostNodes(kind string, limit int) []HostNode {
-	r := make([]HostNode, 0, limit)
+func (s *memoryStore) GetHostNodes(kind string, limit int) []Node {
+	r := make([]Node, 0, limit)
 
 	s.mu.Lock()
-	// TODO: Filter by kind (geth vs parity?)
-	// TODO: Do something other than random, such as by availability.
-	// FIXME: lol implicitly random map iteration
-	for _, n := range s.hostnodes {
+	// TODO: Do something other than random, such as by availability?
+	for _, n := range s.nodes {
+		// Ranging over a map is implicitly random, so
+		// results are shuffled as is desireable.
+		if !n.IsHost {
+			continue
+		}
+		if kind != "" && n.Kind != kind {
+			continue
+		}
 		r = append(r, n)
 		limit -= 1
 		if limit == 0 {
@@ -103,4 +111,21 @@ func (s *memoryStore) GetHostNodes(kind string, limit int) []HostNode {
 	}
 	s.mu.Unlock()
 	return r
+}
+
+func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	node, ok := s.nodes[nodeID]
+	if !ok {
+		return ErrUnregisteredNode
+	}
+	now := time.Now()
+	for _, peer := range peers {
+		// Only update peers we already know about
+		if _, ok := s.nodes[NodeID(peer)]; ok {
+			node.peers[NodeID(peer)] = now
+		}
+	}
+	return nil
 }

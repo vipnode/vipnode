@@ -22,7 +22,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("unexpected no nodes error, got: %q", err)
 	}
 
-	p.Nodes = append(p.Nodes, store.HostNode{
+	p.Nodes = append(p.Nodes, store.Node{
 		URI: "foo",
 	})
 

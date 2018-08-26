@@ -25,7 +25,7 @@ type Client struct {
 	BalanceCallback *func(store.Balance)
 
 	mu             sync.Mutex
-	connectedHosts []store.HostNode
+	connectedHosts []store.Node
 	disconnectChan chan struct{}
 }
 

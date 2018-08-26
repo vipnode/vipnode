@@ -26,24 +26,16 @@ func (b *Balance) String() string {
 	return fmt.Sprintf("Balance(%q, %d)", account, b.Credit)
 }
 
-// ClientNode stores metadata for tracking VIPs
-type ClientNode struct {
-	LastSeen time.Time `json:"last_seen"`
-	Kind     string    `json:"kind"`
-
-	balance *Balance
-	peers   map[NodeID]time.Time // Last seen
-}
-
-// HostNode stores metadata requires for tracking full nodes.
-type HostNode struct {
+// Node stores metadata requires for tracking full nodes.
+type Node struct {
 	ID       NodeID
 	URI      string    `json:"uri"`
 	LastSeen time.Time `json:"last_seen"`
 	Kind     string    `json:"kind"`
+	IsHost   bool
 
 	balance *Balance
-	peers   map[NodeID]time.Time // Last seen
+	peers   map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
 	inSync  bool                 // TODO: Do we need a penalty if a full node wants to accept peers while not in sync?
 }
 
@@ -59,9 +51,10 @@ type Store interface {
 
 	// GetHostNodes returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
-	GetHostNodes(kind string, limit int) []HostNode
-	// SetHostNode adds a HostNode to the set of active host nodes.
-	SetHostNode(HostNode, Account) error
-	// RemoveHostNode removes a HostNode.
-	RemoveHostNode(nodeID NodeID) error
+	GetHostNodes(kind string, limit int) []Node
+
+	// SetNode adds a Node to the set of active nodes.
+	SetNode(Node, Account) error
+	// RemoveNode removes a Node.
+	RemoveNode(nodeID NodeID) error
 }

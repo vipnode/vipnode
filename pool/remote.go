@@ -51,7 +51,7 @@ func (p *RemotePool) Host(ctx context.Context, kind string, payout string, nodeU
 	return p.client.Call(ctx, &result, req.Method, args...)
 }
 
-func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
+func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.Node, error) {
 	req := request.Request{
 		Method:    "vipnode_connect",
 		NodeID:    p.nodeID,
@@ -63,7 +63,7 @@ func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.HostNode
 	if err != nil {
 		return nil, err
 	}
-	var result []store.HostNode
+	var result []store.Node
 	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}

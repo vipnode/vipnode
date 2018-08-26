@@ -13,12 +13,12 @@ var _ Pool = &StaticPool{}
 // StaticPool is a dummy implementation of a pool service that always returns
 // from the same set of host nodes. It does not do any signature checking.
 type StaticPool struct {
-	Nodes []store.HostNode
+	Nodes []store.Node
 }
 
 func (s *StaticPool) AddNode(nodeURI string) error {
 	// TODO: Parse ID etc?
-	s.Nodes = append(s.Nodes, store.HostNode{
+	s.Nodes = append(s.Nodes, store.Node{
 		URI: nodeURI,
 	})
 	return nil
@@ -28,7 +28,7 @@ func (s *StaticPool) Host(ctx context.Context, kind string, payout string, nodeU
 	return nil
 }
 
-func (s *StaticPool) Connect(ctx context.Context, kind string) ([]store.HostNode, error) {
+func (s *StaticPool) Connect(ctx context.Context, kind string) ([]store.Node, error) {
 	return s.Nodes, nil
 }
 

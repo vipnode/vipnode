@@ -15,7 +15,7 @@ type Pool interface {
 	// Or would it be easier to fork ethereum's rpc to allow bidirectional services?
 
 	// Connect requests for available hosts to connect to as a client.
-	Connect(ctx context.Context, kind string) ([]store.HostNode, error)
+	Connect(ctx context.Context, kind string) ([]store.Node, error)
 
 	// Disconnect stops tracking the connection and billing, will prompt a
 	// disconnect from both ends.

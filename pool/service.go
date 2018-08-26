@@ -59,7 +59,7 @@ func (err ErrConnectFailed) Error() string {
 }
 
 type hostService struct {
-	store.HostNode
+	store.Node
 	jsonrpc2.Service
 }
 
@@ -72,6 +72,8 @@ func New() *VipnodePool {
 		remoteHosts: map[store.NodeID]jsonrpc2.Service{},
 	}
 }
+
+const poolWhitelistTimeout = 5 * time.Second
 
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
@@ -128,13 +130,14 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 
 	logger.Printf("New host: %s", nodeURI)
 
-	node := store.HostNode{
+	node := store.Node{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,
 		Kind:     kind,
 		LastSeen: time.Now(),
+		IsHost:   true,
 	}
-	err = p.Store.SetHostNode(node, store.Account(payout))
+	err = p.Store.SetNode(node, store.Account(payout))
 	if err != nil {
 		return err
 	}
@@ -152,9 +155,8 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 }
 
 // Connect returns a list of enodes who are ready for the client node to connect.
-func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]store.HostNode, error) {
+func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]store.Node, error) {
 	// FIXME: Kind might be insufficient: We need to distinguish between full node vs parity LES and geth LES.
-	// TODO: Send a whitelist request, only return subset of nodes that responded in time.
 	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, kind); err != nil {
 		return nil, err
 	}
@@ -189,13 +191,16 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 
 	// TODO: Set deadline
 	// TODO: Parallelize
-	accepted := make([]store.HostNode, 0, len(remotes))
+	accepted := make([]store.Node, 0, len(remotes))
 	for _, remote := range remotes {
-		if err := remote.Service.Call(ctx, nil, "vipnode_whitelist", nodeID); err != nil {
+		callCtx, cancel := context.WithTimeout(ctx, poolWhitelistTimeout)
+		err := remote.Service.Call(callCtx, nil, "vipnode_whitelist", nodeID)
+		cancel()
+		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		accepted = append(accepted, remote.HostNode)
+		accepted = append(accepted, remote.Node)
 	}
 
 	if len(accepted) >= 1 {
