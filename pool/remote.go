@@ -86,7 +86,7 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 	return p.client.Call(ctx, &result, req.Method, args...)
 }
 
-func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance, error) {
+func (p *RemotePool) Update(ctx context.Context, peers []string) (*UpdateResponse, error) {
 	req := request.Request{
 		Method:    "vipnode_update",
 		NodeID:    p.nodeID,
@@ -99,7 +99,7 @@ func (p *RemotePool) Update(ctx context.Context, peers []string) (*store.Balance
 		return nil, err
 	}
 
-	var result store.Balance
+	var result UpdateResponse
 	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
 		return nil, err
 	}

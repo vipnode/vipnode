@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
@@ -21,14 +22,19 @@ func TestRemotePool(t *testing.T) {
 
 	// Add self to pool first, then let's see if we're advised to connect to
 	// self (this probably should error at some point but good test for now).
-	if err := pool.Store.SetNode(store.Node{ID: "foo", URI: "enode://foo", IsHost: true, Kind: "geth"}, ""); err != nil {
+	if err := pool.Store.SetNode(store.Node{ID: "foo", URI: "enode://foo", IsHost: true, Kind: "geth", LastSeen: time.Now()}, ""); err != nil {
 		t.Fatal("failed to add host node:", err)
 	}
-	if err := pool.Store.SetNode(store.Node{ID: "bar", URI: "enode://bar", IsHost: true, Kind: "parity"}, ""); err != nil {
+	if err := pool.Store.SetNode(store.Node{ID: "bar", URI: "enode://bar", IsHost: true, Kind: "parity", LastSeen: time.Now()}, ""); err != nil {
 		t.Fatal("failed to add host node:", err)
 	}
 
-	nodes := pool.Store.GetHostNodes("", 3)
+	// This peer will be ignored because LastSeen was too long ago
+	if err := pool.Store.SetNode(store.Node{ID: "oldpeer", URI: "enode://oldpeer", IsHost: true, Kind: "parity", LastSeen: time.Now().Add(-5 * store.KeepaliveInterval)}, ""); err != nil {
+		t.Fatal("failed to add host node:", err)
+	}
+
+	nodes := pool.Store.ActiveHosts("", 3)
 	if len(nodes) != 2 {
 		t.Errorf("GetHostNodes returned unexpected number of nodes: %d", len(nodes))
 	}

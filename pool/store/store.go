@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// KeepaliveInterval is the rate of when clients and hosts are expected to send
+// peering updates.
+const KeepaliveInterval = 60 * time.Second
+
 // FIXME: placeholder types, replace with go-ethereum types
 
 type Account string
@@ -49,12 +53,19 @@ type Store interface {
 	// AddBalance adds some credit amount to that account balance.
 	AddBalance(account Account, credit Amount) error
 
-	// GetHostNodes returns `limit`-number of `kind` nodes. This could be an
+	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
-	GetHostNodes(kind string, limit int) []Node
+	ActiveHosts(kind string, limit int) []Node
 
 	// SetNode adds a Node to the set of active nodes.
 	SetNode(Node, Account) error
 	// RemoveNode removes a Node.
 	RemoveNode(nodeID NodeID) error
+
+	// UpdateNodePeers updates the Node.peers lookup with the current timestamp
+	// of nodes we know about. This is used as a keepalive, and to keep track
+	// of which client is connected to which host. Any missing peer is removed
+	// from the known peers and returned. It also updates nodeID's
+	// LastSeen.
+	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []Node, err error)
 }

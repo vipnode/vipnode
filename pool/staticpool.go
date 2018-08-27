@@ -36,8 +36,8 @@ func (s *StaticPool) Disconnect(ctx context.Context) error {
 	return nil
 }
 
-func (s *StaticPool) Update(ctx context.Context, peers []string) (*store.Balance, error) {
-	return &store.Balance{}, nil
+func (s *StaticPool) Update(ctx context.Context, peers []string) (*UpdateResponse, error) {
+	return &UpdateResponse{}, nil
 }
 
 func (s *StaticPool) Withdraw(ctx context.Context) error {

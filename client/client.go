@@ -14,9 +14,6 @@ import (
 // ErrAlreadyConnected is returned on Connect() if the client is already connected.
 var ErrAlreadyConnected = errors.New("client already connected")
 
-// updateInterval is how frequently we send updates to the pool.
-const updateInterval = time.Second * 60
-
 // Client represents a vipnode client which connects to a vipnode host.
 type Client struct {
 	ethnode.EthNode
@@ -70,15 +67,23 @@ func (c *Client) sendUpdate() error {
 		peerIDs = append(peerIDs, p.ID)
 	}
 
-	balance, err := c.Pool.Update(ctx, peerIDs)
+	update, err := c.Pool.Update(ctx, peerIDs)
 	if err != nil {
 		return err
 	}
 	if c.BalanceCallback != nil {
-		(*c.BalanceCallback)(*balance)
+		(*c.BalanceCallback)(*update.Balance)
 	}
 
-	logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), balance.Credit)
+	if len(update.InvalidPeers) > 0 {
+		// Client doesn't really need to do anything if the pool stopped
+		// tracking their host. That means the client is getting a free ride
+		// and it's up to the host to kick the client when the host deems
+		// necessary.
+		logger.Printf("Update: %d peers connected, %d expired in pool, %d balance with pool.", len(peerIDs), len(update.InvalidPeers), update.Balance.Credit)
+	} else {
+		logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), update.Balance.Credit)
+	}
 
 	return nil
 }
@@ -92,7 +97,7 @@ func (c *Client) ServeUpdates() error {
 
 	for {
 		select {
-		case <-time.After(updateInterval):
+		case <-time.After(store.KeepaliveInterval):
 			if err := c.sendUpdate(); err != nil {
 				return err
 			}

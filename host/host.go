@@ -6,6 +6,7 @@ import (
 
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/store"
 )
 
 type nodeID string
@@ -37,7 +38,7 @@ func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
 }
 
 func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
-	enode, err := h.node.Enode(context.TODO())
+	enode, err := h.node.Enode(context.Background())
 	if err != nil {
 		return err
 	}
@@ -53,6 +54,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 	// shutdown)
 
 	updatePeers := func() error {
+		ctx := context.Background()
 		peers, err := h.node.Peers(ctx)
 		if err != nil {
 			return err
@@ -61,11 +63,21 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 		for _, peer := range peers {
 			peerUpdate = append(peerUpdate, peer.ID)
 		}
-		balance, err := p.Update(ctx, peerUpdate)
+		update, err := p.Update(ctx, peerUpdate)
 		if err != nil {
 			return err
 		}
-		logger.Printf("Sent pool update: %d peers; received balance: %s", len(peerUpdate), balance)
+		if len(update.InvalidPeers) == 0 {
+			logger.Printf("Sent pool update: %d peers; Current balance: %s", len(peerUpdate), update.Balance)
+			return nil
+		}
+		logger.Printf("Sent pool update: %d peers; Disconnecting from %d invalid peers. Current balance: %s", len(peerUpdate), len(update.InvalidPeers), update.Balance)
+		for _, peerID := range update.InvalidPeers {
+			if err := h.node.RemoveTrustedPeer(ctx, peerID); err != nil {
+				// FIXME: Are there recoverable errors here?
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -73,7 +85,7 @@ func (h *Host) ServeUpdates(ctx context.Context, p pool.Pool) error {
 		return err
 	}
 
-	ticker := time.Tick(60 * time.Second)
+	ticker := time.Tick(store.KeepaliveInterval)
 	for {
 		select {
 		case <-ticker:

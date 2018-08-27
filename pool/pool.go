@@ -6,6 +6,11 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+type UpdateResponse struct {
+	Balance      *store.Balance `json:"balance,omitempty"`
+	InvalidPeers []string       `json:"invalid_peers"`
+}
+
 // Pool represents a vipnode pool for coordinating between clients and hosts.
 type Pool interface {
 	// Host subscribes a host to receive vipnode_whitelist instructions.
@@ -22,8 +27,9 @@ type Pool interface {
 	Disconnect(ctx context.Context) error
 
 	// Update is a keep-alive for sharing the node's peering info. It returns
-	// the current balance for the node.
-	Update(ctx context.Context, peers []string) (*store.Balance, error)
+	// a list of peers that are no longer corroborated by the pool, and current
+	// balance for the node (if relevant).
+	Update(ctx context.Context, peers []string) (*UpdateResponse, error)
 
 	// Withdraw prompts a request to settle the node's balance.
 	Withdraw(ctx context.Context) error

@@ -85,9 +85,10 @@ func (s *memoryStore) RemoveNode(nodeID NodeID) error {
 	return nil
 }
 
-// GetHostNodes returns `limit`-number of `kind` nodes. This could be an
+// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 // empty list, if none are available.
-func (s *memoryStore) GetHostNodes(kind string, limit int) []Node {
+func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
+	seenSince := time.Now().Add(-2 * KeepaliveInterval)
 	r := make([]Node, 0, limit)
 
 	s.mu.Lock()
@@ -99,6 +100,9 @@ func (s *memoryStore) GetHostNodes(kind string, limit int) []Node {
 			continue
 		}
 		if kind != "" && n.Kind != kind {
+			continue
+		}
+		if !n.LastSeen.After(seenSince) {
 			continue
 		}
 		r = append(r, n)
@@ -113,19 +117,41 @@ func (s *memoryStore) GetHostNodes(kind string, limit int) []Node {
 	return r
 }
 
-func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) error {
+// UpdateNodePeers updates the Node.peers lookup with the current timestamp
+// of nodes we know about. This is used as a keepalive, and to keep track of
+// which client is connected to which host.
+func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
 	if !ok {
-		return ErrUnregisteredNode
+		return nil, ErrUnregisteredNode
 	}
 	now := time.Now()
+	node.LastSeen = now
+	numUpdated := 0
 	for _, peer := range peers {
 		// Only update peers we already know about
 		if _, ok := s.nodes[NodeID(peer)]; ok {
 			node.peers[NodeID(peer)] = now
+			numUpdated += 1
 		}
 	}
-	return nil
+
+	if numUpdated == len(node.peers) {
+		return nil, nil
+	}
+	inactive := []Node{}
+	inactiveDeadline := now.Add(-2 * KeepaliveInterval)
+	for nodeID, timestamp := range node.peers {
+		if timestamp.Before(inactiveDeadline) {
+			continue
+		}
+		delete(node.peers, nodeID)
+		if node, ok := s.nodes[nodeID]; ok {
+			inactive = append(inactive, node)
+		}
+	}
+
+	return inactive, nil
 }

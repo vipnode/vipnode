@@ -102,14 +102,26 @@ func (p *VipnodePool) register(nodeID store.NodeID, account store.Account, credi
 }
 
 // Update submits a list of peers that the node is connected to, returning the current account balance.
-func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, peers []string) (*store.Balance, error) {
+func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, peers []string) (*UpdateResponse, error) {
 	if err := p.verify(sig, "vipnode_update", nodeID, nonce, peers); err != nil {
 		return nil, err
 	}
 
-	// XXX: Track peers.
-	// XXX: Return proper balance
-	return &store.Balance{}, nil
+	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := UpdateResponse{
+		InvalidPeers: make([]string, 0, len(inactive)),
+	}
+	for _, peer := range inactive {
+		resp.InvalidPeers = append(resp.InvalidPeers, string(peer.ID))
+		logger.Print("%s: Returning %d invalid peers", nodeID[:6], len(inactive))
+	}
+
+	// XXX: Track and return proper balance
+	return &resp, nil
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
@@ -163,9 +175,10 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 
 	logger.Printf("New client: %s", nodeID)
 
-	// TODO: Unhardcode 3?
+	// TODO: Unhardcode these
 	numRequestHosts := 3
-	r := p.Store.GetHostNodes(kind, numRequestHosts)
+
+	r := p.Store.ActiveHosts(kind, numRequestHosts)
 	if len(r) == 0 {
 		return nil, ErrNoHostNodes{}
 	}
