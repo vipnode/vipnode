@@ -218,7 +218,9 @@ func subcommand(cmd string, options Options) error {
 			logger.Infof("Starting in-memory vipnode pool.")
 			p := pool.New()
 			rpcPool := &jsonrpc2.Local{}
-			rpcPool.Server.Register("vipnode_", p)
+			if err := rpcPool.Server.Register("vipnode_", p); err != nil {
+				return err
+			}
 			remotePool := pool.Remote(rpcPool, privkey)
 			return h.Start(remotePool)
 		}
@@ -233,7 +235,9 @@ func subcommand(cmd string, options Options) error {
 		rpcPool := jsonrpc2.Remote{
 			Codec: poolCodec,
 		}
-		rpcPool.Server.Register("vipnode_", h) // For bidirectional vipnode_whitelist
+		if err := rpcPool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+			return err
+		}
 
 		errChan := make(chan error)
 		go func() {
@@ -252,7 +256,9 @@ func subcommand(cmd string, options Options) error {
 		}
 		p := pool.New()
 		srv := jsonrpc2.Server{}
-		srv.Register("vipnode_", p)
+		if err := srv.Register("vipnode_", p); err != nil {
+			return err
+		}
 		handler := ws.WebsocketHandler(&srv)
 		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, handler)

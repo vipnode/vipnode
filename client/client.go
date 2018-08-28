@@ -17,7 +17,7 @@ func New(node ethnode.EthNode) *Client {
 	return &Client{
 		EthNode: node,
 		stopCh:  make(chan struct{}),
-		readyCh: make(chan struct{}, 1),
+		waitCh:  make(chan error, 1),
 	}
 }
 
@@ -29,16 +29,17 @@ type Client struct {
 
 	connectedHosts []store.Node
 	stopCh         chan struct{}
-	readyCh        chan struct{}
+	waitCh         chan error
 }
 
-// Ready returns a channel that yields when the client is registered on the
-// pool, after the first peers update is sent.
-func (c *Client) Ready() <-chan struct{} {
-	return c.readyCh
+// Wait blocks until the client is stopped.
+func (c *Client) Wait() error {
+	return <-c.waitCh
 }
 
-// Connect retrieves compatible hosts from the pool and connects to them.
+// Start retrieves compatible hosts from the pool and connects to them. Start
+// blocks until registration is complete, then the keepalive peering updates
+// break out into a separate goroutine and Start returns.
 func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
 	starCtx := context.Background()
@@ -56,17 +57,22 @@ func (c *Client) Start(p pool.Pool) error {
 			return err
 		}
 	}
-	connectedHosts := nodes
-
 	if err := c.updatePeers(context.Background(), p); err != nil {
 		return err
 	}
 
-	c.readyCh <- struct{}{}
+	go func() {
+		c.waitCh <- c.serveUpdates(p, nodes)
+	}()
 
+	return nil
+}
+
+func (c *Client) serveUpdates(p pool.Pool, connectedHosts []store.Node) error {
+	ticker := time.Tick(store.KeepaliveInterval)
 	for {
 		select {
-		case <-time.After(store.KeepaliveInterval):
+		case <-ticker:
 			if err := c.updatePeers(context.Background(), p); err != nil {
 				return err
 			}
@@ -80,7 +86,6 @@ func (c *Client) Start(p pool.Pool) error {
 			return nil
 		}
 	}
-	return nil
 }
 
 func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
@@ -97,8 +102,13 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 	if err != nil {
 		return err
 	}
-	if c.BalanceCallback != nil {
+	if c.BalanceCallback != nil && update.Balance != nil {
 		(*c.BalanceCallback)(*update.Balance)
+	}
+
+	var credit store.Amount
+	if update.Balance != nil {
+		credit = update.Balance.Credit
 	}
 
 	if len(update.InvalidPeers) > 0 {
@@ -106,9 +116,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		// tracking their host. That means the client is getting a free ride
 		// and it's up to the host to kick the client when the host deems
 		// necessary.
-		logger.Printf("Update: %d peers connected, %d expired in pool, %d balance with pool.", len(peerIDs), len(update.InvalidPeers), update.Balance.Credit)
+		logger.Printf("Update: %d peers connected, %d expired in pool, %d balance with pool.", len(peerIDs), len(update.InvalidPeers), credit)
 	} else {
-		logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), update.Balance.Credit)
+		logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), credit)
 	}
 
 	return nil

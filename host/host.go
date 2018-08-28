@@ -18,21 +18,25 @@ type client struct {
 
 func New(nodeURI string, node ethnode.EthNode, payout string) *Host {
 	return &Host{
-		node:    node,
-		uri:     nodeURI,
-		payout:  payout,
-		stopCh:  make(chan struct{}),
-		readyCh: make(chan struct{}, 1),
+		node:   node,
+		uri:    nodeURI,
+		payout: payout,
+		stopCh: make(chan struct{}),
+		waitCh: make(chan error, 1),
 	}
+}
+
+type HostService interface {
+	Whitelist(ctx context.Context, nodeID string) error
 }
 
 // Host represents a single vipnode host.
 type Host struct {
-	node    ethnode.EthNode
-	uri     string
-	payout  string
-	stopCh  chan struct{}
-	readyCh chan struct{}
+	node   ethnode.EthNode
+	uri    string
+	payout string
+	stopCh chan struct{}
+	waitCh chan error
 }
 
 // Whitelist a client for this host.
@@ -73,14 +77,15 @@ func (h *Host) Stop() {
 	h.stopCh <- struct{}{}
 }
 
-// Ready returns a channel that yields when the host is registered on the pool,
-// after the first peers update is sent.
-func (h *Host) Ready() <-chan struct{} {
-	return h.readyCh
+// Wait blocks until the host is stopped. It returns any errors that occur
+// during stopping.
+func (h *Host) Wait() error {
+	return <-h.waitCh
 }
 
 // Start registers the host on the given pool and starts sending peer updates
-// every store.KeepaliveInterval.
+// every store.KeepaliveInterval. It returns after
+// successfully registering with the pool.
 func (h *Host) Start(p pool.Pool) error {
 	startCtx := context.Background()
 	enode, err := h.node.Enode(startCtx)
@@ -102,8 +107,13 @@ func (h *Host) Start(p pool.Pool) error {
 		return err
 	}
 
-	h.readyCh <- struct{}{}
+	go func() {
+		h.waitCh <- h.serveUpdates(p)
+	}()
+	return nil
+}
 
+func (h *Host) serveUpdates(p pool.Pool) error {
 	ticker := time.Tick(store.KeepaliveInterval)
 	for {
 		select {

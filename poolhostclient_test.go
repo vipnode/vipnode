@@ -22,26 +22,23 @@ func TestPoolHostClient(t *testing.T) {
 	rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Host.Close()
 	defer rpcHost2Pool.Close()
-	rpcPool2Host.Server.Register("vipnode_", p)
-
-	errChan := make(chan error, 2)
+	if err := rpcPool2Host.Server.Register("vipnode_", p); err != nil {
+		t.Fatalf("failed to register vipnode_ rpc for pool: %s", err)
+	}
 
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
 	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1", hostNodeID)
 	h := host.New(hostNodeURI, hostNode, payout)
-	rpcHost2Pool.Server.Register("vipnode_", h)
+	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+		t.Fatalf("failed to register vipnode_ rpc for host: %s", err)
+	}
 	hostPool := pool.Remote(rpcHost2Pool, privkey)
 
-	go func() {
-		errChan <- h.Start(hostPool)
-	}()
-	defer h.Stop()
-	select {
-	case <-h.Ready():
-	case err := <-errChan:
+	if err := h.Start(hostPool); err != nil {
 		t.Fatalf("failed to start host: %s", err)
 	}
+	defer h.Stop()
 
 	rpcPool2Client, rpcClient2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Client.Close()
@@ -53,16 +50,10 @@ func TestPoolHostClient(t *testing.T) {
 	clientNode := fakenode.Node(clientNodeID)
 	c := client.New(clientNode)
 	clientPool := pool.Remote(rpcClient2Pool, clientPrivkey)
-
-	go func() {
-		errChan <- c.Start(clientPool)
-	}()
-	defer c.Stop()
-	select {
-	case <-c.Ready():
-	case err := <-errChan:
+	if err := c.Start(clientPool); err != nil {
 		t.Fatalf("failed to start client: %s", err)
 	}
+	defer c.Stop()
 
 	want := fakenode.Calls{
 		fakenode.Call("AddTrustedPeer", clientNodeID),
