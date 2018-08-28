@@ -53,6 +53,41 @@ func methodErrPos(methodType reflect.Type) (int, bool) {
 	return -1, false
 }
 
+// MethodByName returns a single Method from receiver that matches the name.
+func MethodByName(receiver interface{}, name string) (Method, error) {
+	kind := reflect.TypeOf(receiver)
+	val := reflect.ValueOf(receiver)
+	if name := reflect.Indirect(val).Type().Name(); !isExported(name) {
+		return Method{}, fmt.Errorf("receiver must be exported: %s", name)
+	}
+
+	method, ok := kind.MethodByName(name)
+	if !ok || method.PkgPath != "" {
+		return Method{}, fmt.Errorf("method must be exported: %s", name)
+	}
+
+	// Load arg types (skip first arg, the receiver)
+	argTypes, hasCtx, ok := methodArgTypes(method.Type)
+	if !ok {
+		// Skip methods with unexported arg types
+		return Method{}, fmt.Errorf("method args must be exported in method: %s", method.Name)
+	}
+
+	// Find ErrPos, if any.
+	errPos, ok := methodErrPos(method.Type)
+	if !ok {
+		return Method{}, fmt.Errorf("unsupported return values in method: %s", method.Name)
+	}
+
+	return Method{
+		Receiver: val,
+		Method:   method,
+		ArgTypes: argTypes,
+		ErrPos:   errPos,
+		HasCtx:   hasCtx,
+	}, nil
+}
+
 // Methods returns a mapping of valid method names to Method definitions for a
 // instance's receiver.
 func Methods(receiver interface{}) (map[string]Method, error) {

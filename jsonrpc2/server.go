@@ -14,8 +14,9 @@ import (
 type Handler interface {
 	// Handle takes a request message and returns a response message.
 	Handle(ctx context.Context, request *Message) (response *Message)
-	// FIXME: Register really shouldn't be par tof tihs signature, right?
+	// FIXME: Register* really shouldn't be part of this signature, right?
 	Register(prefix string, receiver interface{}) error
+	RegisterMethod(rpcName string, receiver interface{}, methodName string) error
 }
 
 var nullResult = json.RawMessage([]byte("null"))
@@ -51,6 +52,24 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 		s.registry[buf.String()] = m
 		buf.Reset()
 	}
+	return nil
+}
+
+// RegisterMethod registers a single methodName from receiver with the given rpcName.
+func (s *Server) RegisterMethod(rpcName string, receiver interface{}, methodName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.registry == nil {
+		s.registry = map[string]Method{}
+	}
+
+	method, err := MethodByName(receiver, methodName)
+	if err != nil {
+		return err
+	}
+
+	s.registry[rpcName] = method
 	return nil
 }
 
