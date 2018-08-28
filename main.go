@@ -150,41 +150,39 @@ func subcommand(cmd string, options Options) error {
 		}
 
 		errChan := make(chan error)
-		c := client.Client{
-			EthNode: remoteNode,
-		}
+		c := client.New(remoteNode)
+		var p pool.Pool
 		if u.Scheme == "enode" {
-			pool := &pool.StaticPool{}
-			if err := pool.AddNode(poolURI); err != nil {
+			staticPool := &pool.StaticPool{}
+			if err := staticPool.AddNode(poolURI); err != nil {
 				return err
 			}
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-			c.Pool = pool
-		} else {
-			privkey, err := findNodeKey(options.Client.NodeKey)
-			if err != nil {
-				return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
-			}
+			return c.Start(p)
+		}
 
-			poolCodec, err := ws.WebSocketDial(context.Background(), poolURI)
-			if err != nil {
-				return ErrExplain{err, "Failed to connect to the pool RPC API."}
-			}
-			logger.Infof("Connected to vipnode pool: %s", poolURI)
-			rpcPool := &jsonrpc2.Remote{
-				Codec: poolCodec,
-			}
-			c.Pool = pool.Remote(rpcPool, privkey)
-			go func() {
-				errChan <- rpcPool.Serve()
-			}()
+		privkey, err := findNodeKey(options.Client.NodeKey)
+		if err != nil {
+			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
 		}
-		if err := c.Connect(); err != nil {
-			return err
+
+		poolCodec, err := ws.WebSocketDial(context.Background(), poolURI)
+		if err != nil {
+			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
-		// TODO: Register c.Disconnect() on ctrl+c signal?
+		logger.Infof("Connected to vipnode pool: %s", poolURI)
+		rpcPool := &jsonrpc2.Remote{
+			Codec: poolCodec,
+		}
+		p = pool.Remote(rpcPool, privkey)
+
+		// TODO: Register c.Stop() on ctrl+c signal?
 		go func() {
-			errChan <- c.ServeUpdates()
+			errChan <- rpcPool.Serve()
+			c.Stop()
+		}()
+		go func() {
+			errChan <- c.Start(p)
 		}()
 		return <-errChan
 
@@ -213,7 +211,6 @@ func subcommand(cmd string, options Options) error {
 			logger.Warning("No --payout address provided, will not receive pool payments.")
 		}
 
-		ctx := context.Background()
 		h := host.New(options.Host.NodeURI, remoteNode, options.Host.Payout)
 
 		if options.Host.Pool == ":memory:" {
@@ -223,11 +220,11 @@ func subcommand(cmd string, options Options) error {
 			rpcPool := &jsonrpc2.Local{}
 			rpcPool.Server.Register("vipnode_", p)
 			remotePool := pool.Remote(rpcPool, privkey)
-			return h.ServeUpdates(ctx, remotePool)
+			return h.Start(remotePool)
 		}
 
 		// Dial host to pool
-		poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
+		poolCodec, err := ws.WebSocketDial(context.Background(), options.Host.Pool)
 		if err != nil {
 			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
@@ -241,10 +238,11 @@ func subcommand(cmd string, options Options) error {
 		errChan := make(chan error)
 		go func() {
 			errChan <- rpcPool.Serve()
+			h.Stop()
 		}()
 		remotePool := pool.Remote(&rpcPool, privkey)
 		go func() {
-			errChan <- h.ServeUpdates(ctx, remotePool)
+			errChan <- h.Start(remotePool)
 		}()
 		return <-errChan
 

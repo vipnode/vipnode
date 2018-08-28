@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
@@ -14,50 +13,77 @@ import (
 // ErrAlreadyConnected is returned on Connect() if the client is already connected.
 var ErrAlreadyConnected = errors.New("client already connected")
 
+func New(node ethnode.EthNode) *Client {
+	return &Client{
+		EthNode: node,
+		stopCh:  make(chan struct{}),
+		readyCh: make(chan struct{}, 1),
+	}
+}
+
 // Client represents a vipnode client which connects to a vipnode host.
 type Client struct {
 	ethnode.EthNode
-	pool.Pool
 
 	BalanceCallback *func(store.Balance)
 
-	mu             sync.Mutex
 	connectedHosts []store.Node
-	disconnectChan chan struct{}
+	stopCh         chan struct{}
+	readyCh        chan struct{}
+}
+
+// Ready returns a channel that yields when the client is registered on the
+// pool, after the first peers update is sent.
+func (c *Client) Ready() <-chan struct{} {
+	return c.readyCh
 }
 
 // Connect retrieves compatible hosts from the pool and connects to them.
-func (c *Client) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if len(c.connectedHosts) > 0 {
-		return ErrAlreadyConnected
-	}
-	c.disconnectChan = make(chan struct{}, 1)
-
+func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
-	ctx := context.TODO()
+	starCtx := context.Background()
 	kind := c.EthNode.Kind().String()
-	nodes, err := c.Pool.Connect(ctx, kind)
+	nodes, err := p.Connect(starCtx, kind)
 	if err != nil {
 		return err
 	}
 	if len(nodes) == 0 {
 		return pool.ErrNoHostNodes{}
 	}
+	logger.Printf("Received %d host candidates, connecting...", len(nodes))
 	for _, node := range nodes {
-		if err := c.EthNode.ConnectPeer(ctx, node.URI); err != nil {
+		if err := c.EthNode.ConnectPeer(starCtx, node.URI); err != nil {
 			return err
 		}
 	}
-	c.connectedHosts = nodes
-	logger.Printf("Received %d host candidates, connecting.", len(nodes))
+	connectedHosts := nodes
+
+	if err := c.updatePeers(context.Background(), p); err != nil {
+		return err
+	}
+
+	c.readyCh <- struct{}{}
+
+	for {
+		select {
+		case <-time.After(store.KeepaliveInterval):
+			if err := c.updatePeers(context.Background(), p); err != nil {
+				return err
+			}
+		case <-c.stopCh:
+			closeCtx := context.Background()
+			for _, node := range connectedHosts {
+				if err := c.EthNode.DisconnectPeer(closeCtx, node.URI); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
 	return nil
 }
 
-func (c *Client) sendUpdate() error {
-	ctx := context.TODO()
+func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 	peers, err := c.EthNode.Peers(ctx)
 	if err != nil {
 		return err
@@ -67,7 +93,7 @@ func (c *Client) sendUpdate() error {
 		peerIDs = append(peerIDs, p.ID)
 	}
 
-	update, err := c.Pool.Update(ctx, peerIDs)
+	update, err := p.Update(ctx, peerIDs)
 	if err != nil {
 		return err
 	}
@@ -88,35 +114,7 @@ func (c *Client) sendUpdate() error {
 	return nil
 }
 
-// ServeUpdates starts serving peering updates to the pool until Disconnect is
-// called.
-func (c *Client) ServeUpdates() error {
-	if err := c.sendUpdate(); err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case <-time.After(store.KeepaliveInterval):
-			if err := c.sendUpdate(); err != nil {
-				return err
-			}
-		case <-c.disconnectChan:
-			return nil
-		}
-	}
-}
-
 // Disconnect from hosts, also stop serving updates.
-func (c *Client) Disconnect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for _, node := range c.connectedHosts {
-		if err := c.EthNode.DisconnectPeer(context.TODO(), node.URI); err != nil {
-			return err
-		}
-	}
-	c.connectedHosts = nil
-	return nil
+func (c *Client) Stop() {
+	c.stopCh <- struct{}{}
 }
