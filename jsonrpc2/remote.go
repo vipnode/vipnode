@@ -60,6 +60,8 @@ type Service interface {
 
 var _ Service = &Remote{}
 
+// TODO: Make Remote private with a Remote() helper?
+
 // Remote is a wrapper around a connection that can be both a Client and a
 // Server. It implements the Service interface, and manages async message
 // routing.
@@ -144,6 +146,9 @@ func (r *Remote) receive(ctx context.Context, ID json.RawMessage) (*Message, err
 
 // Call handles sending an RPC and receiving the corresponding response synchronously.
 func (r *Remote) Call(ctx context.Context, result interface{}, method string, params ...interface{}) error {
+	if r.Client == nil {
+		r.Client = &Client{}
+	}
 	req, err := r.Client.Request(method, params...)
 	if err != nil {
 		return err

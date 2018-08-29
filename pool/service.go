@@ -95,7 +95,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
 	}
 
-	logger.Printf("New host: %s", nodeURI)
+	logger.Printf("New %q host: %s", kind, nodeURI)
 
 	node := store.Node{
 		ID:       store.NodeID(nodeID),
@@ -128,7 +128,7 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		return nil, err
 	}
 
-	logger.Printf("New client: %s", nodeID)
+	logger.Printf("New %q client: %s", kind, nodeID)
 
 	// TODO: Unhardcode these
 	numRequestHosts := 3

@@ -96,8 +96,8 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 			PendingLimit:   50,
 			PendingDiscard: 10,
 		}
-		if err := remote.Serve(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		// FIXME: Connection is hijacked at this point, can't write the error.
+		// Do we want to handle it somehow?
+		_ = remote.Serve()
 	}
 }

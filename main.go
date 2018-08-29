@@ -175,14 +175,16 @@ func subcommand(cmd string, options Options) error {
 			Codec: poolCodec,
 		}
 		p = pool.Remote(rpcPool, privkey)
-
-		// TODO: Register c.Stop() on ctrl+c signal?
 		go func() {
 			errChan <- rpcPool.Serve()
-			c.Stop()
 		}()
+		// TODO: Register c.Stop() on ctrl+c signal?
+		if err := c.Start(p); err != nil {
+			return err
+		}
+
 		go func() {
-			errChan <- c.Start(p)
+			errChan <- c.Wait()
 		}()
 		return <-errChan
 
@@ -222,7 +224,10 @@ func subcommand(cmd string, options Options) error {
 				return err
 			}
 			remotePool := pool.Remote(rpcPool, privkey)
-			return h.Start(remotePool)
+			if err := h.Start(remotePool); err != nil {
+				return err
+			}
+			return h.Wait()
 		}
 
 		// Dial host to pool
@@ -232,11 +237,14 @@ func subcommand(cmd string, options Options) error {
 		}
 		logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
 
-		rpcPool := jsonrpc2.Remote{
-			Codec: poolCodec,
-		}
-		if err := rpcPool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+		rpcServer := &jsonrpc2.Server{}
+		if err := rpcServer.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
 			return err
+		}
+		rpcPool := jsonrpc2.Remote{
+			Client: &jsonrpc2.Client{},
+			Server: rpcServer,
+			Codec:  poolCodec,
 		}
 
 		errChan := make(chan error)
@@ -245,8 +253,11 @@ func subcommand(cmd string, options Options) error {
 			h.Stop()
 		}()
 		remotePool := pool.Remote(&rpcPool, privkey)
+		if err := h.Start(remotePool); err != nil {
+			return err
+		}
 		go func() {
-			errChan <- h.Start(remotePool)
+			errChan <- h.Wait()
 		}()
 		return <-errChan
 
@@ -324,8 +335,14 @@ func main() {
 		switch typedErr.ErrorCode() {
 		case -32601:
 			err = ErrExplain{err, `Missing a required RPC method. Make sure your Ethereum node is up to date.`}
+		case -32603:
+			if err.Error() == (pool.ErrNoHostNodes{}).Error() {
+				err = ErrExplain{err, `The pool does not have any hosts who are ready to serve your kind of client right now. Try again later or contact the pool operator for help.`}
+				break
+			}
+			fallthrough
 		default:
-			err = ErrExplain{err, fmt.Sprintf(`Unexpected RPC error occurred: %T. Please open an issue at https://github.com/vipnode/vipnode`, typedErr)}
+			err = ErrExplain{err, fmt.Sprintf(`Unexpected RPC error occurred: %T (code %d). Please open an issue at https://github.com/vipnode/vipnode`, typedErr, typedErr.ErrorCode())}
 		}
 	case ErrExplain:
 		// All good.
