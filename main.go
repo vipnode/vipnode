@@ -139,6 +139,23 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 	return node, nil
 }
 
+func matchEnode(enode string, nodeID string) error {
+	if strings.Contains(enode, "://") {
+		u, err := url.Parse(enode)
+		if err != nil {
+			return fmt.Errorf("failed to parse enode URI: %s", err)
+		}
+		enode = u.User.Username()
+	}
+	if enode != nodeID {
+		return ErrExplain{
+			fmt.Errorf("enode URI does not match node key; public key prefixes: %s != %s", enode[:8], nodeID[:8]),
+			"Make sure the --nodekey used is corresponding to the public node that is running.",
+		}
+	}
+	return nil
+}
+
 func subcommand(cmd string, options Options) error {
 	switch cmd {
 	case "client":
@@ -146,6 +163,7 @@ func subcommand(cmd string, options Options) error {
 		if err != nil {
 			return err
 		}
+
 		poolURI := options.Client.Args.VIPNode
 		if poolURI == "" {
 			poolURI = defaultClientNode
@@ -170,6 +188,15 @@ func subcommand(cmd string, options Options) error {
 		privkey, err := findNodeKey(options.Client.NodeKey)
 		if err != nil {
 			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
+		}
+		// Confirm that nodeID matches the private key
+		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+		remoteEnode, err := remoteNode.Enode(context.Background())
+		if err != nil {
+			return err
+		}
+		if err := matchEnode(remoteEnode, nodeID); err != nil {
+			return err
 		}
 
 		logger.Infof("Connecting to pool: %s", poolURI)
@@ -217,14 +244,15 @@ func subcommand(cmd string, options Options) error {
 		}
 		// Confirm that nodeID matches the private key
 		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
-		u, err := url.Parse(options.Host.NodeURI)
-		if err != nil {
-			return fmt.Errorf("failed to parse enode URI: %s", err)
+		if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
+			return err
 		}
-		if u.User.Username() != nodeID {
-			return ErrExplain{
-				fmt.Errorf("enode URI does not match node private key"),
-				"Make sure the --nodekey used is corresponding to the public node that is running."}
+		remoteEnode, err := remoteNode.Enode(context.Background())
+		if err != nil {
+			return err
+		}
+		if err := matchEnode(remoteEnode, nodeID); err != nil {
+			return err
 		}
 
 		if options.Host.Payout == "" {

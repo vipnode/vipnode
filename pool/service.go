@@ -128,12 +128,11 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		return nil, err
 	}
 
-	logger.Printf("New %q client: %s", kind, nodeID)
-
 	// TODO: Unhardcode these
 	numRequestHosts := 3
 
 	r := p.Store.ActiveHosts(kind, numRequestHosts)
+	logger.Printf("New %q client: %s (%d/%d active hosts found)", kind, nodeID[:8], len(r), numRequestHosts)
 	if len(r) == 0 {
 		return nil, ErrNoHostNodes{}
 	}
@@ -157,6 +156,16 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 	}
 	p.mu.Unlock()
 
+	node := store.Node{
+		ID:       store.NodeID(nodeID),
+		Kind:     kind,
+		LastSeen: time.Now(),
+	}
+	// TODO: Connect with balance out of band
+	if err := p.Store.SetNode(node, store.Account("")); err != nil {
+		return nil, err
+	}
+
 	// TODO: Set deadline
 	// TODO: Parallelize
 	accepted := make([]store.Node, 0, len(remotes))
@@ -172,16 +181,6 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 	}
 
 	if len(accepted) >= 1 {
-		node := store.Node{
-			ID:       store.NodeID(nodeID),
-			Kind:     kind,
-			LastSeen: time.Now(),
-		}
-		// TODO: Connect with balance out of band
-		if err := p.Store.SetNode(node, store.Account("")); err != nil {
-			return nil, err
-		}
-
 		if len(errors) > 0 {
 			logger.Printf("Connect succeeded despite errors: %s", ErrConnectFailed{errors})
 		}

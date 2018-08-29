@@ -70,8 +70,16 @@ func (s *memoryStore) SetNode(n Node, a Account) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if a != "" && n.balance == nil {
-		b := s.balances[a]
-		n.balance = &b
+		b, ok := s.balances[a]
+		if ok {
+			n.balance = &b
+		}
+	}
+	if n.balance == nil {
+		// Use existing balance?
+		if existing, ok := s.nodes[n.ID]; ok {
+			n.balance = existing.balance
+		}
 	}
 	s.nodes[n.ID] = n
 	return nil
