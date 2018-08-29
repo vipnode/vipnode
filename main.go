@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -124,7 +125,7 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 			rpcPath = filepath.Join(rpcPath, "geth.ipc")
 		}
 	}
-	logger.Info("Connecting to RPC:", rpcPath)
+	logger.Info("Connecting to Ethereum node:", rpcPath)
 	ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
 	node, err := ethnode.Dial(ctx, rpcPath)
 	cancel()
@@ -185,10 +186,20 @@ func subcommand(cmd string, options Options) error {
 		go func() {
 			errChan <- rpcPool.Serve()
 		}()
-		// TODO: Register c.Stop() on ctrl+c signal?
 		if err := c.Start(p); err != nil {
 			return err
 		}
+		logger.Info("Connected.")
+
+		// Register c.Stop() on ctrl+c signal
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
+		go func() {
+			for _ = range sigCh {
+				logger.Info("Shutting down...")
+				c.Stop()
+			}
+		}()
 
 		go func() {
 			errChan <- c.Wait()

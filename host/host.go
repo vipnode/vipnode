@@ -41,7 +41,7 @@ type Host struct {
 
 // Whitelist a client for this host.
 func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
-	logger.Print("Received whitelist request: %s", nodeID)
+	logger.Printf("Received whitelist request: %s", nodeID)
 	return h.node.AddTrustedPeer(ctx, nodeID)
 }
 
