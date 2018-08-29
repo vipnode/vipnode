@@ -53,7 +53,6 @@ func TestPoolHostClient(t *testing.T) {
 	if err := c.Start(clientPool); err != nil {
 		t.Fatalf("failed to start client: %s", err)
 	}
-	defer c.Stop()
 
 	want := fakenode.Calls{
 		fakenode.Call("AddTrustedPeer", clientNodeID),
@@ -65,5 +64,38 @@ func TestPoolHostClient(t *testing.T) {
 	want = fakenode.Calls{fakenode.Call("ConnectPeer", hostNodeURI)}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
 		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
+	}
+
+	c.Stop()
+	if err := c.Wait(); err != nil {
+		t.Errorf("client.Stop() failed: %s", err)
+	}
+	want = fakenode.Calls{
+		fakenode.Call("ConnectPeer", hostNodeURI),
+		fakenode.Call("DisconnectPeer", hostNodeURI),
+	}
+	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
+		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
+	}
+
+	// Start again!
+	if err := c.Start(clientPool); err != nil {
+		t.Fatalf("failed to start client again: %s", err)
+	}
+	want = fakenode.Calls{
+		fakenode.Call("ConnectPeer", hostNodeURI),
+		fakenode.Call("DisconnectPeer", hostNodeURI),
+		fakenode.Call("ConnectPeer", hostNodeURI),
+	}
+	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
+		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
+	}
+
+	want = fakenode.Calls{
+		fakenode.Call("AddTrustedPeer", clientNodeID),
+		fakenode.Call("AddTrustedPeer", clientNodeID),
+	}
+	if got := hostNode.Calls; !reflect.DeepEqual(got, want) {
+		t.Errorf("hostNode.Calls:\n  got %q;\n want %q", got, want)
 	}
 }
