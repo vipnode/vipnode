@@ -27,8 +27,8 @@ func (n NodeKind) String() string {
 }
 
 // Dial is a wrapper around go-ethereum/rpc.Dial with client detection.
-func Dial(uri string) (EthNode, error) {
-	client, err := rpc.Dial(uri)
+func Dial(ctx context.Context, uri string) (EthNode, error) {
+	client, err := rpc.DialContext(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

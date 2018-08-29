@@ -6,7 +6,7 @@ PKG := $(shell go list | head -n1)
 all: $(BINARY)
 
 $(BINARY): $(SOURCES)
-	go build -ldflags "-X main.version=$(VERSION)" -o "$@"
+	go build -ldflags "-X main.Version=$(VERSION)" -o "$@"
 
 deps:
 	go get ./...

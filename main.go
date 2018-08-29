@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
@@ -34,6 +35,8 @@ var defaultClientNode string = "enode://19b5013d24243a659bda7f1df13933bb05820ab6
 
 // Version of the binary, assigned during build.
 var Version string = "dev"
+
+var rpcTimeout = time.Second * 5
 
 // Options contains the flag options
 type Options struct {
@@ -122,7 +125,9 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 		}
 	}
 	logger.Info("Connecting to RPC:", rpcPath)
-	node, err := ethnode.Dial(rpcPath)
+	ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
+	node, err := ethnode.Dial(ctx, rpcPath)
+	cancel()
 	if err != nil {
 		err = ErrExplain{
 			err,
@@ -166,11 +171,13 @@ func subcommand(cmd string, options Options) error {
 			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
 		}
 
-		poolCodec, err := ws.WebSocketDial(context.Background(), poolURI)
+		logger.Infof("Connecting to pool: %s", poolURI)
+		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
+		poolCodec, err := ws.WebSocketDial(ctx, poolURI)
+		cancel()
 		if err != nil {
 			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
-		logger.Infof("Connected to vipnode pool: %s", poolURI)
 		rpcPool := &jsonrpc2.Remote{
 			Codec: poolCodec,
 		}
@@ -231,7 +238,9 @@ func subcommand(cmd string, options Options) error {
 		}
 
 		// Dial host to pool
-		poolCodec, err := ws.WebSocketDial(context.Background(), options.Host.Pool)
+		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
+		poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
+		cancel()
 		if err != nil {
 			return ErrExplain{err, "Failed to connect to the pool RPC API."}
 		}
@@ -281,6 +290,7 @@ func subcommand(cmd string, options Options) error {
 func main() {
 	options := Options{}
 	parser := flags.NewParser(&options, flags.Default)
+	parser.SubcommandsOptional = true
 	p, err := parser.Parse()
 	if err != nil {
 		if p == nil {
@@ -319,7 +329,11 @@ func main() {
 		ethnode.SetLogger(logWriter)
 	}
 
-	err = subcommand(parser.Active.Name, options)
+	cmd := "client"
+	if parser.Active != nil {
+		cmd = parser.Active.Name
+	}
+	err = subcommand(cmd, options)
 	if err == nil {
 		return
 	}
@@ -351,7 +365,7 @@ func main() {
 	}
 
 	if err != nil {
-		exit(2, "failed to start %s: %s\n", parser.Active.Name, err)
+		exit(2, "failed to start %s: %s\n", cmd, err)
 	}
 }
 
