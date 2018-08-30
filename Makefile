@@ -23,7 +23,7 @@ debug: $(BINARY)
 	./$(BINARY) -vv
 
 test:
-	go test -vet "" -race ./...
+	go test -vet "all" -race ./...
 
 fakepool: $(BINARY)
 	./$(BINARY) -vv pool --bind "127.0.0.1:8080" --store="memory"
