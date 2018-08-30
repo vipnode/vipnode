@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"reflect"
 	"testing"
 
@@ -98,4 +100,54 @@ func TestPoolHostClient(t *testing.T) {
 	if got := hostNode.Calls; !reflect.DeepEqual(got, want) {
 		t.Errorf("hostNode.Calls:\n  got %q;\n want %q", got, want)
 	}
+}
+
+func TestCloseHost(t *testing.T) {
+	privkey := keygen.HardcodedKeyIdx(t, 0)
+	payout := ""
+
+	p := pool.New()
+	c1, c2 := net.Pipe()
+	rpcPool2Host := &jsonrpc2.Remote{
+		Codec:  jsonrpc2.IOCodec(c1),
+		Client: &jsonrpc2.Client{},
+		Server: &jsonrpc2.Server{},
+	}
+	rpcHost2Pool := &jsonrpc2.Remote{
+		Codec:  jsonrpc2.IOCodec(c2),
+		Client: &jsonrpc2.Client{},
+		Server: &jsonrpc2.Server{},
+	}
+	if err := rpcPool2Host.Server.Register("vipnode_", p); err != nil {
+		t.Fatalf("failed to register vipnode_ rpc for pool: %s", err)
+	}
+
+	errChan := make(chan error)
+	go func() {
+		errChan <- rpcPool2Host.Serve()
+	}()
+	go func() {
+		errChan <- rpcHost2Pool.Serve()
+	}()
+
+	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+	hostNode := fakenode.Node(hostNodeID)
+	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1", hostNodeID)
+	h := host.New(hostNodeURI, hostNode, payout)
+	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+		t.Fatalf("failed to register vipnode_ rpc for host: %s", err)
+	}
+	hostPool := pool.Remote(rpcHost2Pool, privkey)
+
+	if err := h.Start(hostPool); err != nil {
+		t.Fatalf("failed to start host: %s", err)
+	}
+	rpcHost2Pool.Close()
+	rpcPool2Host.Close()
+
+	if err := <-errChan; err != io.EOF {
+		t.Errorf("unexpected error: %s", err)
+	}
+	h.Stop()
+	h.Wait()
 }
