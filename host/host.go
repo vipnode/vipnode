@@ -9,6 +9,9 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+var startTimeout = 10 * time.Second
+var updateTimeout = 10 * time.Second
+
 type nodeID string
 
 type client struct {
@@ -87,7 +90,9 @@ func (h *Host) Wait() error {
 // every store.KeepaliveInterval. It returns after
 // successfully registering with the pool.
 func (h *Host) Start(p pool.Pool) error {
-	startCtx := context.Background()
+	startCtx, cancel := context.WithTimeout(context.Background(), startTimeout)
+	defer cancel()
+
 	enode, err := h.node.Enode(startCtx)
 	if err != nil {
 		return err
@@ -103,7 +108,7 @@ func (h *Host) Start(p pool.Pool) error {
 	// TODO: Resume tracking peers that we care about (in case of interrupted
 	// shutdown)
 
-	if err := h.updatePeers(context.Background(), p); err != nil {
+	if err := h.updatePeers(startCtx, p); err != nil {
 		return err
 	}
 
@@ -118,7 +123,10 @@ func (h *Host) serveUpdates(p pool.Pool) error {
 	for {
 		select {
 		case <-ticker:
-			if err := h.updatePeers(context.Background(), p); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
+			err := h.updatePeers(ctx, p)
+			cancel()
+			if err != nil {
 				return err
 			}
 		case <-h.stopCh:
