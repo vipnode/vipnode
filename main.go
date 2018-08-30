@@ -298,7 +298,6 @@ func subcommand(cmd string, options Options) error {
 		errChan := make(chan error)
 		go func() {
 			errChan <- rpcPool.Serve()
-			h.Stop()
 		}()
 		remotePool := pool.Remote(&rpcPool, privkey)
 		if err := h.Start(remotePool); err != nil {
@@ -382,7 +381,7 @@ func main() {
 	}
 
 	switch typedErr := err.(type) {
-	case *net.OpError:
+	case net.Error:
 		err = ErrExplain{err, `Disconnected from server unexpectedly. Could be a connectivity issue or the server is down. Try again?`}
 	case interface{ ErrorCode() int }:
 		switch typedErr.ErrorCode() {
