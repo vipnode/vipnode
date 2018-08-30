@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"net/http"
 
@@ -31,7 +32,7 @@ func WebSocketDial(ctx context.Context, url string) (jsonrpc2.Codec, error) {
 func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateClientSide)
 	w := wsutil.NewWriter(conn, ws.StateClientSide, ws.OpText)
-	return wsCodec{
+	return &wsCodec{
 		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
 		w:     w,
@@ -43,14 +44,14 @@ func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 func WebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
-	return wsCodec{
+	return &wsCodec{
 		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
 		w:     w,
 	}
 }
 
-var _ jsonrpc2.Codec = wsCodec{}
+var _ jsonrpc2.Codec = &wsCodec{}
 
 type wsCodec struct {
 	inner jsonrpc2.Codec
@@ -58,16 +59,15 @@ type wsCodec struct {
 	w     *wsutil.Writer
 }
 
-func (codec wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
+func (codec *wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
 	_, err := codec.r.NextFrame()
 	if err != nil {
 		return nil, err
 	}
-
 	return codec.inner.ReadMessage()
 }
 
-func (codec wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
+func (codec *wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
 	err := codec.inner.WriteMessage(msg)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (codec wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
 	return nil
 }
 
-func (codec wsCodec) Close() error {
+func (codec *wsCodec) Close() error {
 	return codec.inner.Close()
 }
 
@@ -86,11 +86,14 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Printf("websocket upgrade error from %s: %s", r.RemoteAddr, err)
+			return
 		}
+		defer conn.Close()
 		remote := &jsonrpc2.Remote{
 			Codec:  WebSocketCodec(conn),
 			Server: srv,
+			Client: &jsonrpc2.Client{},
 
 			// TODO: Unhardcode these?
 			PendingLimit:   50,
@@ -98,6 +101,8 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 		}
 		// FIXME: Connection is hijacked at this point, can't write the error.
 		// Do we want to handle it somehow?
-		_ = remote.Serve()
+		if err := remote.Serve(); err != nil {
+			log.Printf("jsonrpc2.Remote.Serve() error: %s", err)
+		}
 	}
 }
