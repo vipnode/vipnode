@@ -132,12 +132,13 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 	numRequestHosts := 3
 
 	r := p.Store.ActiveHosts(kind, numRequestHosts)
-	logger.Printf("New %q client: %s (%d/%d active hosts found)", kind, nodeID[:8], len(r), numRequestHosts)
 	if len(r) == 0 {
+		logger.Printf("New %q client: %s (no active hosts found)", kind, nodeID[:8])
 		return nil, ErrNoHostNodes{}
 	}
 
 	if p.skipWhitelist {
+		logger.Printf("New %q client: %s (%d hosts found, skipping whitelist)", kind, nodeID[:8], len(r))
 		return r, nil
 	}
 
@@ -156,6 +157,7 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 	}
 	p.mu.Unlock()
 
+	// FIXME: Node should already be registered at this point?
 	node := store.Node{
 		ID:       store.NodeID(nodeID),
 		Kind:     kind,
@@ -180,11 +182,13 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		accepted = append(accepted, remote.Node)
 	}
 
-	if len(accepted) >= 1 {
-		if len(errors) > 0 {
-			logger.Printf("Connect succeeded despite errors: %s", ErrConnectFailed{errors})
-		}
+	if len(errors) > 0 {
+		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), ErrConnectFailed{errors})
+	} else {
+		logger.Printf("New %q client: %s (%d hosts found, %d accepted)", kind, nodeID[:8], len(remotes), len(accepted))
+	}
 
+	if len(accepted) >= 1 {
 		return accepted, nil
 	}
 
