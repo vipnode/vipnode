@@ -143,3 +143,15 @@ func TestRemoteCleanPending(t *testing.T) {
 		t.Errorf("got: %q; want %q", got, want)
 	}
 }
+
+func TestRemoteServeInvalid(t *testing.T) {
+	pingerClient, pongerClient := ServePipe()
+
+	ponger := &Ponger{}
+	pingerClient.Server.Register("", ponger)
+
+	emptyMsg := &Message{}
+	if err := pongerClient.WriteMessage(emptyMsg); err != nil {
+		t.Error(err)
+	}
+}

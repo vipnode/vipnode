@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 )
 
@@ -24,26 +23,55 @@ func IOCodec(rwc io.ReadWriteCloser) *jsonCodec {
 	}
 }
 
+// DebugCodec logs each incoming and outgoing message with a given label prefix
+// (use something like the IP address or user ID).
+func DebugCodec(labelPrefix string, codec Codec) *debugCodec {
+	return &debugCodec{
+		Codec: codec,
+		Label: labelPrefix,
+	}
+}
+
+type debugCodec struct {
+	Codec
+	Label string
+}
+
+func (codec *debugCodec) ReadMessage() (*Message, error) {
+	msg, err := codec.Codec.ReadMessage()
+	out, _ := json.Marshal(msg)
+	if err != nil {
+		logger.Printf("%s <- Error(%q) - %s\n", codec.Label, err.Error(), out[:100])
+	} else {
+		logger.Printf("%s <- %s\n", codec.Label, out[:100])
+	}
+	return msg, err
+}
+
+func (codec *debugCodec) WriteMessage(msg *Message) error {
+	err := codec.Codec.WriteMessage(msg)
+	out, _ := json.Marshal(msg)
+	if err != nil {
+		logger.Printf("%s  -> Error(%q) - %s\n", codec.Label, err.Error(), out[:100])
+	} else {
+		logger.Printf("%s  -> %s\n", codec.Label, out[:100])
+	}
+	return err
+}
+
 type jsonCodec struct {
 	dec    *json.Decoder
 	enc    *json.Encoder
 	closer io.Closer
 }
 
-func dump(prefix string, msg *Message) {
-	out, _ := json.Marshal(msg)
-	fmt.Printf("%s %s\n", prefix, out)
-}
-
 func (codec *jsonCodec) ReadMessage() (*Message, error) {
 	var msg Message
 	err := codec.dec.Decode(&msg)
-	//dump(" <- ", &msg)
 	return &msg, err
 }
 
 func (codec *jsonCodec) WriteMessage(msg *Message) error {
-	//dump("-> ", msg)
 	return codec.enc.Encode(msg)
 }
 

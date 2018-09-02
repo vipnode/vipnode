@@ -123,8 +123,10 @@ func (r *Remote) Serve() error {
 		if msg.Request != nil {
 			// FIXME: Anything we can do with error handling here?
 			go r.handleRequest(msg)
-		} else {
+		} else if len(msg.ID) > 0 {
 			r.getPendingChan(string(msg.ID)) <- *msg
+		} else {
+			logger.Printf("Remote.Serve(): Dropping invalid message: %s", msg)
 		}
 	}
 }
