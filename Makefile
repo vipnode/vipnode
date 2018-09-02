@@ -34,3 +34,8 @@ fakehost: $(BINARY)
 
 fakeclient: $(BINARY)
 	./$(BINARY) -vv client "ws://$(FAKEBIND)" --nodekey=./nodekey --rpc "fakenode://85fbed4332ed4329ca2283f26606618815ae83a870c523bb99b0b2e9dfe5af3b4699c2830ecdeb67519d62362db44aa5a8cafee523e3ab8c76aeef1016f424a4"
+
+%.pb.go: %.proto
+	protoc --go_out=plugins=grpc:. $<
+
+grpc: pool/api/*.pb.go

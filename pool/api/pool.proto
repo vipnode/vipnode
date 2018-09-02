@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package vipnode.pool.api;
+
+service Pool {
+  // Register the node with a desired wallet.
+  rpc Register (RegisterRequest) returns (Balance) {}
+
+  // Host subscribes a host to receive vipnode_whitelist instructions.
+  rpc Host (stream HostRequest) returns (stream HostResponse) {}
+
+  // Connect requests for available hosts to connect to as a client.
+  rpc Connect (ConnectRequest) returns (ConnectResponse) {}
+
+  // Disconnect stops tracking the connection and billing, will prompt a
+  // disconnect from both ends.
+  rpc Disconnect (Empty) returns (Empty) {}
+
+  // Update is a keep-alive for sharing the node's peering info. It returns
+  // the current balance for the node.
+  rpc Update (UpdateRequest) returns (UpdateResponse) {}
+
+  // Withdraw prompts a request to settle the node's balance.
+  rpc Withdraw (Empty) returns (Empty) {}
+}
+
+message Empty {}
+
+message Node {
+  string id = 1;
+  string uri = 2;
+
+  enum Kind {
+    UNKNOWN = 0;
+    GETH = 1;
+    PARITY = 2;
+  }
+
+  Kind kind = 3;
+  string version = 4;
+  bool host = 5;
+}
+
+message RegisterRequest {
+  Node node = 1;
+  int64 nonce = 2;
+  string node_sig = 3; // Signature of .node + .nonce
+  string wallet = 4;
+  string wallet_authorization = 5; // Node.id signed with wallet private key, to give this node withdraw permission for this account.
+  bool is_host = 6;
+}
+
+message UpdateResponse {
+  Balance balance = 1;
+  repeated string invalid_peers = 2;
+}
+
+message UpdateRequest {
+  repeated string peers = 1;
+}
+
+message Balance {
+  string account = 1;
+  int32 credit = 2;
+}
+
+message HostRequest {
+  string kind = 1;
+  string nodeURI = 2;
+  string payout = 3;
+}
+
+message HostResponse {
+}
+
+message ConnectRequest {
+  string client_version = 1;
+  Node node = 2;
+}
+
+message ConnectResponse {
+  string pool_version = 1;
+}
