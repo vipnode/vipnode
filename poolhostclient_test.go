@@ -145,8 +145,8 @@ func TestCloseHost(t *testing.T) {
 	rpcHost2Pool.Close()
 	rpcPool2Host.Close()
 
-	if err := <-errChan; err != io.EOF {
-		t.Errorf("unexpected error: %s", err)
+	if err := <-errChan; err != io.EOF && err != io.ErrClosedPipe {
+		t.Errorf("unexpected error: %s (%T)", err, err)
 	}
 	h.Stop()
 	h.Wait()
