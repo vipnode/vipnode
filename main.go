@@ -77,6 +77,7 @@ const clientUsage = `Examples:
 func findGethDir() string {
 	// TODO: Search multiple places?
 	// TODO: Search for parity?
+	// TODO: Search CWD?
 	home := os.Getenv("HOME")
 	if home == "" {
 		if usr, err := user.Current(); err == nil {
@@ -115,15 +116,14 @@ func findNodeKey(nodeKeyPath string) (*ecdsa.PrivateKey, error) {
 }
 
 func findRPC(rpcPath string) (ethnode.EthNode, error) {
-	if strings.HasPrefix(rpcPath, "fakenode://") {
-		nodeID := rpcPath[len("fakenode://"):]
-		return fakenode.Node(nodeID), nil
-	}
 	if rpcPath == "" {
 		rpcPath = findGethDir()
 		if rpcPath != "" {
 			rpcPath = filepath.Join(rpcPath, "geth.ipc")
 		}
+	} else if strings.HasPrefix(rpcPath, "fakenode://") {
+		nodeID := rpcPath[len("fakenode://"):]
+		return fakenode.Node(nodeID), nil
 	}
 	logger.Info("Connecting to Ethereum node:", rpcPath)
 	ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
@@ -149,7 +149,7 @@ func matchEnode(enode string, nodeID string) error {
 	}
 	if enode != nodeID {
 		return ErrExplain{
-			fmt.Errorf("enode URI does not match node key; public key prefixes: %s != %s", enode[:8], nodeID[:8]),
+			fmt.Errorf("enode URI does not match node key; public key prefixes: %q != %q", shortID(enode), shortID(nodeID)),
 			"Make sure the --nodekey used is corresponding to the public node that is running.",
 		}
 	}
@@ -175,14 +175,16 @@ func subcommand(cmd string, options Options) error {
 
 		errChan := make(chan error)
 		c := client.New(remoteNode)
-		var p pool.Pool
 		if u.Scheme == "enode" {
 			staticPool := &pool.StaticPool{}
 			if err := staticPool.AddNode(poolURI); err != nil {
 				return err
 			}
 			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-			return c.Start(p)
+			if err := c.Start(staticPool); err != nil {
+				return err
+			}
+			return c.Wait()
 		}
 
 		privkey, err := findNodeKey(options.Client.NodeKey)
@@ -209,7 +211,7 @@ func subcommand(cmd string, options Options) error {
 		rpcPool := &jsonrpc2.Remote{
 			Codec: poolCodec,
 		}
-		p = pool.Remote(rpcPool, privkey)
+		p := pool.Remote(rpcPool, privkey)
 		go func() {
 			errChan <- rpcPool.Serve()
 		}()
@@ -306,7 +308,9 @@ func subcommand(cmd string, options Options) error {
 		go func() {
 			errChan <- h.Wait()
 		}()
-		return <-errChan
+		err = <-errChan
+		go h.Stop()
+		return err
 
 	case "pool":
 		if options.Pool.Store != "memory" {
@@ -318,7 +322,7 @@ func subcommand(cmd string, options Options) error {
 			return err
 		}
 		handler := ws.WebsocketHandler(&srv)
-		logger.Infof("Starting pool, listening on: ws://%s", options.Pool.Bind)
+		logger.Infof("Starting pool (version %s), listening on: ws://%s", Version, options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
 
@@ -365,6 +369,7 @@ func main() {
 		client.SetLogger(logWriter)
 		host.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
+		jsonrpc2.SetLogger(logWriter)
 	}
 
 	cmd := "client"
@@ -403,7 +408,7 @@ func main() {
 	}
 
 	if err != nil {
-		exit(2, "failed to start %s: %s\n", cmd, err)
+		exit(2, "%s failed: %s\n", cmd, err)
 	}
 }
 
@@ -420,4 +425,13 @@ type ErrExplain struct {
 
 func (err ErrExplain) Error() string {
 	return fmt.Sprintf("%s\n -> %s", err.Cause, err.Explanation)
+}
+
+type shortID string
+
+func (s shortID) String() string {
+	if len(s) > 12 {
+		return fmt.Sprintf("%s…", s[:8])
+	}
+	return string(s)
 }
