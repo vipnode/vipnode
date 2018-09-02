@@ -74,6 +74,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		resp.InvalidPeers = append(resp.InvalidPeers, string(peer.ID))
 		logger.Print("%s: Returning %d invalid peers", nodeID[:6], len(inactive))
 	}
+	// TODO: Test InvalidPeers
 
 	// XXX: Track and return proper balance
 	return &resp, nil
@@ -94,6 +95,9 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	if uri.User.Username() != nodeID {
 		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
 	}
+
+	// XXX: Confirm that it's a full node, not a light node.
+	// XXX: Check versions
 
 	logger.Printf("New %q host: %s", kind, nodeURI)
 

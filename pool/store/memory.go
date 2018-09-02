@@ -81,6 +81,9 @@ func (s *memoryStore) SetNode(n Node, a Account) error {
 			n.balance = existing.balance
 		}
 	}
+	if n.peers == nil {
+		n.peers = map[NodeID]time.Time{}
+	}
 	s.nodes[n.ID] = n
 	return nil
 }
