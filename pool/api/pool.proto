@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vipnode.pool.api;
 
+option go_package = "api";
+
 service Pool {
   // Register the node with a desired wallet.
   rpc Register (RegisterRequest) returns (Balance) {}

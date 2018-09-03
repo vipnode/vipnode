@@ -4,7 +4,7 @@ SOURCES = $(wildcard *.go **/*.go)
 PKG := $(shell go list | head -n1)
 FAKEBIND = "127.0.0.1:8080"
 
-all: $(BINARY)
+all: $(BINARY) grpc
 
 $(BINARY): $(SOURCES)
 	go build -ldflags "-X main.Version=$(VERSION)" -o "$@"
