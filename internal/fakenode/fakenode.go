@@ -2,6 +2,7 @@ package fakenode
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vipnode/vipnode/ethnode"
 )
@@ -27,9 +28,10 @@ func Node(nodeID string) *FakeNode {
 
 // FakeNode is an implementation of ethnode.EthNode that no-ops for everything.
 type FakeNode struct {
-	NodeKind ethnode.NodeKind
-	NodeID   string
-	Calls    Calls
+	NodeKind  ethnode.NodeKind
+	NodeID    string
+	Calls     Calls
+	FakePeers []ethnode.PeerInfo
 }
 
 func (n *FakeNode) Kind() ethnode.NodeKind                    { return n.NodeKind }
@@ -51,5 +53,15 @@ func (n *FakeNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 	return nil
 }
 func (n *FakeNode) Peers(ctx context.Context) ([]ethnode.PeerInfo, error) {
-	return []ethnode.PeerInfo{}, nil
+	return n.FakePeers, nil
+}
+
+func FakePeers(num int) []ethnode.PeerInfo {
+	peers := make([]ethnode.PeerInfo, 0, num)
+	for i := 0; i < num; i++ {
+		peers = append(peers, ethnode.PeerInfo{
+			ID: fmt.Sprintf("%0128x", i),
+		})
+	}
+	return peers
 }

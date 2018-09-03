@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,8 +123,21 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 			rpcPath = filepath.Join(rpcPath, "geth.ipc")
 		}
 	} else if strings.HasPrefix(rpcPath, "fakenode://") {
-		nodeID := rpcPath[len("fakenode://"):]
-		return fakenode.Node(nodeID), nil
+		// Used for testing
+		u, err := url.Parse(rpcPath)
+		if err != nil {
+			return nil, err
+		}
+		nodeID := u.User.Username()
+		if nodeID == "" {
+			nodeID = u.Hostname()
+		}
+		node := fakenode.Node(nodeID)
+		if numpeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
+			node.FakePeers = fakenode.FakePeers(numpeers)
+		}
+		logger.Warningf("Using a *fake* Ethereum node (only use for testing) with %d peers and nodeID: %q", len(node.FakePeers), shortID(node.NodeID))
+		return node, nil
 	}
 	logger.Info("Connecting to Ethereum node:", rpcPath)
 	ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
