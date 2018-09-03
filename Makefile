@@ -2,7 +2,7 @@ BINARY = $(notdir $(PWD))
 VERSION := $(shell git describe --tags --dirty --always 2> /dev/null || echo "dev")
 SOURCES = $(wildcard *.go **/*.go)
 PKG := $(shell go list | head -n1)
-FAKEBIND = "127.0.0.1:8080"
+FAKEBIND = 127.0.0.1:8080
 FAKEPEERS = 0
 
 all: $(BINARY)
