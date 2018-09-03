@@ -27,8 +27,9 @@ import (
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/host"
 	"github.com/vipnode/vipnode/internal/fakenode"
+	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/jsonrpc2/ws"
+	ws "github.com/vipnode/vipnode/jsonrpc2/ws"
 	"github.com/vipnode/vipnode/pool"
 )
 
@@ -136,7 +137,7 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 		if numpeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
 			node.FakePeers = fakenode.FakePeers(numpeers)
 		}
-		logger.Warningf("Using a *fake* Ethereum node (only use for testing) with %d peers and nodeID: %q", len(node.FakePeers), shortID(node.NodeID))
+		logger.Warningf("Using a *fake* Ethereum node (only use for testing) with %d peers and nodeID: %q", len(node.FakePeers), pretty.Abbrev(node.NodeID))
 		return node, nil
 	}
 	logger.Info("Connecting to Ethereum node:", rpcPath)
@@ -163,7 +164,7 @@ func matchEnode(enode string, nodeID string) error {
 	}
 	if enode != nodeID {
 		return ErrExplain{
-			fmt.Errorf("enode URI does not match node key; public key prefixes: %q != %q", shortID(enode), shortID(nodeID)),
+			fmt.Errorf("enode URI does not match node key; public key prefixes: %q != %q", pretty.Abbrev(enode), pretty.Abbrev(nodeID)),
 			"Make sure the --nodekey used is corresponding to the public node that is running.",
 		}
 	}
@@ -439,13 +440,4 @@ type ErrExplain struct {
 
 func (err ErrExplain) Error() string {
 	return fmt.Sprintf("%s\n -> %s", err.Cause, err.Explanation)
-}
-
-type shortID string
-
-func (s shortID) String() string {
-	if len(s) > 12 {
-		return fmt.Sprintf("%s…", s[:8])
-	}
-	return string(s)
 }

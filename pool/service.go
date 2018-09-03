@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
@@ -72,7 +73,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	for _, peer := range inactive {
 		resp.InvalidPeers = append(resp.InvalidPeers, string(peer.ID))
-		logger.Print("%s: Returning %d invalid peers", nodeID[:6], len(inactive))
+		logger.Printf("%s: Returning %d invalid peers", pretty.Abbrev(nodeID), len(inactive))
 	}
 	// TODO: Test InvalidPeers
 
@@ -93,7 +94,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	}
 
 	if uri.User.Username() != nodeID {
-		return fmt.Errorf("nodeID [%s...] does not match nodeURI: %s", nodeID[:8], nodeURI)
+		return fmt.Errorf("nodeID %q does not match nodeURI: %s", pretty.Abbrev(nodeID), nodeURI)
 	}
 
 	// XXX: Confirm that it's a full node, not a light node.
