@@ -60,7 +60,7 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 			return
 		}
 		defer conn.Close()
-		codec := &wsCodec{conn: conn}
+		var codec jsonrpc2.Codec = &wsCodec{conn: conn}
 		// DEBUG:
 		//codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
 		remote := &jsonrpc2.Remote{

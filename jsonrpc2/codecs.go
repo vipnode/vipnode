@@ -3,6 +3,8 @@ package jsonrpc2
 import (
 	"encoding/json"
 	"io"
+
+	"github.com/vipnode/vipnode/internal/pretty"
 )
 
 // Codec is an straction for receiving and sending JSONRPC messages.
@@ -17,10 +19,26 @@ var _ Codec = &jsonCodec{}
 // IOCodec returns a Codec that wraps JSON encoding and decoding over IO.
 func IOCodec(rwc io.ReadWriteCloser) *jsonCodec {
 	return &jsonCodec{
-		dec:    json.NewDecoder(rwc),
-		enc:    json.NewEncoder(rwc),
-		closer: rwc,
+		rwc: rwc,
 	}
+}
+
+type jsonCodec struct {
+	rwc io.ReadWriteCloser
+}
+
+func (codec *jsonCodec) ReadMessage() (*Message, error) {
+	var msg Message
+	err := json.NewDecoder(codec.rwc).Decode(&msg)
+	return &msg, err
+}
+
+func (codec *jsonCodec) WriteMessage(msg *Message) error {
+	return json.NewEncoder(codec.rwc).Encode(msg)
+}
+
+func (codec *jsonCodec) Close() error {
+	return codec.rwc.Close()
 }
 
 // DebugCodec logs each incoming and outgoing message with a given label prefix
@@ -39,42 +57,24 @@ type debugCodec struct {
 
 func (codec *debugCodec) ReadMessage() (*Message, error) {
 	msg, err := codec.Codec.ReadMessage()
-	out, _ := json.Marshal(msg)
+	dump, _ := json.Marshal(msg)
+	out := pretty.Abbrev(string(dump), 100)
 	if err != nil {
-		logger.Printf("%s <- Error(%q) - %s\n", codec.Label, err.Error(), out[:100])
+		logger.Printf("%s <- Error(%q) - %s\n", codec.Label, err.Error(), out)
 	} else {
-		logger.Printf("%s <- %s\n", codec.Label, out[:100])
+		logger.Printf("%s <- %s\n", codec.Label, out)
 	}
 	return msg, err
 }
 
 func (codec *debugCodec) WriteMessage(msg *Message) error {
 	err := codec.Codec.WriteMessage(msg)
-	out, _ := json.Marshal(msg)
+	dump, _ := json.Marshal(msg)
+	out := pretty.Abbrev(string(dump), 100)
 	if err != nil {
-		logger.Printf("%s  -> Error(%q) - %s\n", codec.Label, err.Error(), out[:100])
+		logger.Printf("%s  -> Error(%q) - %s\n", codec.Label, err.Error(), out)
 	} else {
-		logger.Printf("%s  -> %s\n", codec.Label, out[:100])
+		logger.Printf("%s  -> %s\n", codec.Label, out)
 	}
 	return err
-}
-
-type jsonCodec struct {
-	dec    *json.Decoder
-	enc    *json.Encoder
-	closer io.Closer
-}
-
-func (codec *jsonCodec) ReadMessage() (*Message, error) {
-	var msg Message
-	err := codec.dec.Decode(&msg)
-	return &msg, err
-}
-
-func (codec *jsonCodec) WriteMessage(msg *Message) error {
-	return codec.enc.Encode(msg)
-}
-
-func (codec *jsonCodec) Close() error {
-	return codec.closer.Close()
 }

@@ -29,7 +29,7 @@ import (
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
-	ws "github.com/vipnode/vipnode/jsonrpc2/ws"
+	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 )
 

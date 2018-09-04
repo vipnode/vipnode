@@ -31,7 +31,7 @@ func WebSocketDial(ctx context.Context, url string) (jsonrpc2.Codec, error) {
 
 func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateClientSide)
-	w := wsutil.NewWriter(conn, ws.StateClientSide, ws.OpText)
+	w := wsutil.NewWriter(conn, ws.StateClientSide, ws.OpBinary)
 	return &wsCodec{
 		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
@@ -43,7 +43,7 @@ func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 // decoding over a websocket connection.
 func WebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateServerSide)
-	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
+	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary)
 	return &wsCodec{
 		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
 		r:     r,
@@ -92,7 +92,7 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 		defer conn.Close()
 		codec := WebSocketCodec(conn)
 		// DEBUG:
-		//codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
+		// codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
 		remote := &jsonrpc2.Remote{
 			Codec:  codec,
 			Server: srv,
