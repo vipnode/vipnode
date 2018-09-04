@@ -57,6 +57,8 @@ type Store interface {
 	// empty list, if none are available.
 	ActiveHosts(kind string, limit int) []Node
 
+	// GetNode returns the node from the set of active nods.
+	GetNode(NodeID) (*Node, error)
 	// SetNode adds a Node to the set of active nodes.
 	SetNode(Node, Account) error
 	// RemoveNode removes a Node.

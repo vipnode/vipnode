@@ -62,7 +62,18 @@ func (s *memoryStore) AddBalance(account Account, credit Amount) error {
 	return nil
 }
 
-// SetNode adds a HostNode to the set of active host nodes.
+// GetNode returns the node with the given ID.
+func (s *memoryStore) GetNode(id NodeID) (*Node, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	node, ok := s.nodes[id]
+	if !ok {
+		return nil, ErrUnregisteredNode
+	}
+	return &node, nil
+}
+
+// SetNode saves a node.
 func (s *memoryStore) SetNode(n Node, a Account) error {
 	if n.ID == "" {
 		return ErrMalformedNode
