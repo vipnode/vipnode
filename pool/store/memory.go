@@ -103,6 +103,7 @@ func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
 	r := make([]Node, 0, limit)
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	// TODO: Do something other than random, such as by availability?
 	for _, n := range s.nodes {
 		// Ranging over a map is implicitly random, so
@@ -124,8 +125,25 @@ func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
 			break
 		}
 	}
-	s.mu.Unlock()
 	return r
+}
+
+// NodePeers returns a list of active connected peers that this pool knows
+// about for this NodeID.
+func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	node, ok := s.nodes[nodeID]
+	if !ok {
+		return nil, ErrUnregisteredNode
+	}
+	peers := []Node{}
+	for nodeID, _ := range node.peers {
+		if node, ok := s.nodes[nodeID]; ok {
+			peers = append(peers, node)
+		}
+	}
+	return peers, nil
 }
 
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp

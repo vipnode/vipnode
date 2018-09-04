@@ -62,6 +62,9 @@ type Store interface {
 	// RemoveNode removes a Node.
 	RemoveNode(nodeID NodeID) error
 
+	// NodePeers returns a list of active connected peers that this pool knows
+	// about for this NodeID.
+	NodePeers(nodeID NodeID) ([]Node, error)
 	// UpdateNodePeers updates the Node.peers lookup with the current timestamp
 	// of nodes we know about. This is used as a keepalive, and to keep track
 	// of which client is connected to which host. Any missing peer is removed
