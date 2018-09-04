@@ -73,8 +73,12 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	for _, peer := range inactive {
 		resp.InvalidPeers = append(resp.InvalidPeers, string(peer.ID))
-		logger.Printf("%s: Returning %d invalid peers", pretty.Abbrev(nodeID), len(inactive))
 	}
+	validPeers, err := p.Store.NodePeers(store.NodeID(nodeID))
+	if err != nil {
+		return nil, err
+	}
+	logger.Printf("%s: Updated %d peers, %d invalid", pretty.Abbrev(nodeID), len(validPeers), len(inactive))
 	// TODO: Test InvalidPeers
 
 	// XXX: Track and return proper balance
@@ -138,12 +142,12 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 
 	r := p.Store.ActiveHosts(kind, numRequestHosts)
 	if len(r) == 0 {
-		logger.Printf("New %q client: %s (no active hosts found)", kind, nodeID[:8])
+		logger.Printf("New %q client: %s (no active hosts found)", kind, pretty.Abbrev(nodeID))
 		return nil, ErrNoHostNodes{}
 	}
 
 	if p.skipWhitelist {
-		logger.Printf("New %q client: %s (%d hosts found, skipping whitelist)", kind, nodeID[:8], len(r))
+		logger.Printf("New %q client: %s (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
 		return r, nil
 	}
 
