@@ -63,6 +63,11 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		return nil, err
 	}
 
+	node, err := p.Store.GetNode(store.NodeID(nodeID))
+	if err != nil {
+		return nil, err
+	}
+
 	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers)
 	if err != nil {
 		return nil, err
@@ -78,7 +83,12 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
-	logger.Printf("%s: Updated %d peers, %d invalid", pretty.Abbrev(nodeID), len(validPeers), len(inactive))
+
+	if node.IsHost {
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive))
+	} else {
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive))
+	}
 	// TODO: Test InvalidPeers
 
 	// XXX: Track and return proper balance
