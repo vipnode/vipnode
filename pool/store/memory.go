@@ -110,7 +110,7 @@ func (s *memoryStore) RemoveNode(nodeID NodeID) error {
 // ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 // empty list, if none are available.
 func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
-	seenSince := time.Now().Add(-2 * KeepaliveInterval)
+	seenSince := time.Now().Add(-ExpireInterval)
 	r := make([]Node, 0, limit)
 
 	s.mu.Lock()
@@ -179,10 +179,11 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, er
 	}
 
 	if numUpdated == len(node.peers) {
+		s.nodes[nodeID] = node
 		return nil, nil
 	}
 	inactive := []Node{}
-	inactiveDeadline := now.Add(-2 * KeepaliveInterval)
+	inactiveDeadline := now.Add(-ExpireInterval)
 	for nodeID, timestamp := range node.peers {
 		if timestamp.Before(inactiveDeadline) {
 			continue
@@ -193,5 +194,6 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, er
 		}
 	}
 
+	s.nodes[nodeID] = node
 	return inactive, nil
 }

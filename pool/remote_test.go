@@ -2,15 +2,17 @@ package pool
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
 )
 
-func TestRemotePool(t *testing.T) {
+func TestRemotePoolClient(t *testing.T) {
 	pool := New()
 	pool.skipWhitelist = true
 
@@ -49,5 +51,52 @@ func TestRemotePool(t *testing.T) {
 
 	if hosts[0].URI != "enode://foo" {
 		t.Errorf("invalid hosts result: %v", hosts)
+	}
+}
+
+func TestRemotePoolHost(t *testing.T) {
+	pool := New()
+	pool.skipWhitelist = true
+
+	server, host := jsonrpc2.ServePipe()
+	server.Server.Register("vipnode_", pool)
+
+	privkey := keygen.HardcodedKeyIdx(t, 0)
+	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+	remote := Remote(host, privkey)
+	kind := "geth"
+	payout := ""
+	nodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", nodeID)
+
+	err := remote.Host(context.Background(), kind, payout, nodeURI)
+	if err != nil {
+		t.Error(err)
+	}
+
+	server2Client, client2Server := jsonrpc2.ServePipe()
+	server2Client.Server.Register("vipnode_", pool)
+
+	clientPrivkey := keygen.HardcodedKeyIdx(t, 1)
+	remoteClient := Remote(client2Server, clientPrivkey)
+
+	hosts, err := remoteClient.Connect(context.Background(), "geth")
+	if err != nil {
+		t.Error(err)
+	} else if len(hosts) != 1 {
+		t.Fatalf("wrong number of hosts: %d", len(hosts))
+	}
+
+	resp, err := remote.Update(context.Background(), []string{})
+	if err != nil {
+		t.Error(err)
+	} else if len(resp.InvalidPeers) != 0 {
+		t.Errorf("unexpected invalid peers: %s", resp.InvalidPeers)
+	}
+
+	hosts, err = remoteClient.Connect(context.Background(), "geth")
+	if err != nil {
+		t.Error(err)
+	} else if len(hosts) != 1 {
+		t.Fatalf("wrong number of hosts: %d", len(hosts))
 	}
 }

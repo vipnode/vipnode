@@ -9,6 +9,8 @@ import (
 // peering updates.
 const KeepaliveInterval = 60 * time.Second
 
+const ExpireInterval = KeepaliveInterval * 2
+
 // FIXME: placeholder types, replace with go-ethereum types
 
 type Account string

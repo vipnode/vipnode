@@ -114,7 +114,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	// XXX: Confirm that it's a full node, not a light node.
 	// XXX: Check versions
 
-	logger.Printf("New %q host: %s", kind, nodeURI)
+	logger.Printf("New %q host: %q", kind, nodeURI)
 
 	node := store.Node{
 		ID:       store.NodeID(nodeID),
@@ -152,12 +152,12 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 
 	r := p.Store.ActiveHosts(kind, numRequestHosts)
 	if len(r) == 0 {
-		logger.Printf("New %q client: %s (no active hosts found)", kind, pretty.Abbrev(nodeID))
+		logger.Printf("New %q client: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
 		return nil, ErrNoHostNodes{}
 	}
 
 	if p.skipWhitelist {
-		logger.Printf("New %q client: %s (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
+		logger.Printf("New %q client: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
 		return r, nil
 	}
 
