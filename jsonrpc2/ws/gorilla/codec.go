@@ -3,7 +3,6 @@ package gorilla
 
 import (
 	"context"
-	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -72,7 +71,7 @@ func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
 			PendingLimit:   50,
 			PendingDiscard: 10,
 		}
-		if err := remote.Serve(); err != nil && err != io.EOF {
+		if err := remote.Serve(); websocket.IsUnexpectedCloseError(err, 1006) {
 			log.Printf("jsonrpc2.Remote.Serve() error: %s", err)
 		}
 	}
