@@ -388,7 +388,7 @@ func main() {
 		jsonrpc2.SetLogger(logWriter)
 	}
 
-	if !strings.HasPrefix(Version, "v") {
+	if !strings.HasPrefix(Version, "v") || strings.HasPrefix(Version, "v0.") {
 		logger.Warningf("This is a pre-release version (%s). It can stop working at any time.", Version)
 	}
 
