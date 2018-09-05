@@ -34,21 +34,17 @@ build() {
     local package="$1"; shift
     local assets="$@"
 
-    local bin="$(basename $package)"
     local tarball="${bin}-${GOOS}_${GOARCH}.tgz"
     local outdir="$BUILDDIR/$bin"
     local tardir="$bin"
-    if [ "$GOOS" == "windows" ]; then
-        bin="$bin.exe"
-    fi
-
 
     if [[ -d "$outdir" ]]; then
         echo "err: outdir already exists: $PWD/$outdir"
+        exit 1
     fi
     mkdir -p "$outdir"
 
-    go build -ldflags "$LDFLAGS" -o "$outdir/$bin" "$package"
+    xgo -ldflags "$LDFLAGS" -dest "$outdir" -targets "$GOOS/$GOARCH" "$package"
 
     # Stage asset bundle
     if [[ "$assets" ]]; then
