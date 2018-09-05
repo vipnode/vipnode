@@ -34,7 +34,8 @@ import (
 )
 
 // defaultClientNode is the value used when `vipnode client` is run without additional args.
-var defaultClientNode string = "enode://19b5013d24243a659bda7f1df13933bb05820ab6c3ebf6b5e0854848b97e1f7e308f703466e72486c5bc7fe8ed402eb62f6303418e05d330a5df80738ac974f6@163.172.138.100:30303?discport=30301"
+//var defaultClientNode string = "enode://19b5013d24243a659bda7f1df13933bb05820ab6c3ebf6b5e0854848b97e1f7e308f703466e72486c5bc7fe8ed402eb62f6303418e05d330a5df80738ac974f6@163.172.138.100:30303?discport=30301"
+var defaultClientNode string = "ws://pool.vipnode.org:8080/" // TODO: Update this for prod release
 
 // Version of the binary, assigned during build.
 var Version string = "dev"
@@ -55,7 +56,7 @@ type Options struct {
 	} `command:"client" description:"Connect to a vipnode as a client."`
 
 	Host struct {
-		Pool    string `long:"pool" description:"Pool to participate in." default:"https://pool.vipnode.org/"`
+		Pool    string `long:"pool" description:"Pool to participate in." default:"ws://pool.vipnode.org:8080/"` // TODO: Update this for prod release
 		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
 		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
 		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to."`
@@ -385,6 +386,10 @@ func main() {
 		host.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
 		jsonrpc2.SetLogger(logWriter)
+	}
+
+	if !strings.HasPrefix(Version, "v") {
+		logger.Warningf("This is a pre-release version (%s). It can stop working at any time.", Version)
 	}
 
 	cmd := "client"
