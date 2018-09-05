@@ -1,6 +1,6 @@
 BINARY = $(notdir $(PWD))
 VERSION := $(shell git describe --tags --dirty --always 2> /dev/null || echo "dev")
-SOURCES = $(wildcard *.go **/*.go)
+SOURCES = $(find . -type f -name '*.go')
 PKG := $(shell go list | head -n1)
 FAKEBIND = 127.0.0.1:8080
 FAKEPEERS = 0
@@ -35,3 +35,5 @@ fakehost: $(BINARY)
 
 fakeclient: $(BINARY)
 	./$(BINARY) -vv client "ws://$(FAKEBIND)" --nodekey=./nodekey --rpc "fakenode://85fbed4332ed4329ca2283f26606618815ae83a870c523bb99b0b2e9dfe5af3b4699c2830ecdeb67519d62362db44aa5a8cafee523e3ab8c76aeef1016f424a4?fakepeers=$(FAKEPEERS)"
+
+.PHONY:
