@@ -34,6 +34,7 @@ build() {
     local package="$1"; shift
     local assets="$@"
 
+    local bin="$(basename $package)"
     local tarball="${bin}-${GOOS}_${GOARCH}.tgz"
     local outdir="$BUILDDIR/$bin"
     local tardir="$bin"
