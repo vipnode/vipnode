@@ -162,13 +162,5 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 	if err != nil {
 		return err
 	}
-	// TODO: Use resp.UnmarshalResult
-	if resp.Response != nil && resp.Response.Error != nil {
-		return resp.Response.Error
-	}
-	if resp.Response == nil || len(resp.Result) == 0 || string(resp.Result) == "null" {
-		// No result
-		return nil
-	}
-	return json.Unmarshal(resp.Result, result)
+	return resp.UnmarshalResult(result)
 }

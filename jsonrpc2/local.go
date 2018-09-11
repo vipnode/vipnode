@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"context"
-	"encoding/json"
 )
 
 var _ Service = &Local{}
@@ -21,13 +20,5 @@ func (loc *Local) Call(ctx context.Context, result interface{}, method string, p
 	}
 	ctx = context.WithValue(ctx, ctxService, loc)
 	resp := loc.Server.Handle(ctx, req)
-	// TODO: Use resp.UnmarshalResult
-	if resp.Error != nil {
-		return resp.Error
-	}
-	if len(resp.Result) == 0 || string(resp.Result) == "null" {
-		// No result
-		return nil
-	}
-	return json.Unmarshal(resp.Result, result)
+	return resp.UnmarshalResult(result)
 }
