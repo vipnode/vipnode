@@ -246,6 +246,9 @@ func subcommand(cmd string, options Options) error {
 			return err
 		}
 		logger.Info("Connected.")
+		go func() {
+			errChan <- c.Wait()
+		}()
 
 		// Register c.Stop() on ctrl+c signal
 		sigCh := make(chan os.Signal, 1)
@@ -257,9 +260,6 @@ func subcommand(cmd string, options Options) error {
 			}
 		}()
 
-		go func() {
-			errChan <- c.Wait()
-		}()
 		return <-errChan
 
 	case "host":
@@ -335,9 +335,17 @@ func subcommand(cmd string, options Options) error {
 		go func() {
 			errChan <- h.Wait()
 		}()
-		err = <-errChan
-		go h.Stop()
-		return err
+
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
+		go func() {
+			for _ = range sigCh {
+				logger.Info("Shutting down...")
+				h.Stop()
+			}
+		}()
+
+		return <-errChan
 
 	case "pool":
 		if options.Pool.Store != "memory" {

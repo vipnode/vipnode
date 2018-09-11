@@ -3,6 +3,7 @@ package gorilla
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"sync"
 
@@ -23,6 +24,16 @@ func WebSocketDial(ctx context.Context, url string) (jsonrpc2.Codec, error) {
 
 var _ jsonrpc2.Codec = &wsCodec{}
 
+func overrideEOF(err error) error {
+	if err == nil {
+		return nil
+	}
+	if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+		return err
+	}
+	return io.EOF
+}
+
 type wsCodec struct {
 	muWrite sync.Mutex
 	muRead  sync.Mutex
@@ -34,7 +45,7 @@ func (codec *wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
 	defer codec.muRead.Unlock()
 	var msg jsonrpc2.Message
 	if err := codec.conn.ReadJSON(&msg); err != nil {
-		return nil, err
+		return nil, overrideEOF(err)
 	}
 	return &msg, nil
 }
@@ -42,7 +53,7 @@ func (codec *wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
 func (codec *wsCodec) WriteMessage(msg *jsonrpc2.Message) error {
 	codec.muWrite.Lock()
 	defer codec.muWrite.Unlock()
-	return codec.conn.WriteJSON(msg)
+	return overrideEOF(codec.conn.WriteJSON(msg))
 }
 
 func (codec *wsCodec) Close() error {
