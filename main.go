@@ -351,6 +351,7 @@ func subcommand(cmd string, options Options) error {
 			return err
 		}
 		logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
+		// TODO: Add TLS support using autocert
 		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
 
