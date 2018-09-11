@@ -7,6 +7,12 @@ import (
 	"github.com/vipnode/vipnode/internal/pretty"
 )
 
+type rwc struct {
+	io.Reader
+	io.Writer
+	io.Closer
+}
+
 // Codec is an straction for receiving and sending JSONRPC messages.
 type Codec interface {
 	ReadMessage() (*Message, error)

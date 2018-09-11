@@ -162,6 +162,7 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 	if err != nil {
 		return err
 	}
+	// TODO: Use resp.UnmarshalResult
 	if resp.Response != nil && resp.Response.Error != nil {
 		return resp.Response.Error
 	}

@@ -21,6 +21,7 @@ func (loc *Local) Call(ctx context.Context, result interface{}, method string, p
 	}
 	ctx = context.WithValue(ctx, ctxService, loc)
 	resp := loc.Server.Handle(ctx, req)
+	// TODO: Use resp.UnmarshalResult
 	if resp.Error != nil {
 		return resp.Error
 	}

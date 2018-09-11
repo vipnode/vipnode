@@ -32,6 +32,20 @@ type Response struct {
 	Error  *ErrResponse    `json:"error,omitempty"`
 }
 
+// UnmarshalResult attempts to convert the message into a successful result
+// unmarshal. If the message is not a success type (or if unmarshal fails), then
+// an appropriate error will be returned.
+func (resp *Response) UnmarshalResult(result interface{}) error {
+	if resp.Error != nil {
+		return resp.Error
+	}
+	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+		// No result
+		return nil
+	}
+	return json.Unmarshal(resp.Result, result)
+}
+
 type ErrResponse struct {
 	Code    int             `json:"code"`
 	Message string          `json:"message"`
