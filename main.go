@@ -219,6 +219,7 @@ func subcommand(cmd string, options Options) error {
 
 		logger.Infof("Connecting to pool: %s", poolURI)
 		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
+		// TODO: Switch to HTTP?
 		poolCodec, err := ws.WebSocketDial(ctx, poolURI)
 		cancel()
 		if err != nil {
@@ -333,12 +334,13 @@ func subcommand(cmd string, options Options) error {
 			return errors.New("storage driver not implemented")
 		}
 		p := pool.New()
-		srv := jsonrpc2.Server{}
-		if err := srv.Register("vipnode_", p); err != nil {
+		handler := &server{
+			ws: &ws.Upgrader{},
+		}
+		if err := handler.service.Register("vipnode_", p); err != nil {
 			return err
 		}
-		handler := ws.WebsocketHandler(&srv)
-		logger.Infof("Starting pool (version %s), listening on: ws://%s", Version, options.Pool.Bind)
+		logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
 		return http.ListenAndServe(options.Pool.Bind, handler)
 	}
 

@@ -1,4 +1,4 @@
-package ws
+package gobwas
 
 import (
 	"net"
@@ -11,7 +11,7 @@ func TestWebSocketCodec(t *testing.T) {
 	c1, c2 := net.Pipe()
 
 	clientCodec := clientWebSocketCodec(c1)
-	serverCodec := WebSocketCodec(c2)
+	serverCodec := serverWebSocketCodec(c2)
 
 	go clientCodec.WriteMessage(&jsonrpc2.Message{Version: "foo"})
 	msg, err := serverCodec.ReadMessage()

@@ -3,7 +3,6 @@ package gorilla
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"sync"
 
@@ -50,29 +49,16 @@ func (codec *wsCodec) Close() error {
 	return codec.conn.Close()
 }
 
-func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
-	upgrader := websocket.Upgrader{}
-	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("websocket upgrade error from %s: %s", r.RemoteAddr, err)
-			return
-		}
-		defer conn.Close()
-		var codec jsonrpc2.Codec = &wsCodec{conn: conn}
-		// DEBUG:
-		//codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
-		remote := &jsonrpc2.Remote{
-			Codec:  codec,
-			Server: srv,
-			Client: &jsonrpc2.Client{},
+// Upgrader upgrades an HTTP request to a WebSocket request and returns the
+// appropriate jsonrpc2 codec.
+type Upgrader struct {
+	websocket.Upgrader
+}
 
-			// TODO: Unhardcode these?
-			PendingLimit:   50,
-			PendingDiscard: 10,
-		}
-		if err := remote.Serve(); websocket.IsUnexpectedCloseError(err, 1006) {
-			log.Printf("jsonrpc2.Remote.Serve() error: %s", err)
-		}
+func (u *Upgrader) Upgrade(r *http.Request, w http.ResponseWriter, h http.Header) (jsonrpc2.Codec, error) {
+	conn, err := u.Upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return nil, err
 	}
+	return &wsCodec{conn: conn}, nil
 }

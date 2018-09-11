@@ -1,9 +1,8 @@
-package ws
+package gobwas
 
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"net/http"
 
@@ -39,9 +38,9 @@ func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	}
 }
 
-// WebSocketCodec returns a server-side Codec that wraps JSON encoding and
+// serverWebSocketCodec returns a server-side Codec that wraps JSON encoding and
 // decoding over a websocket connection.
-func WebSocketCodec(conn net.Conn) jsonrpc2.Codec {
+func serverWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary)
 	return &wsCodec{
@@ -82,28 +81,16 @@ func (codec *wsCodec) Close() error {
 	return codec.inner.Close()
 }
 
-func WebsocketHandler(srv *jsonrpc2.Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
-		if err != nil {
-			log.Printf("websocket upgrade error from %s: %s", r.RemoteAddr, err)
-			return
-		}
-		defer conn.Close()
-		codec := WebSocketCodec(conn)
-		// DEBUG:
-		// codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
-		remote := &jsonrpc2.Remote{
-			Codec:  codec,
-			Server: srv,
-			Client: &jsonrpc2.Client{},
+// Upgrader upgrades an HTTP request to a WebSocket request and returns the
+// appropriate jsonrpc2 codec.
+type Upgrader struct {
+	Upgrader ws.HTTPUpgrader
+}
 
-			// TODO: Unhardcode these?
-			PendingLimit:   50,
-			PendingDiscard: 10,
-		}
-		if err := remote.Serve(); err != nil && err != io.EOF {
-			log.Printf("jsonrpc2.Remote.Serve() error: %s", err)
-		}
+func (u *Upgrader) Upgrade(r *http.Request, w http.ResponseWriter, h http.Header) (jsonrpc2.Codec, error) {
+	conn, _, _, err := u.Upgrader.Upgrade(r, w, nil)
+	if err != nil {
+		return nil, err
 	}
+	return serverWebSocketCodec(conn), nil
 }
