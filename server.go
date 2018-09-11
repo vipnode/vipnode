@@ -13,8 +13,7 @@ type wsHandler interface {
 }
 
 type server struct {
-	service  jsonrpc2.Server
-	http     jsonrpc2.HTTPServer
+	jsonrpc2.HTTPServer
 	ws       ws.Upgrader
 	debugLog bool
 }
@@ -23,7 +22,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		// Assume RPC over HTTP
-		s.http.ServeHTTP(w, r)
+		s.HTTPServer.ServeHTTP(w, r)
 	case http.MethodGet:
 		// Assume WebSocket upgrade request
 		codec, err := s.ws.Upgrade(r, w, nil)
@@ -35,7 +34,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		remote := &jsonrpc2.Remote{
 			Codec:  codec,
-			Server: &s.service,
+			Server: &s.HTTPServer.Server,
 			Client: &jsonrpc2.Client{},
 
 			PendingLimit:   50,

@@ -184,14 +184,14 @@ func subcommand(cmd string, options Options) error {
 		if poolURI == "" {
 			poolURI = defaultClientNode
 		}
-		u, err := url.Parse(poolURI)
+		uri, err := url.Parse(poolURI)
 		if err != nil {
 			return err
 		}
 
 		errChan := make(chan error)
 		c := client.New(remoteNode)
-		if u.Scheme == "enode" {
+		if uri.Scheme == "enode" {
 			staticPool := &pool.StaticPool{}
 			if err := staticPool.AddNode(poolURI); err != nil {
 				return err
@@ -219,19 +219,29 @@ func subcommand(cmd string, options Options) error {
 
 		logger.Infof("Connecting to pool: %s", poolURI)
 		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
-		// TODO: Switch to HTTP?
-		poolCodec, err := ws.WebSocketDial(ctx, poolURI)
-		cancel()
-		if err != nil {
-			return ErrExplain{err, "Failed to connect to the pool RPC API."}
+
+		var rpcPool jsonrpc2.Service
+		if uri.Scheme == "ws" || uri.Scheme == "wss" {
+			poolCodec, err := ws.WebSocketDial(ctx, uri.String())
+			cancel()
+			if err != nil {
+				return ErrExplain{err, "Failed to connect to the pool RPC API."}
+			}
+			remote := &jsonrpc2.Remote{
+				Codec: poolCodec,
+			}
+			go func() {
+				errChan <- remote.Serve()
+			}()
+			rpcPool = remote
+		} else {
+			// Assume HTTP by default
+			rpcPool = &jsonrpc2.HTTPService{
+				Endpoint: uri.String(),
+			}
 		}
-		rpcPool := &jsonrpc2.Remote{
-			Codec: poolCodec,
-		}
+
 		p := pool.Remote(rpcPool, privkey)
-		go func() {
-			errChan <- rpcPool.Serve()
-		}()
 		if err := c.Start(p); err != nil {
 			return err
 		}
@@ -337,7 +347,7 @@ func subcommand(cmd string, options Options) error {
 		handler := &server{
 			ws: &ws.Upgrader{},
 		}
-		if err := handler.service.Register("vipnode_", p); err != nil {
+		if err := handler.Register("vipnode_", p); err != nil {
 			return err
 		}
 		logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
