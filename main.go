@@ -218,10 +218,10 @@ func subcommand(cmd string, options Options) error {
 		}
 
 		logger.Infof("Connecting to pool: %s", poolURI)
-		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
 
 		var rpcPool jsonrpc2.Service
 		if uri.Scheme == "ws" || uri.Scheme == "wss" {
+			ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
 			poolCodec, err := ws.WebSocketDial(ctx, uri.String())
 			cancel()
 			if err != nil {
