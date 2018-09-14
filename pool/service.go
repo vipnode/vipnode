@@ -142,6 +142,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 
 // Connect returns a list of enodes who are ready for the client node to connect.
 func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]store.Node, error) {
+	// FIXME: Should this be Client and vipnode_client?
 	// FIXME: Kind might be insufficient: We need to distinguish between full node vs parity LES and geth LES.
 	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, kind); err != nil {
 		return nil, err
@@ -187,19 +188,32 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		return nil, err
 	}
 
-	// TODO: Set deadline
-	// TODO: Parallelize
 	accepted := make([]store.Node, 0, len(remotes))
+	callCtx, cancel := context.WithTimeout(ctx, poolWhitelistTimeout)
+
+	// Parallelize whitelist, return any hosts that respond within the timeout.
+	errChan := make(chan error)
+	acceptChan := make(chan store.Node)
+
 	for _, remote := range remotes {
-		callCtx, cancel := context.WithTimeout(ctx, poolWhitelistTimeout)
-		err := remote.Service.Call(callCtx, nil, "vipnode_whitelist", nodeID)
-		cancel()
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		accepted = append(accepted, remote.Node)
+		go func(service jsonrpc2.Service, node store.Node) {
+			if err := service.Call(callCtx, nil, "vipnode_whitelist", nodeID); err != nil {
+				errChan <- err
+			} else {
+				acceptChan <- node
+			}
+		}(remote.Service, remote.Node)
 	}
+
+	for i := len(remotes); i > 0; i-- {
+		select {
+		case node := <-acceptChan:
+			accepted = append(accepted, node)
+		case err := <-errChan:
+			errors = append(errors, err)
+		}
+	}
+	cancel()
 
 	if len(errors) > 0 {
 		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), ErrConnectFailed{errors})
