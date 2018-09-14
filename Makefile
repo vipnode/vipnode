@@ -28,7 +28,7 @@ debug: $(BINARY)
 	./$(BINARY) -vv
 
 test:
-	go test -vet "all" -race ./...
+	go test -vet "all" -timeout 5s -race ./...
 
 fakepool: $(BINARY)
 	./$(BINARY) -vv pool --bind "$(FAKEBIND)" --store="memory"
