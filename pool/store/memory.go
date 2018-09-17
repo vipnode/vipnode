@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -60,6 +61,18 @@ func (s *memoryStore) AddBalance(account Account, credit Amount) error {
 		s.balances[account] = b
 	}
 	return nil
+}
+
+// GetSpendable returns the balance for an account only if nodeID is
+// authorized to spend it.
+func (s *memoryStore) GetSpendable(account Account, nodeID NodeID) (Balance, error) {
+	return Balance{}, errors.New("not implemented")
+}
+
+// SetSpendable authorizes nodeID to spend the balance (ie. allows nodeID
+// to access GetSpendable for that account).
+func (s *memoryStore) SetSpendable(account Account, nodeID NodeID) error {
+	return errors.New("not implemented")
 }
 
 // GetNode returns the node with the given ID.

@@ -52,8 +52,15 @@ type Store interface {
 
 	// GetBalance returns the current balance for an account.
 	GetBalance(account Account) Balance
-	// AddBalance adds some credit amount to that account balance.
+	// AddBalance adds some credit amount to that account balance. (Can be negative)
 	AddBalance(account Account, credit Amount) error
+
+	// GetSpendable returns the balance for an account only if nodeID is
+	// authorized to spend it.
+	GetSpendable(account Account, nodeID NodeID) (Balance, error)
+	// SetSpendable authorizes nodeID to spend the balance (ie. allows nodeID
+	// to access GetSpendable for that account).
+	SetSpendable(account Account, nodeID NodeID) error
 
 	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
