@@ -50,11 +50,6 @@ type Store interface {
 	// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 	CheckAndSaveNonce(nodeID NodeID, nonce int64) error
 
-	// GetBalance returns the current balance for an account.
-	GetBalance(account Account) Balance
-	// AddBalance adds some credit amount to that account balance. (Can be negative)
-	AddBalance(account Account, credit Amount) error
-
 	// GetSpendable returns the balance for an account only if nodeID is
 	// authorized to spend it.
 	GetSpendable(account Account, nodeID NodeID) (Balance, error)

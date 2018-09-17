@@ -22,10 +22,13 @@ type hostService struct {
 // New returns a VipnodePool implementation of Pool with the default memory
 // store, which includes balance tracking.
 func New() *VipnodePool {
+	// TODO: Replace with persistent store
+	storeDriver := store.MemoryStore()
+	balanceManager := &payPerInterval{Store: storeDriver}
 	return &VipnodePool{
-		// TODO: Replace with persistent store
-		Store:       store.MemoryStore(),
-		remoteHosts: map[store.NodeID]jsonrpc2.Service{},
+		Store:          storeDriver,
+		BalanceManager: balanceManager,
+		remoteHosts:    map[store.NodeID]jsonrpc2.Service{},
 	}
 }
 
@@ -33,8 +36,9 @@ const poolWhitelistTimeout = 5 * time.Second
 
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
-	Store         store.Store
-	skipWhitelist bool
+	Store          store.Store
+	BalanceManager BalanceManager
+	skipWhitelist  bool
 
 	mu          sync.Mutex
 	remoteHosts map[store.NodeID]jsonrpc2.Service
@@ -49,12 +53,6 @@ func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int
 		return ErrVerifyFailed{Cause: err, Method: method}
 	}
 	return nil
-}
-
-// register associates a wallet account with a nodeID, and increments the account's credit.
-func (p *VipnodePool) register(nodeID store.NodeID, account store.Account, credit store.Amount) error {
-	// TODO: Check if nodeID is already registered to another balance, if so remove it
-	return p.Store.AddBalance(account, credit)
 }
 
 // Update submits a list of peers that the node is connected to, returning the current account balance.
@@ -83,7 +81,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
-
+	// FIXME: Is there a bug here when a host is connected to another host?
 	if node.IsHost {
 		logger.Printf("Host update %q: %d peers, %d active, %d invalid", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive))
 	} else {
@@ -91,7 +89,12 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	// TODO: Test InvalidPeers
 
-	// XXX: Track and return proper balance
+	balance, err := p.BalanceManager.OnUpdate(*node, validPeers)
+	if err != nil {
+		return nil, err
+	}
+	resp.Balance = &balance
+
 	return &resp, nil
 }
 
@@ -182,6 +185,7 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 		ID:       store.NodeID(nodeID),
 		Kind:     kind,
 		LastSeen: time.Now(),
+		IsHost:   false,
 	}
 	// TODO: Connect with balance out of band
 	if err := p.Store.SetNode(node, store.Account("")); err != nil {

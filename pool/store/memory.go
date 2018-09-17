@@ -43,26 +43,6 @@ func (s *memoryStore) CheckAndSaveNonce(nodeID NodeID, nonce int64) error {
 	return nil
 }
 
-// GetBalance returns the current balance for an account.
-func (s *memoryStore) GetBalance(account Account) Balance {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.balances[account]
-}
-
-// AddBalance adds some credit amount to that account balance.
-func (s *memoryStore) AddBalance(account Account, credit Amount) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	b, ok := s.balances[account]
-	b.Credit += credit
-	if !ok {
-		s.balances[account] = b
-	}
-	return nil
-}
-
 // GetSpendable returns the balance for an account only if nodeID is
 // authorized to spend it.
 func (s *memoryStore) GetSpendable(account Account, nodeID NodeID) (Balance, error) {
@@ -185,6 +165,8 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, er
 	numUpdated := 0
 	for _, peer := range peers {
 		// Only update peers we already know about
+		// FIXME: If symmetric peers disappear at the same time, then reappear, will it be a problem if they never become inactive? (Okay if the balance manager caps the update interval?)
+		// FIXME: Should the timestamp update happen on the peerNode also? Or is it okay to leave it for the symmetric update call?
 		if _, ok := s.nodes[NodeID(peer)]; ok {
 			node.peers[NodeID(peer)] = now
 			numUpdated += 1
