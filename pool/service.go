@@ -24,7 +24,11 @@ type hostService struct {
 func New() *VipnodePool {
 	// TODO: Replace with persistent store
 	storeDriver := store.MemoryStore()
-	balanceManager := &payPerInterval{Store: storeDriver}
+	balanceManager := &payPerInterval{
+		Store:             storeDriver,
+		Interval:          time.Minute * 1,
+		CreditPerInterval: 1000,
+	}
 	return &VipnodePool{
 		Store:          storeDriver,
 		BalanceManager: balanceManager,
@@ -65,6 +69,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
+	nodeBeforeUpdate := *node
 
 	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers)
 	if err != nil {
@@ -81,19 +86,22 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
+
 	// FIXME: Is there a bug here when a host is connected to another host?
-	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive))
-	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive))
-	}
 	// TODO: Test InvalidPeers
 
-	balance, err := p.BalanceManager.OnUpdate(*node, validPeers)
+	balance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
 	if err != nil {
 		return nil, err
 	}
 	resp.Balance = &balance
+
+	if node.IsHost {
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), balance.Credit)
+	} else {
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), balance.Credit)
+
+	}
 
 	return &resp, nil
 }
