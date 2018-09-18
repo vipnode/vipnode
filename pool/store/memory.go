@@ -43,6 +43,38 @@ func (s *memoryStore) CheckAndSaveNonce(nodeID NodeID, nonce int64) error {
 	return nil
 }
 
+// GetBalance returns the current balance for an account.
+func (s *memoryStore) GetBalance(nodeID NodeID) (Balance, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	node, ok := s.nodes[nodeID]
+	if !ok {
+		return Balance{}, ErrUnregisteredNode
+	}
+	if node.balance == nil {
+		return Balance{}, nil
+	}
+	return *node.balance, nil
+}
+
+// AddBalance adds some credit amount to that account balance.
+func (s *memoryStore) AddBalance(nodeID NodeID, credit Amount) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	node, ok := s.nodes[nodeID]
+	if !ok {
+		return ErrUnregisteredNode
+	}
+	if node.balance == nil {
+		node.balance = &Balance{}
+	}
+	node.balance.Credit += credit
+	s.nodes[nodeID] = node
+	return nil
+}
+
 // GetSpendable returns the balance for an account only if nodeID is
 // authorized to spend it.
 func (s *memoryStore) GetSpendable(account Account, nodeID NodeID) (Balance, error) {

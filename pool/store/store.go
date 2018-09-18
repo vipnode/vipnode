@@ -15,7 +15,7 @@ const ExpireInterval = KeepaliveInterval * 2
 
 type Account string
 type NodeID string
-type Amount int
+type Amount int64
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
@@ -40,7 +40,7 @@ type Node struct {
 	Kind     string    `json:"kind"`
 	IsHost   bool
 
-	balance *Balance
+	balance *Balance             // Multiple nodes can share a balance (account), so it's a reference.
 	peers   map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
 	inSync  bool                 // TODO: Do we need a penalty if a full node wants to accept peers while not in sync?
 }
@@ -49,6 +49,11 @@ type Node struct {
 type Store interface {
 	// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 	CheckAndSaveNonce(nodeID NodeID, nonce int64) error
+
+	// GetBalance returns the current account balance for a node.
+	GetBalance(nodeID NodeID) (Balance, error)
+	// AddBalance adds some credit amount to a node's account balance. (Can be negative)
+	AddBalance(nodeID NodeID, credit Amount) error
 
 	// GetSpendable returns the balance for an account only if nodeID is
 	// authorized to spend it.
