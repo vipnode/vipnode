@@ -3,6 +3,7 @@ package fakenode
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/vipnode/vipnode/ethnode"
 )
@@ -46,6 +47,13 @@ func (n *FakeNode) RemoveTrustedPeer(ctx context.Context, nodeID string) error {
 }
 func (n *FakeNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 	n.Calls = append(n.Calls, Call("ConnectPeer", nodeURI))
+	uri, err := url.Parse(nodeURI)
+	if err != nil {
+		return err
+	}
+	n.FakePeers = append(n.FakePeers, ethnode.PeerInfo{
+		ID: uri.User.Username(),
+	})
 	return nil
 }
 func (n *FakeNode) DisconnectPeer(ctx context.Context, nodeID string) error {
