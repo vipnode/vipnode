@@ -2,6 +2,7 @@ package ethnode
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -16,14 +17,70 @@ const (
 	Parity
 )
 
+type NetworkID int
+
+const (
+	Mainnet NetworkID = 1
+	Morden  NetworkID = 2
+	Ropsten NetworkID = 3
+	Rinkeby NetworkID = 4
+	Kovan   NetworkID = 42
+)
+
 func (n NodeKind) String() string {
 	switch n {
 	case Geth:
 		return "geth"
 	case Parity:
 		return "parity"
+	default:
+		return "unknown"
 	}
-	return "unknown"
+}
+
+// UserAgent is the metadata about node client.
+type UserAgent struct {
+	Version     string // Result of web3_clientVersion
+	EthProtocol string // Result of eth_protocolVersion
+
+	// Parsed/derived values
+	Kind       NodeKind  // Node implementation
+	Network    NetworkID // Network ID
+	IsFullNode bool      // Is this a full node? (or a light client?)
+}
+
+// ParseUserAgent takes string values as output from the web3 RPC for
+// web3_clientVersion, eth_protocolVersion, and net_version. It returns a
+// parsed user agent metadata.
+func ParseUserAgent(clientVersion, protocolVersion, netVersion string) (*UserAgent, error) {
+	networkID, err := strconv.Atoi(netVersion)
+	if err != nil {
+		return nil, err
+	}
+	agent := &UserAgent{
+		Version:     clientVersion,
+		EthProtocol: protocolVersion,
+		Network:     NetworkID(networkID),
+		IsFullNode:  true,
+	}
+	if strings.HasPrefix(agent.Version, "Geth/") {
+		agent.Kind = Geth
+	} else if strings.HasPrefix(agent.Version, "Parity-Ethereum/") || strings.HasPrefix(agent.Version, "Parity/") {
+		agent.Kind = Parity
+	}
+
+	protocol, err := strconv.ParseInt(protocolVersion, 0, 32)
+	if err != nil {
+		return nil, err
+	}
+	// FIXME: Can't find any docs on how this protocol value is supposed to be
+	// parsed, so just using anecdotal values for now.
+	if agent.Kind == Parity && protocol == 1 {
+		agent.IsFullNode = false
+	} else if agent.Kind == Geth && protocol == 10002 {
+		agent.IsFullNode = false
+	}
+	return agent, nil
 }
 
 // Dial is a wrapper around go-ethereum/rpc.Dial with client detection.
@@ -37,18 +94,20 @@ func Dial(ctx context.Context, uri string) (EthNode, error) {
 }
 
 // DetectClient queries the RPC API to determine which kind of node is running.
-func DetectClient(client *rpc.Client) (NodeKind, error) {
-	// TODO: Detect Parity
+func DetectClient(client *rpc.Client) (*UserAgent, error) {
 	var clientVersion string
 	if err := client.Call(&clientVersion, "web3_clientVersion"); err != nil {
-		return Unknown, err
+		return nil, err
 	}
-	if strings.HasPrefix(clientVersion, "Parity/") {
-		return Parity, nil
-	} else if strings.HasPrefix(clientVersion, "Geth/") {
-		return Geth, nil
+	var protocolVersion string
+	if err := client.Call(&protocolVersion, "eth_protocolVersion"); err != nil {
+		return nil, err
 	}
-	return Unknown, nil
+	var netVersion string
+	if err := client.Call(&netVersion, "net_version"); err != nil {
+		return nil, err
+	}
+	return ParseUserAgent(clientVersion, protocolVersion, netVersion)
 }
 
 // PeerInfo stores the node ID and client metadata about a peer.
@@ -79,11 +138,11 @@ type EthNode interface {
 // RemoteNode autodetects the node kind and returns the appropriate EthNode
 // implementation.
 func RemoteNode(client *rpc.Client) (EthNode, error) {
-	kind, err := DetectClient(client)
+	version, err := DetectClient(client)
 	if err != nil {
 		return nil, err
 	}
-	switch kind {
+	switch version.Kind {
 	case Parity:
 		return &parityNode{client: client}, nil
 	default:

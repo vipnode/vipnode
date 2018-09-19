@@ -61,6 +61,7 @@ func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int
 
 // Update submits a list of peers that the node is connected to, returning the current account balance.
 func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, peers []string) (*UpdateResponse, error) {
+	// TODO: Send sync status?
 	if err := p.verify(sig, "vipnode_update", nodeID, nonce, peers); err != nil {
 		return nil, err
 	}
@@ -108,6 +109,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 
 // Host registers a full node to participate as a vipnode host in this pool.
 func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, payout string, nodeURI string) error {
+	// TODO: Send capabilities?
 	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind, payout, nodeURI); err != nil {
 		return err
 	}
