@@ -29,10 +29,11 @@ func Node(nodeID string) *FakeNode {
 
 // FakeNode is an implementation of ethnode.EthNode that no-ops for everything.
 type FakeNode struct {
-	NodeKind  ethnode.NodeKind
-	NodeID    string
-	Calls     Calls
-	FakePeers []ethnode.PeerInfo
+	NodeKind        ethnode.NodeKind
+	NodeID          string
+	Calls           Calls
+	FakePeers       []ethnode.PeerInfo
+	FakeBlockNumber uint64
 }
 
 func (n *FakeNode) Kind() ethnode.NodeKind                    { return n.NodeKind }
@@ -62,6 +63,9 @@ func (n *FakeNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 }
 func (n *FakeNode) Peers(ctx context.Context) ([]ethnode.PeerInfo, error) {
 	return n.FakePeers, nil
+}
+func (n *FakeNode) BlockNumber(ctx context.Context) (uint64, error) {
+	return n.FakeBlockNumber, nil
 }
 
 func FakePeers(num int) []ethnode.PeerInfo {

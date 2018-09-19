@@ -2,6 +2,7 @@ package ethnode
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -57,4 +58,12 @@ func (n *parityNode) Enode(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return result, nil
+}
+
+func (n *parityNode) BlockNumber(ctx context.Context) (uint64, error) {
+	var result string
+	if err := n.client.CallContext(ctx, &result, "eth_blockNumber"); err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(result, 0, 64)
 }

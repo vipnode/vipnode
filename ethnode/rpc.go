@@ -133,6 +133,8 @@ type EthNode interface {
 	DisconnectPeer(ctx context.Context, nodeID string) error
 	// Peers returns the list of connected peers
 	Peers(ctx context.Context) ([]PeerInfo, error)
+	// BlockNumber returns the current sync'd block number.
+	BlockNumber(ctx context.Context) (uint64, error)
 }
 
 // RemoteNode autodetects the node kind and returns the appropriate EthNode
