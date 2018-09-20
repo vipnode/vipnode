@@ -24,19 +24,19 @@ func (s *StaticPool) AddNode(nodeURI string) error {
 	return nil
 }
 
-func (s *StaticPool) Host(ctx context.Context, kind string, payout string, nodeURI string) error {
+func (s *StaticPool) Host(ctx context.Context, req HostRequest) error {
 	return nil
 }
 
-func (s *StaticPool) Connect(ctx context.Context, kind string) ([]store.Node, error) {
-	return s.Nodes, nil
+func (s *StaticPool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
+	return &ConnectResponse{Hosts: s.Nodes}, nil
 }
 
 func (s *StaticPool) Disconnect(ctx context.Context) error {
 	return nil
 }
 
-func (s *StaticPool) Update(ctx context.Context, peers []string) (*UpdateResponse, error) {
+func (s *StaticPool) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
 	return &UpdateResponse{}, nil
 }
 

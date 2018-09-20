@@ -60,9 +60,9 @@ func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int
 }
 
 // Update submits a list of peers that the node is connected to, returning the current account balance.
-func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, peers []string) (*UpdateResponse, error) {
+func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, req UpdateRequest) (*UpdateResponse, error) {
 	// TODO: Send sync status?
-	if err := p.verify(sig, "vipnode_update", nodeID, nonce, peers); err != nil {
+	if err := p.verify(sig, "vipnode_update", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
 
@@ -72,6 +72,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	nodeBeforeUpdate := *node
 
+	peers := req.Peers
 	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers)
 	if err != nil {
 		return nil, err
@@ -108,12 +109,13 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
-func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, kind string, payout string, nodeURI string) error {
+func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, req HostRequest) error {
 	// TODO: Send capabilities?
-	if err := p.verify(sig, "vipnode_host", nodeID, nonce, kind, payout, nodeURI); err != nil {
+	if err := p.verify(sig, "vipnode_host", nodeID, nonce, req); err != nil {
 		return err
 	}
 
+	kind, payout, nodeURI := req.Kind, req.Payout, req.NodeURI
 	// Confirm that nodeURI matches nodeID
 	uri, err := url.Parse(nodeURI)
 	if err != nil {
@@ -154,13 +156,14 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 }
 
 // Connect returns a list of enodes who are ready for the client node to connect.
-func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, kind string) ([]store.Node, error) {
+func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, req ConnectRequest) ([]store.Node, error) {
 	// FIXME: Should this be Client and vipnode_client?
 	// FIXME: Kind might be insufficient: We need to distinguish between full node vs parity LES and geth LES.
-	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, kind); err != nil {
+	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
 
+	kind := req.Kind
 	// TODO: Unhardcode these
 	numRequestHosts := 3
 

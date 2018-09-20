@@ -49,6 +49,14 @@ func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
 }
 
 func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
+	// TODO: Send block number
+	/*
+		block, err := h.node.BlockNumber(ctx)
+		if err != nil {
+			return err
+		}
+	*/
+
 	peers, err := h.node.Peers(ctx)
 	if err != nil {
 		return err
@@ -57,7 +65,7 @@ func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
 	for _, peer := range peers {
 		peerUpdate = append(peerUpdate, peer.ID)
 	}
-	update, err := p.Update(ctx, peerUpdate)
+	update, err := p.Update(ctx, pool.UpdateRequest{Peers: peerUpdate})
 	if err != nil {
 		return err
 	}
@@ -99,8 +107,12 @@ func (h *Host) Start(p pool.Pool) error {
 	}
 	logger.Printf("Connected to local node: %s", enode)
 
-	// TODO: Send wallet address too
-	if err := p.Host(startCtx, h.node.Kind().String(), h.payout, h.uri); err != nil {
+	hostReq := pool.HostRequest{
+		Kind:    h.node.Kind().String(),
+		Payout:  h.payout,
+		NodeURI: h.uri,
+	}
+	if err := p.Host(startCtx, hostReq); err != nil {
 		return err
 	}
 	logger.Print("Registered on pool.")

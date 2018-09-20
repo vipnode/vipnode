@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
 
@@ -35,72 +34,72 @@ func (p *RemotePool) getNonce() int64 {
 	return time.Now().UnixNano()
 }
 
-func (p *RemotePool) Host(ctx context.Context, kind string, payout string, nodeURI string) error {
-	req := request.Request{
+func (p *RemotePool) Host(ctx context.Context, req HostRequest) error {
+	signedReq := request.Request{
 		Method:    "vipnode_host",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
-		ExtraArgs: []interface{}{kind, payout, nodeURI},
+		ExtraArgs: []interface{}{req},
 	}
 
-	args, err := req.SignedArgs(p.privkey)
+	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
 		return err
 	}
 	var result interface{}
-	return p.client.Call(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, signedReq.Method, args...)
 }
 
-func (p *RemotePool) Connect(ctx context.Context, kind string) ([]store.Node, error) {
-	req := request.Request{
+func (p *RemotePool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
+	signedReq := request.Request{
 		Method:    "vipnode_connect",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
-		ExtraArgs: []interface{}{kind},
+		ExtraArgs: []interface{}{req},
 	}
 
-	args, err := req.SignedArgs(p.privkey)
+	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
 		return nil, err
 	}
-	var result []store.Node
-	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
+	var resp ConnectResponse
+	if err := p.client.Call(ctx, &resp.Hosts, signedReq.Method, args...); err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return &resp, nil
 }
 
 func (p *RemotePool) Disconnect(ctx context.Context) error {
-	req := request.Request{
+	signedReq := request.Request{
 		Method: "vipnode_disconnect",
 		NodeID: p.nodeID,
 		Nonce:  p.getNonce(),
 	}
 
-	args, err := req.SignedArgs(p.privkey)
+	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
 		return err
 	}
 	var result interface{}
-	return p.client.Call(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, signedReq.Method, args...)
 }
 
-func (p *RemotePool) Update(ctx context.Context, peers []string) (*UpdateResponse, error) {
-	req := request.Request{
+func (p *RemotePool) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
+	signedReq := request.Request{
 		Method:    "vipnode_update",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
-		ExtraArgs: []interface{}{peers},
+		ExtraArgs: []interface{}{req},
 	}
 
-	args, err := req.SignedArgs(p.privkey)
+	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
 		return nil, err
 	}
 
 	var result UpdateResponse
-	if err := p.client.Call(ctx, &result, req.Method, args...); err != nil {
+	if err := p.client.Call(ctx, &result, signedReq.Method, args...); err != nil {
 		return nil, err
 	}
 
@@ -108,16 +107,16 @@ func (p *RemotePool) Update(ctx context.Context, peers []string) (*UpdateRespons
 }
 
 func (p *RemotePool) Withdraw(ctx context.Context) error {
-	req := request.Request{
+	signedReq := request.Request{
 		Method: "vipnode_withdraw",
 		NodeID: p.nodeID,
 		Nonce:  p.getNonce(),
 	}
 
-	args, err := req.SignedArgs(p.privkey)
+	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
 		return err
 	}
 	var result interface{}
-	return p.client.Call(ctx, &result, req.Method, args...)
+	return p.client.Call(ctx, &result, signedReq.Method, args...)
 }

@@ -24,7 +24,7 @@ func TestPoolInstance(t *testing.T) {
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,
 		ExtraArgs: []interface{}{
-			"geth",
+			ConnectRequest{Kind: "geth"},
 		},
 	}
 	sig, err := req.Sign(privkey)
@@ -32,7 +32,7 @@ func TestPoolInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pool.Connect(context.Background(), sig, req.NodeID, req.Nonce, req.ExtraArgs[0].(string))
+	_, err = pool.Connect(context.Background(), sig, req.NodeID, req.Nonce, req.ExtraArgs[0].(ConnectRequest))
 	if _, ok := err.(ErrNoHostNodes); !ok {
 		t.Errorf("pool.Connect direct call failed: %s", err)
 	}
@@ -59,7 +59,7 @@ func TestPoolService(t *testing.T) {
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,
 		ExtraArgs: []interface{}{
-			"geth",
+			ConnectRequest{Kind: "geth"},
 		},
 	}
 

@@ -41,10 +41,11 @@ func TestRemotePoolClient(t *testing.T) {
 		t.Errorf("GetHostNodes returned unexpected number of nodes: %d", len(nodes))
 	}
 
-	hosts, err := remote.Connect(context.Background(), "geth")
+	resp, err := remote.Connect(context.Background(), ConnectRequest{Kind: "geth"})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
+	hosts := resp.Hosts
 	if len(hosts) != 1 {
 		t.Fatalf("wrong number of hosts: %d", len(hosts))
 	}
@@ -68,7 +69,7 @@ func TestRemotePoolHost(t *testing.T) {
 	payout := ""
 	nodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", nodeID)
 
-	err := remote.Host(context.Background(), kind, payout, nodeURI)
+	err := remote.Host(context.Background(), HostRequest{Kind: kind, Payout: payout, NodeURI: nodeURI})
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,24 +80,31 @@ func TestRemotePoolHost(t *testing.T) {
 	clientPrivkey := keygen.HardcodedKeyIdx(t, 1)
 	remoteClient := Remote(client2Server, clientPrivkey)
 
-	hosts, err := remoteClient.Connect(context.Background(), "geth")
-	if err != nil {
-		t.Error(err)
-	} else if len(hosts) != 1 {
-		t.Fatalf("wrong number of hosts: %d", len(hosts))
+	{
+		resp, err := remoteClient.Connect(context.Background(), ConnectRequest{Kind: "geth"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Hosts) != 1 {
+			t.Fatalf("wrong number of hosts: %d", len(resp.Hosts))
+		}
 	}
 
-	resp, err := remote.Update(context.Background(), []string{})
-	if err != nil {
-		t.Error(err)
-	} else if len(resp.InvalidPeers) != 0 {
-		t.Errorf("unexpected invalid peers: %s", resp.InvalidPeers)
+	{
+		resp, err := remote.Update(context.Background(), UpdateRequest{Peers: []string{}})
+		if err != nil {
+			t.Error(err)
+		} else if len(resp.InvalidPeers) != 0 {
+			t.Errorf("unexpected invalid peers: %s", resp.InvalidPeers)
+		}
 	}
 
-	hosts, err = remoteClient.Connect(context.Background(), "geth")
-	if err != nil {
-		t.Error(err)
-	} else if len(hosts) != 1 {
-		t.Fatalf("wrong number of hosts: %d", len(hosts))
+	{
+		resp, err := remoteClient.Connect(context.Background(), ConnectRequest{Kind: "geth"})
+		if err != nil {
+			t.Error(err)
+		} else if len(resp.Hosts) != 1 {
+			t.Fatalf("wrong number of hosts: %d", len(resp.Hosts))
+		}
 	}
 }

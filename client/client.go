@@ -44,10 +44,11 @@ func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
 	starCtx := context.Background()
 	kind := c.EthNode.Kind().String()
-	nodes, err := p.Connect(starCtx, kind)
+	resp, err := p.Connect(starCtx, pool.ConnectRequest{Kind: kind})
 	if err != nil {
 		return err
 	}
+	nodes := resp.Hosts
 	if len(nodes) == 0 {
 		return pool.ErrNoHostNodes{}
 	}
@@ -98,7 +99,7 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		peerIDs = append(peerIDs, p.ID)
 	}
 
-	update, err := p.Update(ctx, peerIDs)
+	update, err := p.Update(ctx, pool.UpdateRequest{Peers: peerIDs})
 	if err != nil {
 		return err
 	}
