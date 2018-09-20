@@ -40,6 +40,7 @@ const poolWhitelistTimeout = 5 * time.Second
 
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
+	Version        string
 	Store          store.Store
 	BalanceManager BalanceManager
 	skipWhitelist  bool
@@ -109,21 +110,21 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
-func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, req HostRequest) error {
+func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, req HostRequest) (*HostResponse, error) {
 	// TODO: Send capabilities?
 	if err := p.verify(sig, "vipnode_host", nodeID, nonce, req); err != nil {
-		return err
+		return nil, err
 	}
 
 	kind, payout, nodeURI := req.Kind, req.Payout, req.NodeURI
 	// Confirm that nodeURI matches nodeID
 	uri, err := url.Parse(nodeURI)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if uri.User.Username() != nodeID {
-		return fmt.Errorf("nodeID %q does not match nodeURI: %s", pretty.Abbrev(nodeID), nodeURI)
+		return nil, fmt.Errorf("nodeID %q does not match nodeURI: %s", pretty.Abbrev(nodeID), nodeURI)
 	}
 
 	// XXX: Confirm that it's a full node, not a light node.
@@ -140,31 +141,32 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	}
 	err = p.Store.SetNode(node, store.Account(payout))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	service, err := jsonrpc2.CtxService(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// FIXME: Clean up disconnected hosts
 	p.mu.Lock()
 	p.remoteHosts[node.ID] = service
 	p.mu.Unlock()
 
-	return nil
+	resp := &HostResponse{
+		PoolVersion: p.Version,
+	}
+	return resp, nil
 }
 
-// Connect returns a list of enodes who are ready for the client node to connect.
-func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, req ConnectRequest) ([]store.Node, error) {
-	// FIXME: Should this be Client and vipnode_client?
-	// FIXME: Kind might be insufficient: We need to distinguish between full node vs parity LES and geth LES.
-	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, req); err != nil {
+// Client returns a list of enodes who are ready for the client node to connect.
+func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, nonce int64, req ClientRequest) (*ClientResponse, error) {
+	if err := p.verify(sig, "vipnode_client", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
 
 	kind := req.Kind
-	// TODO: Unhardcode these
+	// TODO: Unhardcode this
 	numRequestHosts := 3
 
 	r := p.Store.ActiveHosts(kind, numRequestHosts)
@@ -175,7 +177,7 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 
 	if p.skipWhitelist {
 		logger.Printf("New %q client: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
-		return r, nil
+		return &ClientResponse{Hosts: r}, nil
 	}
 
 	errors := []error{}
@@ -239,7 +241,7 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 	}
 
 	if len(accepted) >= 1 {
-		return accepted, nil
+		return &ClientResponse{Hosts: accepted}, nil
 	}
 
 	if len(errors) > 0 {

@@ -34,7 +34,7 @@ func (p *RemotePool) getNonce() int64 {
 	return time.Now().UnixNano()
 }
 
-func (p *RemotePool) Host(ctx context.Context, req HostRequest) error {
+func (p *RemotePool) Host(ctx context.Context, req HostRequest) (*HostResponse, error) {
 	signedReq := request.Request{
 		Method:    "vipnode_host",
 		NodeID:    p.nodeID,
@@ -44,15 +44,18 @@ func (p *RemotePool) Host(ctx context.Context, req HostRequest) error {
 
 	args, err := signedReq.SignedArgs(p.privkey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var result interface{}
-	return p.client.Call(ctx, &result, signedReq.Method, args...)
+	var resp HostResponse
+	if err := p.client.Call(ctx, &resp, signedReq.Method, args...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
-func (p *RemotePool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
+func (p *RemotePool) Client(ctx context.Context, req ClientRequest) (*ClientResponse, error) {
 	signedReq := request.Request{
-		Method:    "vipnode_connect",
+		Method:    "vipnode_client",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
 		ExtraArgs: []interface{}{req},
@@ -62,8 +65,8 @@ func (p *RemotePool) Connect(ctx context.Context, req ConnectRequest) (*ConnectR
 	if err != nil {
 		return nil, err
 	}
-	var resp ConnectResponse
-	if err := p.client.Call(ctx, &resp.Hosts, signedReq.Method, args...); err != nil {
+	var resp ClientResponse
+	if err := p.client.Call(ctx, &resp, signedReq.Method, args...); err != nil {
 		return nil, err
 	}
 

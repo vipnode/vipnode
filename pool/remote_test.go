@@ -41,7 +41,7 @@ func TestRemotePoolClient(t *testing.T) {
 		t.Errorf("GetHostNodes returned unexpected number of nodes: %d", len(nodes))
 	}
 
-	resp, err := remote.Connect(context.Background(), ConnectRequest{Kind: "geth"})
+	resp, err := remote.Client(context.Background(), ClientRequest{Kind: "geth"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestRemotePoolHost(t *testing.T) {
 	payout := ""
 	nodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", nodeID)
 
-	err := remote.Host(context.Background(), HostRequest{Kind: kind, Payout: payout, NodeURI: nodeURI})
+	_, err := remote.Host(context.Background(), HostRequest{Kind: kind, Payout: payout, NodeURI: nodeURI})
 	if err != nil {
 		t.Error(err)
 	}
@@ -81,7 +81,7 @@ func TestRemotePoolHost(t *testing.T) {
 	remoteClient := Remote(client2Server, clientPrivkey)
 
 	{
-		resp, err := remoteClient.Connect(context.Background(), ConnectRequest{Kind: "geth"})
+		resp, err := remoteClient.Client(context.Background(), ClientRequest{Kind: "geth"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func TestRemotePoolHost(t *testing.T) {
 	}
 
 	{
-		resp, err := remoteClient.Connect(context.Background(), ConnectRequest{Kind: "geth"})
+		resp, err := remoteClient.Client(context.Background(), ClientRequest{Kind: "geth"})
 		if err != nil {
 			t.Error(err)
 		} else if len(resp.Hosts) != 1 {

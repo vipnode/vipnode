@@ -24,12 +24,12 @@ func (s *StaticPool) AddNode(nodeURI string) error {
 	return nil
 }
 
-func (s *StaticPool) Host(ctx context.Context, req HostRequest) error {
-	return nil
+func (s *StaticPool) Host(ctx context.Context, req HostRequest) (*HostResponse, error) {
+	return &HostResponse{}, nil
 }
 
-func (s *StaticPool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
-	return &ConnectResponse{Hosts: s.Nodes}, nil
+func (s *StaticPool) Client(ctx context.Context, req ClientRequest) (*ClientResponse, error) {
+	return &ClientResponse{Hosts: s.Nodes}, nil
 }
 
 func (s *StaticPool) Disconnect(ctx context.Context) error {

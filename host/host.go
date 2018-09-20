@@ -112,10 +112,11 @@ func (h *Host) Start(p pool.Pool) error {
 		Payout:  h.payout,
 		NodeURI: h.uri,
 	}
-	if err := p.Host(startCtx, hostReq); err != nil {
+	resp, err := p.Host(startCtx, hostReq)
+	if err != nil {
 		return err
 	}
-	logger.Print("Registered on pool.")
+	logger.Printf("Registered on pool: Version %s", resp.PoolVersion)
 
 	// TODO: Resume tracking peers that we care about (in case of interrupted
 	// shutdown)

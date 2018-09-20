@@ -352,6 +352,7 @@ func subcommand(cmd string, options Options) error {
 			return errors.New("storage driver not implemented")
 		}
 		p := pool.New()
+		p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 		handler := &server{
 			ws: &ws.Upgrader{},
 		}

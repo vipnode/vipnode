@@ -44,7 +44,7 @@ func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
 	starCtx := context.Background()
 	kind := c.EthNode.Kind().String()
-	resp, err := p.Connect(starCtx, pool.ConnectRequest{Kind: kind})
+	resp, err := p.Client(starCtx, pool.ClientRequest{Kind: kind})
 	if err != nil {
 		return err
 	}

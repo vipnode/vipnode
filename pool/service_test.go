@@ -20,11 +20,11 @@ func TestPoolInstance(t *testing.T) {
 
 	privkey := keygen.HardcodedKey(t)
 	req := request.Request{
-		Method: "vipnode_connect",
+		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,
 		ExtraArgs: []interface{}{
-			ConnectRequest{Kind: "geth"},
+			ClientRequest{Kind: "geth"},
 		},
 	}
 	sig, err := req.Sign(privkey)
@@ -32,7 +32,7 @@ func TestPoolInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pool.Connect(context.Background(), sig, req.NodeID, req.Nonce, req.ExtraArgs[0].(ConnectRequest))
+	_, err = pool.Client(context.Background(), sig, req.NodeID, req.Nonce, req.ExtraArgs[0].(ClientRequest))
 	if _, ok := err.(ErrNoHostNodes); !ok {
 		t.Errorf("pool.Connect direct call failed: %s", err)
 	}
@@ -55,11 +55,11 @@ func TestPoolService(t *testing.T) {
 
 	privkey := keygen.HardcodedKey(t)
 	req := request.Request{
-		Method: "vipnode_connect",
+		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,
 		ExtraArgs: []interface{}{
-			ConnectRequest{Kind: "geth"},
+			ClientRequest{Kind: "geth"},
 		},
 	}
 
