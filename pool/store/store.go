@@ -70,8 +70,6 @@ type Store interface {
 	GetNode(NodeID) (*Node, error)
 	// SetNode adds a Node to the set of active nodes.
 	SetNode(Node, Account) error
-	// RemoveNode removes a Node.
-	RemoveNode(nodeID NodeID) error
 
 	// NodePeers returns a list of active connected peers that this pool knows
 	// about for this NodeID.
