@@ -233,6 +233,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		}
 	}
 	cancel()
+	// TODO: Penalize hosts that failed to respond within the deadline?
 
 	if len(errors) > 0 {
 		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), ErrConnectFailed{errors})

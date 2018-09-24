@@ -19,7 +19,7 @@ type Message struct {
 	*Request
 	*Response
 	ID      json.RawMessage `json:"id,omitempty"`
-	Version string          `json:"jsonrpc"`
+	Version string          `json:"jsonrpc"` // TODO: Replace this with a null-type that encodes to 2.0, like https://go-review.googlesource.com/c/tools/+/136675/1/internal/jsonrpc2/jsonrpc2.go#221
 }
 
 type Request struct {
