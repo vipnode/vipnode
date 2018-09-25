@@ -99,18 +99,12 @@ func (s *memoryStore) GetNode(id NodeID) (*Node, error) {
 }
 
 // SetNode saves a node.
-func (s *memoryStore) SetNode(n Node, a Account) error {
+func (s *memoryStore) SetNode(n Node) error {
 	if n.ID == "" {
 		return ErrMalformedNode
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if a != "" && n.balance == nil {
-		b, ok := s.balances[a]
-		if ok {
-			n.balance = &b
-		}
-	}
 	if n.balance == nil {
 		// Use existing balance?
 		if existing, ok := s.nodes[n.ID]; ok {
@@ -185,7 +179,7 @@ func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp
 // of nodes we know about. This is used as a keepalive, and to keep track of
 // which client is connected to which host.
-func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, error) {
+func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]NodeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
@@ -209,16 +203,14 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]Node, er
 		s.nodes[nodeID] = node
 		return nil, nil
 	}
-	inactive := []Node{}
+	inactive := []NodeID{}
 	inactiveDeadline := now.Add(-ExpireInterval)
 	for nodeID, timestamp := range node.peers {
 		if timestamp.Before(inactiveDeadline) {
 			continue
 		}
 		delete(node.peers, nodeID)
-		if node, ok := s.nodes[nodeID]; ok {
-			inactive = append(inactive, node)
-		}
+		inactive = append(inactive, nodeID)
 	}
 
 	s.nodes[nodeID] = node

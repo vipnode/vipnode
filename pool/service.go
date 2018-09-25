@@ -83,7 +83,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		InvalidPeers: make([]string, 0, len(inactive)),
 	}
 	for _, peer := range inactive {
-		resp.InvalidPeers = append(resp.InvalidPeers, string(peer.ID))
+		resp.InvalidPeers = append(resp.InvalidPeers, string(peer))
 	}
 	validPeers, err := p.Store.NodePeers(store.NodeID(nodeID))
 	if err != nil {
@@ -138,8 +138,9 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		Kind:     kind,
 		LastSeen: time.Now(),
 		IsHost:   true,
+		Payout:   store.Account(payout),
 	}
-	err = p.Store.SetNode(node, store.Account(payout))
+	err = p.Store.SetNode(node)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +204,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		IsHost:   false,
 	}
 	// TODO: Connect with balance out of band
-	if err := p.Store.SetNode(node, store.Account("")); err != nil {
+	if err := p.Store.SetNode(node); err != nil {
 		return nil, err
 	}
 

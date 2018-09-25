@@ -39,7 +39,9 @@ type Node struct {
 	LastSeen time.Time `json:"last_seen"`
 	Kind     string    `json:"kind"`
 	IsHost   bool
+	Payout   Account
 
+	// FIXME: These shouldn't be part of store.Node, but a separate memory store Node wrapper.
 	balance *Balance             // Multiple nodes can share a balance (account), so it's a reference.
 	peers   map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
 	inSync  bool                 // TODO: Do we need a penalty if a full node wants to accept peers while not in sync?
@@ -64,12 +66,13 @@ type Store interface {
 
 	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
+	// TODO: Add error return val
 	ActiveHosts(kind string, limit int) []Node
 
 	// GetNode returns the node from the set of active nods.
 	GetNode(NodeID) (*Node, error)
 	// SetNode adds a Node to the set of active nodes.
-	SetNode(Node, Account) error
+	SetNode(Node) error
 
 	// NodePeers returns a list of active connected peers that this pool knows
 	// about for this NodeID.
@@ -79,5 +82,5 @@ type Store interface {
 	// of which client is connected to which host. Any missing peer is removed
 	// from the known peers and returned. It also updates nodeID's
 	// LastSeen.
-	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []Node, err error)
+	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []NodeID, err error)
 }
