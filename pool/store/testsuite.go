@@ -1,9 +1,11 @@
 package store
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 )
 
 // TestSuite runs a suite of tests against a store implementation.
@@ -154,6 +156,44 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("got: %+v; want: %+v", peerIDs, newPeers)
 		}
 	})
+
+	t.Run("Node", func(t *testing.T) {
+		s := newStore()
+		defer s.Close()
+
+		if hosts, err := s.ActiveHosts("", 3); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		} else if len(hosts) != 0 {
+			t.Errorf("unexpected hosts: %v", hosts)
+		}
+
+		// Add some hosts
+		now := time.Now()
+		for i := 0; i < 10; i++ {
+			node := Node{
+				ID:     NodeID(fmt.Sprintf("n%d", i)),
+				IsHost: i > 3,
+			}
+			if i > 5 {
+				node.LastSeen = now
+			}
+			if err := s.SetNode(node); err != nil {
+				t.Error(err)
+			}
+		}
+		if hosts, err := s.ActiveHosts("", 10); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		} else if got, want := nodeIDs(hosts), []string{"n6", "n7", "n8", "n9"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("got: %v; want: %v", got, want)
+		}
+
+		if hosts, err := s.ActiveHosts("", 2); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		} else if len(hosts) != 2 {
+			t.Errorf("wrong number of hosts: %d", len(hosts))
+		}
+	})
+
 }
 
 func nodeIDs(nodes []Node) []string {

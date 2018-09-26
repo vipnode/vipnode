@@ -36,7 +36,10 @@ func TestRemotePoolClient(t *testing.T) {
 		t.Fatal("failed to add host node:", err)
 	}
 
-	nodes := pool.Store.ActiveHosts("", 3)
+	nodes, err := pool.Store.ActiveHosts("", 3)
+	if err != nil {
+		t.Error(err)
+	}
 	if len(nodes) != 2 {
 		t.Errorf("GetHostNodes returned unexpected number of nodes: %d", len(nodes))
 	}

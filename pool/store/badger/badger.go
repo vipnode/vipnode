@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -141,8 +142,51 @@ func (s *badgerStore) SetSpendable(account store.Account, nodeID store.NodeID) e
 	return errors.New("not implemented")
 }
 
-func (s *badgerStore) ActiveHosts(kind string, limit int) []store.Node {
-	panic("not implemented")
+// ActiveHosts loads all nodes, then return a valid shuffled subset of size limit.
+func (s *badgerStore) ActiveHosts(kind string, limit int) ([]store.Node, error) {
+	seenSince := time.Now().Add(-store.ExpireInterval)
+	var r []store.Node
+	err := s.db.View(func(txn *badger.Txn) error {
+		prefix := []byte("vip:node:")
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			val, err := it.Item().Value()
+			if err != nil {
+				return err
+			}
+			var n store.Node
+			if err := gob.NewDecoder(bytes.NewReader(val)).Decode(&n); err != nil {
+				return err
+			}
+
+			if !n.IsHost {
+				continue
+			}
+			if kind != "" && n.Kind != kind {
+				continue
+			}
+			if !n.LastSeen.After(seenSince) {
+				continue
+			}
+			r = append(r, n)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(r) < limit {
+		// Skip shuffle since it's a subset
+		return r, nil
+	}
+
+	// FIXME: Is there a different sorting method we want to use? Maybe sort by last seen?
+	rand.Shuffle(len(r), func(i, j int) {
+		r[i], r[j] = r[j], r[i]
+	})
+
+	return r[:limit], nil
 }
 
 func (s *badgerStore) GetNode(nodeID store.NodeID) (*store.Node, error) {

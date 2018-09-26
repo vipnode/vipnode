@@ -69,8 +69,7 @@ type Store interface {
 
 	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
-	// TODO: Add error return val
-	ActiveHosts(kind string, limit int) []Node
+	ActiveHosts(kind string, limit int) ([]Node, error)
 
 	// GetNode returns the node from the set of active nods.
 	GetNode(NodeID) (*Node, error)

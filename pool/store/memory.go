@@ -128,7 +128,7 @@ func (s *memoryStore) RemoveNode(nodeID NodeID) error {
 
 // ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 // empty list, if none are available.
-func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
+func (s *memoryStore) ActiveHosts(kind string, limit int) ([]Node, error) {
 	seenSince := time.Now().Add(-ExpireInterval)
 	r := make([]Node, 0, limit)
 
@@ -155,7 +155,7 @@ func (s *memoryStore) ActiveHosts(kind string, limit int) []Node {
 			break
 		}
 	}
-	return r
+	return r, nil
 }
 
 // NodePeers returns a list of active connected peers that this pool knows

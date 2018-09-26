@@ -170,7 +170,10 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	// TODO: Unhardcode this
 	numRequestHosts := 3
 
-	r := p.Store.ActiveHosts(kind, numRequestHosts)
+	r, err := p.Store.ActiveHosts(kind, numRequestHosts)
+	if err != nil {
+		return nil, err
+	}
 	if len(r) == 0 {
 		logger.Printf("New %q client: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
 		return nil, ErrNoHostNodes{}
