@@ -49,7 +49,7 @@ func (s *badgerStore) getItem(txn *badger.Txn, key []byte, into interface{}) err
 	if err != nil {
 		return err
 	}
-	return gob.NewDecoder(bytes.NewReader(val)).Decode(&into)
+	return gob.NewDecoder(bytes.NewReader(val)).Decode(into)
 }
 
 func (s *badgerStore) setItem(txn *badger.Txn, key []byte, val interface{}) error {
@@ -63,35 +63,22 @@ func (s *badgerStore) setItem(txn *badger.Txn, key []byte, val interface{}) erro
 func (s *badgerStore) CheckAndSaveNonce(nodeID store.NodeID, nonce int64) error {
 	key := []byte(fmt.Sprintf("vip:nonce:%s", nodeID))
 	return s.db.Update(func(txn *badger.Txn) error {
-		item, err := txn.Get(key)
-		if err == badger.ErrKeyNotFound {
-			val, err := item.Value()
-			if err != nil {
-				return err
-			}
-			var lastNonce int64
-			if err := gob.NewDecoder(bytes.NewReader(val)).Decode(&lastNonce); err != nil {
-				return err
-			}
+		var lastNonce int64
+		if err := s.getItem(txn, key, &lastNonce); err == nil {
 			if lastNonce >= nonce {
 				return store.ErrInvalidNonce
 			}
-		} else if err != nil {
+		} else if err != badger.ErrKeyNotFound {
 			return err
 		}
 
-		var buf bytes.Buffer
-		if err := gob.NewEncoder(&buf).Encode(nonce); err != nil {
-			return err
-		}
-		return txn.Set(key, buf.Bytes())
+		return s.setItem(txn, key, nonce)
 	})
 }
 
 func (s *badgerStore) GetBalance(nodeID store.NodeID) (store.Balance, error) {
 	accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
 	var account store.Account
-
 	var r store.Balance
 	err := s.db.View(func(txn *badger.Txn) error {
 		balanceKey := []byte(fmt.Sprintf("vip:trial:%s", nodeID))
@@ -102,7 +89,13 @@ func (s *badgerStore) GetBalance(nodeID store.NodeID) (store.Balance, error) {
 		} else {
 			return err
 		}
-		if err := s.getItem(txn, balanceKey, &r); err != nil && err != badger.ErrKeyNotFound {
+		if err := s.getItem(txn, balanceKey, &r); err == badger.ErrKeyNotFound {
+			nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
+			if !s.hasKey(txn, nodeKey) {
+				return store.ErrUnregisteredNode
+			}
+			return nil
+		} else if err != nil {
 			return err
 		}
 		return nil
@@ -125,6 +118,10 @@ func (s *badgerStore) AddBalance(nodeID store.NodeID, credit store.Amount) error
 		}
 		var balance store.Balance
 		if err := s.getItem(txn, balanceKey, &balance); err == badger.ErrKeyNotFound {
+			nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
+			if !s.hasKey(txn, nodeKey) {
+				return store.ErrUnregisteredNode
+			}
 			// No balance = empty balance
 		} else if err != nil {
 			return err
@@ -173,17 +170,34 @@ func (s *badgerStore) SetNode(n store.Node) error {
 }
 
 func (s *badgerStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
-	key := []byte(fmt.Sprintf("vip:peers:%s", nodeID))
+	peersKey := []byte(fmt.Sprintf("vip:peers:%s", nodeID))
 	var r []store.Node
 	err := s.db.View(func(txn *badger.Txn) error {
-		return s.getItem(txn, key, &r)
+		var nodePeers map[store.NodeID]time.Time
+		if err := s.getItem(txn, peersKey, &nodePeers); err == badger.ErrKeyNotFound {
+			// No peers
+			nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
+			if !s.hasKey(txn, nodeKey) {
+				return store.ErrUnregisteredNode
+			}
+			return nil
+		} else if err != nil {
+			return err
+		}
+		r = make([]store.Node, 0, len(nodePeers))
+		for peerID, _ := range nodePeers {
+			var peerNode store.Node
+			if err := s.getItem(txn, []byte(fmt.Sprintf("vip:node:%s", peerID)), &peerNode); err == badger.ErrKeyNotFound {
+				// Skip peer nodes we no longer know about.
+				continue
+			} else if err != nil {
+				return err
+			}
+			r = append(r, peerNode)
+		}
+		return nil
 	})
-	if err == badger.ErrKeyNotFound {
-		return nil, store.ErrUnregisteredNode
-	} else if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return r, err
 }
 
 func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inactive []store.NodeID, err error) {
@@ -194,9 +208,12 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 	var nodePeers map[store.NodeID]time.Time
 	err = s.db.Update(func(txn *badger.Txn) error {
 		// Update this node's LastSeen
-		if err := s.getItem(txn, nodeKey, &node); err != nil {
+		if err := s.getItem(txn, nodeKey, &node); err == badger.ErrKeyNotFound {
+			return store.ErrUnregisteredNode
+		} else if err != nil {
 			return err
 		}
+
 		node.LastSeen = now
 		if err := s.setItem(txn, nodeKey, node); err != nil {
 			return err

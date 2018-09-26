@@ -216,3 +216,7 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]NodeID, 
 	s.nodes[nodeID] = node
 	return inactive, nil
 }
+
+func (s *memoryStore) Close() error {
+	return nil
+}

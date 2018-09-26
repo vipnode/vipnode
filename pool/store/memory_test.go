@@ -1,10 +1,12 @@
 package store
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestMemoryStore(t *testing.T) {
 	t.Run("MemoryStore", func(t *testing.T) {
-		RunStoreTests(t, func() Store {
+		TestSuite(t, func() Store {
 			return MemoryStore()
 		})
 	})

@@ -49,6 +49,9 @@ type Node struct {
 
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
 type Store interface {
+	// Close shuts down or disconnects from the storage driver.
+	Close() error
+
 	// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 	CheckAndSaveNonce(nodeID NodeID, nonce int64) error
 

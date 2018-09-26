@@ -6,9 +6,13 @@ import (
 	"testing"
 )
 
-func RunStoreTests(t *testing.T, newStore func() Store) {
+// TestSuite runs a suite of tests against a store implementation.
+func TestSuite(t *testing.T, newStore func() Store) {
+	t.Helper()
 	t.Run("Nonce", func(t *testing.T) {
 		s := newStore()
+		defer s.Close()
+
 		nodeID := NodeID("abc")
 		if err := s.CheckAndSaveNonce(nodeID, 42); err != nil {
 			t.Errorf("unexpected error: %s", err)
@@ -29,6 +33,8 @@ func RunStoreTests(t *testing.T, newStore func() Store) {
 
 	t.Run("Node", func(t *testing.T) {
 		s := newStore()
+		defer s.Close()
+
 		node := Node{
 			ID: NodeID("abc"),
 		}
@@ -51,6 +57,8 @@ func RunStoreTests(t *testing.T, newStore func() Store) {
 
 	t.Run("Balance", func(t *testing.T) {
 		s := newStore()
+		defer s.Close()
+
 		// Unregistered
 		if err := s.AddBalance(NodeID("abc"), 42); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
@@ -96,6 +104,8 @@ func RunStoreTests(t *testing.T, newStore func() Store) {
 
 	t.Run("NodePeers", func(t *testing.T) {
 		s := newStore()
+		defer s.Close()
+
 		// Unregistered
 		if _, err := s.NodePeers(NodeID("abc")); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)

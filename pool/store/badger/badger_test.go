@@ -1,0 +1,102 @@
+package badger
+
+import (
+	"io/ioutil"
+	"os"
+	"testing"
+
+	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
+	"github.com/vipnode/vipnode/pool/store"
+)
+
+type badgerTemp struct {
+	*badgerStore
+	Dir string
+}
+
+func (s badgerTemp) Close() error {
+	defer os.RemoveAll(s.Dir)
+	return s.badgerStore.Close()
+}
+
+// badgerTesting is a wrapper that retains but clears the db on Close().
+type badgerTesting struct {
+	*badgerTemp
+}
+
+func (s badgerTesting) Close() error {
+	// Seems to be faster to just delete all keys between tests than to make a
+	// fresh db each time.
+	opt := badger.DefaultIteratorOptions
+	return s.badgerTemp.badgerStore.db.Update(func(txn *badger.Txn) error {
+		it := txn.NewIterator(opt)
+		defer it.Close()
+
+		for it.Rewind(); it.Valid(); it.Next() {
+			if err := txn.Delete(it.Item().Key()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func OpenTemp() (*badgerTemp, error) {
+	dir, err := ioutil.TempDir("", "vipnodetest")
+	if err != nil {
+		return nil, err
+	}
+
+	// Memory-only settings from here: https://github.com/dgraph-io/badger/issues/377#issuecomment-424422144
+	opts := badger.LSMOnlyOptions
+	opts.TableLoadingMode = options.LoadToRAM
+	opts.ValueLogLoadingMode = options.MemoryMap
+	opts.Dir = dir
+	opts.ValueDir = dir
+
+	s, err := Open(opts)
+	if err != nil {
+		os.RemoveAll(dir)
+		return nil, err
+	}
+	return &badgerTemp{s, dir}, nil
+}
+
+func TestBadgerHelpers(t *testing.T) {
+	store, err := OpenTemp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	var a uint64 = 42
+	if err := store.db.Update(func(txn *badger.Txn) error {
+		return store.setItem(txn, []byte("a"), a)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var aa uint64
+	if err := store.db.View(func(txn *badger.Txn) error {
+		return store.getItem(txn, []byte("a"), &aa)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if a != aa {
+		t.Errorf("got: %q; want %q", aa, aa)
+	}
+}
+
+func TestBadgerStore(t *testing.T) {
+	s, err := OpenTemp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	t.Run("BadgerStore", func(t *testing.T) {
+		store.TestSuite(t, func() store.Store {
+			return badgerTesting{s}
+		})
+	})
+}
