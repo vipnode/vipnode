@@ -3,14 +3,11 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -21,7 +18,6 @@ import (
 	"github.com/alexcesaro/log"
 	"github.com/alexcesaro/log/golog"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/ethnode"
@@ -29,7 +25,6 @@ import (
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
-	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 )
 
@@ -175,193 +170,11 @@ func matchEnode(enode string, nodeID string) error {
 func subcommand(cmd string, options Options) error {
 	switch cmd {
 	case "client":
-		remoteNode, err := findRPC(options.Client.RPC)
-		if err != nil {
-			return err
-		}
-
-		poolURI := options.Client.Args.VIPNode
-		if poolURI == "" {
-			poolURI = defaultClientNode
-		}
-		uri, err := url.Parse(poolURI)
-		if err != nil {
-			return err
-		}
-
-		errChan := make(chan error)
-		c := client.New(remoteNode)
-		if uri.Scheme == "enode" {
-			staticPool := &pool.StaticPool{}
-			if err := staticPool.AddNode(poolURI); err != nil {
-				return err
-			}
-			logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-			if err := c.Start(staticPool); err != nil {
-				return err
-			}
-			return c.Wait()
-		}
-
-		privkey, err := findNodeKey(options.Client.NodeKey)
-		if err != nil {
-			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
-		}
-		// Confirm that nodeID matches the private key
-		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
-		remoteEnode, err := remoteNode.Enode(context.Background())
-		if err != nil {
-			return err
-		}
-		if err := matchEnode(remoteEnode, nodeID); err != nil {
-			return err
-		}
-
-		logger.Infof("Connecting to pool: %s", poolURI)
-
-		var rpcPool jsonrpc2.Service
-		if uri.Scheme == "ws" || uri.Scheme == "wss" {
-			ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
-			poolCodec, err := ws.WebSocketDial(ctx, uri.String())
-			cancel()
-			if err != nil {
-				return ErrExplain{err, "Failed to connect to the pool RPC API."}
-			}
-			remote := &jsonrpc2.Remote{
-				Codec: poolCodec,
-			}
-			go func() {
-				errChan <- remote.Serve()
-			}()
-			rpcPool = remote
-		} else {
-			// Assume HTTP by default
-			rpcPool = &jsonrpc2.HTTPService{
-				Endpoint: uri.String(),
-			}
-		}
-
-		p := pool.Remote(rpcPool, privkey)
-		if err := c.Start(p); err != nil {
-			return err
-		}
-		logger.Info("Connected.")
-		go func() {
-			errChan <- c.Wait()
-		}()
-
-		// Register c.Stop() on ctrl+c signal
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		go func() {
-			for _ = range sigCh {
-				logger.Info("Shutting down...")
-				c.Stop()
-			}
-		}()
-
-		return <-errChan
-
+		return runClient(options)
 	case "host":
-		remoteNode, err := findRPC(options.Host.RPC)
-		if err != nil {
-			return err
-		}
-		privkey, err := findNodeKey(options.Host.NodeKey)
-		if err != nil {
-			return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
-		}
-		// Confirm that nodeID matches the private key
-		nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
-		if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
-			return err
-		}
-		remoteEnode, err := remoteNode.Enode(context.Background())
-		if err != nil {
-			return err
-		}
-		if err := matchEnode(remoteEnode, nodeID); err != nil {
-			return err
-		}
-
-		if options.Host.Payout == "" {
-			logger.Warning("No --payout address provided, will not receive pool payments.")
-		}
-
-		h := host.New(options.Host.NodeURI, remoteNode, options.Host.Payout)
-
-		if options.Host.Pool == ":memory:" {
-			// Support for in-memory pool. This is primarily for testing.
-			logger.Infof("Starting in-memory vipnode pool.")
-			p := pool.New()
-			rpcPool := &jsonrpc2.Local{}
-			if err := rpcPool.Server.Register("vipnode_", p); err != nil {
-				return err
-			}
-			remotePool := pool.Remote(rpcPool, privkey)
-			if err := h.Start(remotePool); err != nil {
-				return err
-			}
-			return h.Wait()
-		}
-
-		// Dial host to pool
-		ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
-		poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
-		cancel()
-		if err != nil {
-			return ErrExplain{err, "Failed to connect to the pool RPC API."}
-		}
-		logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
-
-		rpcServer := &jsonrpc2.Server{}
-		if err := rpcServer.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
-			return err
-		}
-		rpcPool := jsonrpc2.Remote{
-			Client: &jsonrpc2.Client{},
-			Server: rpcServer,
-			Codec:  poolCodec,
-		}
-
-		errChan := make(chan error)
-		go func() {
-			errChan <- rpcPool.Serve()
-		}()
-		remotePool := pool.Remote(&rpcPool, privkey)
-		if err := h.Start(remotePool); err != nil {
-			return err
-		}
-		go func() {
-			errChan <- h.Wait()
-		}()
-
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		go func() {
-			for _ = range sigCh {
-				logger.Info("Shutting down...")
-				h.Stop()
-			}
-		}()
-
-		return <-errChan
-
+		return runHost(options)
 	case "pool":
-		if options.Pool.Store != "memory" {
-			return errors.New("storage driver not implemented")
-		}
-		p := pool.New()
-		p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
-		handler := &server{
-			ws: &ws.Upgrader{},
-		}
-		if err := handler.Register("vipnode_", p); err != nil {
-			return err
-		}
-		logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
-		// TODO: Add TLS support using autocert
-		return http.ListenAndServe(options.Pool.Bind, handler)
+		return runPool(options)
 	}
 
 	return nil
