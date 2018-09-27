@@ -21,9 +21,7 @@ type hostService struct {
 
 // New returns a VipnodePool implementation of Pool with the default memory
 // store, which includes balance tracking.
-func New() *VipnodePool {
-	// TODO: Replace with persistent store
-	storeDriver := store.MemoryStore()
+func New(storeDriver store.Store) *VipnodePool {
 	balanceManager := &payPerInterval{
 		Store:             storeDriver,
 		Interval:          time.Minute * 1,

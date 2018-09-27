@@ -59,8 +59,9 @@ type Options struct {
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
-		Bind  string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
-		Store string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
+		Bind    string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
+		Store   string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
+		DataDir string `long:"datadir" description:"Path for storing the persistent database."`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
 

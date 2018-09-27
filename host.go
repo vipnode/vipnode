@@ -10,6 +10,7 @@ import (
 	"github.com/vipnode/vipnode/jsonrpc2"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/store"
 )
 
 func runHost(options Options) error {
@@ -43,7 +44,7 @@ func runHost(options Options) error {
 	if options.Host.Pool == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.
 		logger.Infof("Starting in-memory vipnode pool.")
-		p := pool.New()
+		p := pool.New(store.MemoryStore())
 		rpcPool := &jsonrpc2.Local{}
 		if err := rpcPool.Server.Register("vipnode_", p); err != nil {
 			return err
