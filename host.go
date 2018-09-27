@@ -61,7 +61,7 @@ func runHost(options Options) error {
 	poolCodec, err := ws.WebSocketDial(ctx, options.Host.Pool)
 	cancel()
 	if err != nil {
-		return ErrExplain{err, "Failed to connect to the pool RPC API."}
+		return ErrExplainRetry{ErrExplain{err, "Failed to connect to the pool RPC API."}}
 	}
 	logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
 

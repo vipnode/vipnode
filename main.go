@@ -169,16 +169,50 @@ func matchEnode(enode string, nodeID string) error {
 }
 
 func subcommand(cmd string, options Options) error {
-	switch cmd {
-	case "client":
-		return runClient(options)
-	case "host":
-		return runHost(options)
-	case "pool":
+	if cmd == "pool" {
 		return runPool(options)
 	}
 
-	return nil
+	// Run with retries for host/client
+
+	backoff := []int{5, 30, 60, 90, 300} // Backoff in sequence in seconds.
+	clearTimeout := time.Second * 300    // Time between attempts before we reset the backoff
+	var err error
+	for i := 0; ; i++ {
+		since := time.Now()
+		switch cmd {
+		case "client":
+			err = runClient(options)
+		case "host":
+			err = runHost(options)
+		}
+
+		b := i
+		if b >= len(backoff) {
+			// Keep trying at the max interval
+			b = len(backoff) - 1
+		}
+
+		waitTime := time.Duration(backoff[b]) * time.Second
+		if err == io.EOF {
+			logger.Warningf("Connection closed, retrying in %s...", waitTime)
+		} else if errRetry, ok := err.(ErrExplainRetry); ok {
+			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry.Cause)
+		} else if _, ok := err.(net.Error); ok {
+			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, err)
+		} else if err.Error() == (pool.ErrNoHostNodes{}).Error() {
+			logger.Warningf("Pool does not have available hosts, retrying in %s...", waitTime)
+		} else {
+			return err
+		}
+
+		if time.Now().After(since.Add(clearTimeout)) {
+			// Reset backoff if run ran for at least clearTimeout
+			i = 0
+		}
+
+		time.Sleep(waitTime)
+	}
 }
 
 func main() {
@@ -281,4 +315,9 @@ type ErrExplain struct {
 
 func (err ErrExplain) Error() string {
 	return fmt.Sprintf("%s\n -> %s", err.Cause, err.Explanation)
+}
+
+// ErrExplainRetry is the same as ErrExplain except it can be retried
+type ErrExplainRetry struct {
+	ErrExplain
 }
