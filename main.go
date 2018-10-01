@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -175,6 +176,9 @@ func subcommand(cmd string, options Options) error {
 
 	// Run with retries for host/client
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+
 	backoff := []int{5, 30, 60, 90, 300} // Backoff in sequence in seconds.
 	clearTimeout := time.Second * 300    // Time between attempts before we reset the backoff
 	var err error
@@ -194,7 +198,10 @@ func subcommand(cmd string, options Options) error {
 		}
 
 		waitTime := time.Duration(backoff[b]) * time.Second
-		if err == io.EOF {
+		if err == nil {
+			// Exit cleanly
+			return nil
+		} else if err == io.EOF {
 			logger.Warningf("Connection closed, retrying in %s...", waitTime)
 		} else if errRetry, ok := err.(ErrExplainRetry); ok {
 			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry.Cause)
@@ -211,7 +218,11 @@ func subcommand(cmd string, options Options) error {
 			i = 0
 		}
 
-		time.Sleep(waitTime)
+		select {
+		case <-time.After(waitTime):
+		case <-sigCh:
+			return nil
+		}
 	}
 }
 
