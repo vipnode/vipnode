@@ -6,13 +6,15 @@ import (
 
 const Version = "2.0"
 
+type ErrorCode int
+
 const (
-	ErrCodeParse          = -32700
-	ErrCodeInvalidRequest = -32600
-	ErrCodeMethodNotFound = -32601
-	ErrCodeInvalidParams  = -32602
-	ErrCodeInternal       = -32603
-	ErrCodeServer         = -32000
+	ErrCodeParse          int = -32700
+	ErrCodeInvalidRequest     = -32600
+	ErrCodeMethodNotFound     = -32601
+	ErrCodeInvalidParams      = -32602
+	ErrCodeInternal           = -32603
+	ErrCodeServer             = -32000
 )
 
 type Message struct {
@@ -46,6 +48,7 @@ func (resp *Response) UnmarshalResult(result interface{}) error {
 	return json.Unmarshal(resp.Result, result)
 }
 
+// ErrResponse is returned as part of a Response message when there is an error.
 type ErrResponse struct {
 	Code    int             `json:"code"`
 	Message string          `json:"message"`
@@ -58,4 +61,24 @@ func (err *ErrResponse) Error() string {
 
 func (err *ErrResponse) ErrorCode() int {
 	return err.Code
+}
+
+// IsErrorCode returns true iff the error has an ErrorCode. If allowedCodes
+// is provided, then it also checks that it matches one of the allowedCodes.
+func IsErrorCode(err error, allowedCodes ...int) bool {
+	errResp, ok := err.(interface{ ErrorCode() int })
+	if !ok {
+		return false
+	}
+	if len(allowedCodes) == 0 {
+		// No whitelist = allow all
+		return true
+	}
+	gotCode := errResp.ErrorCode()
+	for _, wantCode := range allowedCodes {
+		if gotCode == wantCode {
+			return true
+		}
+	}
+	return false
 }
