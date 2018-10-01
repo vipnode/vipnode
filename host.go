@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -81,6 +82,9 @@ func runHost(options Options) error {
 	}()
 	remotePool := pool.Remote(&rpcPool, privkey)
 	if err := h.Start(remotePool); err != nil {
+		if jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams) {
+			err = ErrExplain{err, fmt.Sprintf(`Missing a required RPC method. Make sure your vipnode binary is up to date. (Current version: %s)`, Version)}
+		}
 		return err
 	}
 	go func() {

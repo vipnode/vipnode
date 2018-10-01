@@ -84,7 +84,7 @@ func runClient(options Options) error {
 
 	p := pool.Remote(rpcPool, privkey)
 	if err := c.Start(p); err != nil {
-		if errCoded, ok := err.(interface{ ErrorCode() int }); ok && errCoded.ErrorCode() == -32601 {
+		if jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams) {
 			err = ErrExplain{err, fmt.Sprintf(`Missing a required RPC method. Make sure your vipnode client is up to date. (Current version: %s)`, Version)}
 		}
 		return err

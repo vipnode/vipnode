@@ -292,9 +292,9 @@ func main() {
 		err = ErrExplain{err, `Disconnected from server unexpectedly. Could be a connectivity issue or the server is down. Try again?`}
 	case interface{ ErrorCode() int }:
 		switch typedErr.ErrorCode() {
-		case -32601:
+		case jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams:
 			err = ErrExplain{err, `Missing a required RPC method. Make sure your Ethereum node is up to date.`}
-		case -32603:
+		case jsonrpc2.ErrCodeInternal:
 			if err.Error() == (pool.ErrNoHostNodes{}).Error() {
 				err = ErrExplain{err, `The pool does not have any hosts who are ready to serve your kind of client right now. Try again later or contact the pool operator for help.`}
 				break
