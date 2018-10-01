@@ -63,6 +63,7 @@ type Options struct {
 		Bind    string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
 		Store   string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
 		DataDir string `long:"datadir" description:"Path for storing the persistent database."`
+		TLSHost string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
 

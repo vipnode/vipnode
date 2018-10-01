@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/OpenPeeDeeP/xdg"
 	"github.com/dgraph-io/badger"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // findDataDir returns a valid data dir, will create it if it doesn't
@@ -57,7 +59,13 @@ func runPool(options Options) error {
 	if err := handler.Register("vipnode_", p); err != nil {
 		return err
 	}
+	if options.Pool.TLSHost != "" {
+		if strings.HasSuffix(":443", options.Pool.Bind) {
+			logger.Warningf("Ignoring --bind value (%q) because it's not 443 and --tlshost is set.", options.Pool.Bind)
+		}
+		logger.Infof("Starting pool (version %s), acquiring ACME certificate and listening on: https://%s", Version, options.Pool.TLSHost)
+		return http.Serve(autocert.NewListener(options.Pool.TLSHost), handler)
+	}
 	logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
-	// TODO: Add TLS support using autocert
 	return http.ListenAndServe(options.Pool.Bind, handler)
 }
