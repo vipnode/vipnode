@@ -64,7 +64,11 @@ func runPool(options Options) error {
 			logger.Warningf("Ignoring --bind value (%q) because it's not 443 and --tlshost is set.", options.Pool.Bind)
 		}
 		logger.Infof("Starting pool (version %s), acquiring ACME certificate and listening on: https://%s", Version, options.Pool.TLSHost)
-		return http.Serve(autocert.NewListener(options.Pool.TLSHost), handler)
+		err := http.Serve(autocert.NewListener(options.Pool.TLSHost), handler)
+		if strings.HasSuffix(err.Error(), "bind: permission denied") {
+			err = ErrExplain{err, "Need permission to bind on low-numbered ports. See: https://superuser.com/questions/710253/allow-non-root-process-to-bind-to-port-80-and-443/892391"}
+		}
+		return err
 	}
 	logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
 	return http.ListenAndServe(options.Pool.Bind, handler)
