@@ -66,7 +66,7 @@ func runPool(options Options) error {
 		logger.Infof("Starting pool (version %s), acquiring ACME certificate and listening on: https://%s", Version, options.Pool.TLSHost)
 		err := http.Serve(autocert.NewListener(options.Pool.TLSHost), handler)
 		if strings.HasSuffix(err.Error(), "bind: permission denied") {
-			err = ErrExplain{err, "Need permission to bind on low-numbered ports. See: https://superuser.com/questions/710253/allow-non-root-process-to-bind-to-port-80-and-443/892391"}
+			err = ErrExplain{err, "Hosting a pool with autocert requires CAP_NET_BIND_SERVICE capability permission to bind on low-numbered ports. See: https://superuser.com/questions/710253/allow-non-root-process-to-bind-to-port-80-and-443/892391"}
 		}
 		return err
 	}
