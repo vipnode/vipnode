@@ -15,6 +15,10 @@ import (
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 )
 
+// defaultClientNode is the value used when `vipnode client` is run without additional args.
+//var defaultClientNode string = "enode://19b5013d24243a659bda7f1df13933bb05820ab6c3ebf6b5e0854848b97e1f7e308f703466e72486c5bc7fe8ed402eb62f6303418e05d330a5df80738ac974f6@163.172.138.100:30303?discport=30301"
+var defaultClientNode string = "https://pool.vipnode.org/"
+
 func runClient(options Options) error {
 	remoteNode, err := findRPC(options.Client.RPC)
 	if err != nil {
