@@ -12,6 +12,7 @@ import (
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
+	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -42,7 +43,7 @@ func runPool(options Options) error {
 		badgerOpts := badger.DefaultOptions
 		badgerOpts.Dir = dir
 		badgerOpts.ValueDir = dir
-		storeDriver, err := badger.Open(badgerOpts)
+		storeDriver, err = badgerStore.Open(badgerOpts)
 		if err != nil {
 			return err
 		}
