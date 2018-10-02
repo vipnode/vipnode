@@ -24,10 +24,15 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Assume RPC over HTTP
 		s.HTTPServer.ServeHTTP(w, r)
 	case http.MethodGet:
+		if r.Header.Get("Connection") != "Upgrade" {
+			http.Error(w, "incorrect vipnode api handshake", http.StatusBadRequest)
+			return
+		}
 		// Assume WebSocket upgrade request
 		codec, err := s.ws.Upgrade(r, w, nil)
 		if err != nil {
 			logger.Debugf("websocket upgrade error from %s: %s", r.RemoteAddr, err)
+			return
 		}
 		if s.debugLog {
 			codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
