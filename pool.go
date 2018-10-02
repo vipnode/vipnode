@@ -60,7 +60,7 @@ func runPool(options Options) error {
 		return err
 	}
 	if options.Pool.TLSHost != "" {
-		if strings.HasSuffix(":443", options.Pool.Bind) {
+		if !strings.HasSuffix(":443", options.Pool.Bind) {
 			logger.Warningf("Ignoring --bind value (%q) because it's not 443 and --tlshost is set.", options.Pool.Bind)
 		}
 		logger.Infof("Starting pool (version %s), acquiring ACME certificate and listening on: https://%s", Version, options.Pool.TLSHost)
