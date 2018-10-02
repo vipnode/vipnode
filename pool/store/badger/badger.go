@@ -249,7 +249,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 	peersKey := []byte(fmt.Sprintf("vip:peers:%s", nodeID))
 	now := time.Now()
 	var node store.Node
-	var nodePeers map[store.NodeID]time.Time
+	nodePeers := map[store.NodeID]time.Time{}
 	err = s.db.Update(func(txn *badger.Txn) error {
 		// Update this node's LastSeen
 		if err := s.getItem(txn, nodeKey, &node); err == badger.ErrKeyNotFound {
