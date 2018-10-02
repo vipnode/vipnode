@@ -49,9 +49,10 @@ fakeclient: $(BINARY)
 	$(RUN) -vv client "http://$(FAKEBIND)" --nodekey=./nodekey --rpc "fakenode://85fbed4332ed4329ca2283f26606618815ae83a870c523bb99b0b2e9dfe5af3b4699c2830ecdeb67519d62362db44aa5a8cafee523e3ab8c76aeef1016f424a4?fakepeers=$(FAKEPEERS)"
 
 release:
-	GO111MODULE=on GOOS=linux GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
-	GO111MODULE=on GOOS=linux GOARCH=386 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
-	GO111MODULE=on GOOS=linux GOARCH=arm GOARM=6 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
-	GO111MODULE=on GOOS=darwin GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
-	GO111MODULE=on GOOS=freebsd GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
-	GO111MODULE=on GOOS=windows GOARCH=386 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	GOOS=linux GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	GOOS=linux GOARCH=386 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	GOOS=linux GOARCH=arm GOARM=6 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	GOOS=darwin GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	GOOS=windows GOARCH=386 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+	# We use xgo to cross-compile and it does not support freebsd unfortunately: https://github.com/karalabe/xgo/issues/91
+	#GOOS=freebsd GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
