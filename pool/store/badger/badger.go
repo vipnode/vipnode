@@ -46,11 +46,12 @@ func (s *badgerStore) getItem(txn *badger.Txn, key []byte, into interface{}) err
 	if err != nil {
 		return err
 	}
-	val, err := item.Value()
-	if err != nil {
-		return err
-	}
-	return gob.NewDecoder(bytes.NewReader(val)).Decode(into)
+	err = item.Value(func(val []byte) {
+		if decodeErr := gob.NewDecoder(bytes.NewReader(val)).Decode(into); decodeErr != nil {
+			err = decodeErr
+		}
+	})
+	return err
 }
 
 func (s *badgerStore) setItem(txn *badger.Txn, key []byte, val interface{}) error {
@@ -151,15 +152,16 @@ func (s *badgerStore) ActiveHosts(kind string, limit int) ([]store.Node, error) 
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			val, err := it.Item().Value()
+			var n store.Node
+			var err error
+			err = it.Item().Value(func(val []byte) {
+				if decodeErr := gob.NewDecoder(bytes.NewReader(val)).Decode(&n); decodeErr != nil {
+					err = decodeErr
+				}
+			})
 			if err != nil {
 				return err
 			}
-			var n store.Node
-			if err := gob.NewDecoder(bytes.NewReader(val)).Decode(&n); err != nil {
-				return err
-			}
-
 			if !n.IsHost {
 				continue
 			}

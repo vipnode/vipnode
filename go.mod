@@ -8,7 +8,7 @@ require (
 	github.com/btcsuite/btcd v0.0.0-20180924021209-2a560b2036be // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
-	github.com/dgraph-io/badger v1.5.4
+	github.com/dgraph-io/badger v1.5.5-0.20181001185807-03870e34f2f1
 	github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 // indirect
 	github.com/ethereum/go-ethereum v1.8.16
 	github.com/go-stack/stack v1.8.0 // indirect
