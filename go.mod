@@ -1,11 +1,15 @@
 module github.com/vipnode/vipnode
 
 require (
+	github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 // indirect
+	github.com/OpenPeeDeeP/xdg v0.0.0-20170803013701-8d747087fa4f
 	github.com/alexcesaro/log v0.0.0-20150915221235-61e686294e58
 	github.com/aristanetworks/goarista v0.0.0-20180801201505-b2d71c282dc7 // indirect
 	github.com/btcsuite/btcd v0.0.0-20180802160837-cf05f92c3f81 // indirect
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea // indirect
+	github.com/dgraph-io/badger v1.5.4
+	github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 // indirect
 	github.com/ethereum/go-ethereum v1.8.13
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-stack/stack v1.7.0 // indirect
@@ -22,8 +26,10 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.6.0 // indirect
 	github.com/onsi/gomega v1.4.1 // indirect
+	github.com/pkg/errors v0.8.0 // indirect
 	github.com/rs/cors v1.5.0 // indirect
 	github.com/syndtr/goleveldb v0.0.0-20180708030551-c4c61651e9e3 // indirect
+	golang.org/x/crypto v0.0.0-20181001203147-e3636079e1a4
 	golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a // indirect
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
 	golang.org/x/sys v0.0.0-20180806192500-2be389f392cd // indirect
