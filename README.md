@@ -17,8 +17,7 @@ This release has demo support for all commands, and defaults are hardcoded to th
 
 1. Grab the latest binary release from here: https://github.com/vipnode/vipnode/releases
 
-2. Extract it and put the binary in your `$PATH` somewhere, like
-   `/usr/local/bin`.
+2. Extract it (`tar xvf vipnode-*.tgz`) and move the binary in your `$PATH` somewhere (`sudo mv vipnode/vipnode-* /usr/local/bin/vipnode`).
 
 You can run `vipnode --help` to see the commands. While exploring, use the `-vv`
 flag for extra verbose output.
