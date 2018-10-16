@@ -37,7 +37,7 @@ func runClient(options Options) error {
 
 	errChan := make(chan error)
 	c := client.New(remoteNode)
-	
+
 	// If we want, we can connect to a vipnode host directly, bypassing the need for a pool.
 	if uri.Scheme == "enode" {
 		staticPool := &pool.StaticPool{}
@@ -56,7 +56,7 @@ func runClient(options Options) error {
 	if err != nil {
 		return ErrExplain{err, "Failed to find node private key. Use --nodekey to specify the correct path."}
 	}
-	
+
 	// Confirm that nodeID matches the private key
 	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	remoteEnode, err := remoteNode.Enode(context.Background())
@@ -95,7 +95,7 @@ func runClient(options Options) error {
 	}
 
 	p := pool.Remote(rpcPool, privkey)
-	
+
 	// Send the vipnode_client handshake and start sending regular updates.
 	if err := c.Start(p); err != nil {
 		if jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams) {

@@ -11,6 +11,7 @@ import (
 	"github.com/dgraph-io/badger"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/payment"
 	"github.com/vipnode/vipnode/pool/store"
 	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
 	"golang.org/x/crypto/acme/autocert"
@@ -60,6 +61,15 @@ func runPool(options Options) error {
 	if err := handler.Register("vipnode_", p); err != nil {
 		return err
 	}
+
+	// Pool payment management API (optional)
+	payment := &payment.PaymentService{
+		Store: storeDriver,
+	}
+	if err := handler.Register("pool_", payment); err != nil {
+		return err
+	}
+
 	if options.Pool.TLSHost != "" {
 		if !strings.HasSuffix(":443", options.Pool.Bind) {
 			logger.Warningf("Ignoring --bind value (%q) because it's not 443 and --tlshost is set.", options.Pool.Bind)
