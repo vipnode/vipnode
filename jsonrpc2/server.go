@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"unicode"
 )
+
+var ErrNoPublicMethods = errors.New("no public methods")
 
 // Handler is a server that executes an RPC request message, returning an RPC
 // response message.
@@ -42,6 +45,11 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 	methods, err := Methods(receiver)
 	if err != nil {
 		return err
+	}
+	if len(methods) == 0 {
+		// FIXME: This happens when you pass a value receiver instead of
+		// pointer. We should be smarter about this.
+		return ErrNoPublicMethods
 	}
 
 	var buf bytes.Buffer

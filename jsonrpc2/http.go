@@ -22,6 +22,7 @@ type HTTPServer struct {
 }
 
 func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// TODO: Convert http.Error(...) output into actual JSONRPC error responses?
 	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
 		// Ignore empty GET requests
 		return
@@ -46,6 +47,10 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer codec.Close()
 	msg, err := codec.ReadMessage()
 	if err != nil {
+		err = &ErrResponse{
+			Code:    ErrCodeParse,
+			Message: fmt.Sprintf("failed to parse request: %s", err),
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
