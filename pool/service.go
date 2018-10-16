@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -48,6 +47,8 @@ type VipnodePool struct {
 }
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
+	// TODO: Switch nonce to strictly timestamp within X time
+	// TODO: Switch NodeID to pubkey?
 	if err := p.Store.CheckAndSaveNonce(store.NodeID(nodeID), nonce); err != nil {
 		return ErrVerifyFailed{Cause: err, Method: method}
 	}
@@ -262,16 +263,6 @@ func (p *VipnodePool) Disconnect(ctx context.Context, sig string, nodeID string,
 
 	// TODO: ...
 	return nil
-}
-
-// Withdraw schedules a balance withdraw for a node
-func (p *VipnodePool) Withdraw(ctx context.Context, sig string, nodeID string, nonce int64) error {
-	if err := p.verify(sig, "vipnode_withdraw", nodeID, nonce); err != nil {
-		return err
-	}
-
-	// TODO:
-	return errors.New("not implemented yet")
 }
 
 // Ping returns "pong", used for testing.
