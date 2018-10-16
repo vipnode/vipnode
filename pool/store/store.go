@@ -52,8 +52,8 @@ type Store interface {
 	// Close shuts down or disconnects from the storage driver.
 	Close() error
 
-	// CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
-	CheckAndSaveNonce(nodeID NodeID, nonce int64) error
+	// CheckAndSaveNonce asserts that this is the highest nonce seen for this ID (typically nodeID or wallet address).
+	CheckAndSaveNonce(ID string, nonce int64) error
 
 	// GetBalance returns the current account balance for a node.
 	GetBalance(nodeID NodeID) (Balance, error)

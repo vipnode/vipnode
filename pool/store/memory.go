@@ -12,7 +12,7 @@ func MemoryStore() *memoryStore {
 	return &memoryStore{
 		balances: map[Account]Balance{},
 		nodes:    map[NodeID]Node{},
-		nonces:   map[NodeID]int64{},
+		nonces:   map[string]int64{},
 	}
 }
 
@@ -28,18 +28,18 @@ type memoryStore struct {
 	// Connected nodes
 	nodes map[NodeID]Node
 
-	nonces map[NodeID]int64
+	nonces map[string]int64
 }
 
 // CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
-func (s *memoryStore) CheckAndSaveNonce(nodeID NodeID, nonce int64) error {
+func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.nonces[nodeID] >= nonce {
+	if s.nonces[ID] >= nonce {
 		return ErrInvalidNonce
 	}
-	s.nonces[nodeID] = nonce
+	s.nonces[ID] = nonce
 	return nil
 }
 

@@ -62,8 +62,10 @@ func (s *badgerStore) setItem(txn *badger.Txn, key []byte, val interface{}) erro
 	return txn.Set(key, buf.Bytes())
 }
 
-func (s *badgerStore) CheckAndSaveNonce(nodeID store.NodeID, nonce int64) error {
-	key := []byte(fmt.Sprintf("vip:nonce:%s", nodeID))
+func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
+	// TODO: Check nonce timestamp as timestamp, reject if beyond some age, and
+	// add TTL to nonce store.
+	key := []byte(fmt.Sprintf("vip:nonce:%s", ID))
 	return s.db.Update(func(txn *badger.Txn) error {
 		var lastNonce int64
 		if err := s.getItem(txn, key, &lastNonce); err == nil {

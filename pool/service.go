@@ -49,7 +49,7 @@ type VipnodePool struct {
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
 	// TODO: Switch nonce to strictly timestamp within X time
 	// TODO: Switch NodeID to pubkey?
-	if err := p.Store.CheckAndSaveNonce(store.NodeID(nodeID), nonce); err != nil {
+	if err := p.Store.CheckAndSaveNonce(nodeID, nonce); err != nil {
 		return ErrVerifyFailed{Cause: err, Method: method}
 	}
 
