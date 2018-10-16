@@ -15,7 +15,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		nodeID := NodeID("abc")
+		nodeID := "abc"
 		if err := s.CheckAndSaveNonce(nodeID, 42); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
