@@ -64,7 +64,7 @@ func (s *badgerStore) setItem(txn *badger.Txn, key []byte, val interface{}) erro
 
 func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
 	// TODO: Check nonce timestamp as timestamp, reject if beyond some age, and
-	// add TTL to nonce store.
+	// add TTL to nonce store. (Use SetWithTTL)
 	key := []byte(fmt.Sprintf("vip:nonce:%s", ID))
 	return s.db.Update(func(txn *badger.Txn) error {
 		var lastNonce int64

@@ -8,7 +8,7 @@ import (
 	"github.com/vipnode/vipnode/internal/keygen"
 )
 
-func TestRequestSigning(t *testing.T) {
+func TestNodeRequest(t *testing.T) {
 	privkey := keygen.HardcodedKey(t)
 	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 

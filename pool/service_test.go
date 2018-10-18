@@ -20,7 +20,7 @@ func TestPoolInstance(t *testing.T) {
 	}
 
 	privkey := keygen.HardcodedKey(t)
-	req := request.Request{
+	req := request.NodeRequest{
 		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,
@@ -55,7 +55,7 @@ func TestPoolService(t *testing.T) {
 	}
 
 	privkey := keygen.HardcodedKey(t)
-	req := request.Request{
+	req := request.NodeRequest{
 		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
 		Nonce:  42,

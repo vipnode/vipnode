@@ -35,7 +35,7 @@ func (p *RemotePool) getNonce() int64 {
 }
 
 func (p *RemotePool) Host(ctx context.Context, req HostRequest) (*HostResponse, error) {
-	signedReq := request.Request{
+	signedReq := request.NodeRequest{
 		Method:    "vipnode_host",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
@@ -54,7 +54,7 @@ func (p *RemotePool) Host(ctx context.Context, req HostRequest) (*HostResponse, 
 }
 
 func (p *RemotePool) Client(ctx context.Context, req ClientRequest) (*ClientResponse, error) {
-	signedReq := request.Request{
+	signedReq := request.NodeRequest{
 		Method:    "vipnode_client",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
@@ -74,7 +74,7 @@ func (p *RemotePool) Client(ctx context.Context, req ClientRequest) (*ClientResp
 }
 
 func (p *RemotePool) Disconnect(ctx context.Context) error {
-	signedReq := request.Request{
+	signedReq := request.NodeRequest{
 		Method: "vipnode_disconnect",
 		NodeID: p.nodeID,
 		Nonce:  p.getNonce(),
@@ -89,7 +89,7 @@ func (p *RemotePool) Disconnect(ctx context.Context) error {
 }
 
 func (p *RemotePool) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
-	signedReq := request.Request{
+	signedReq := request.NodeRequest{
 		Method:    "vipnode_update",
 		NodeID:    p.nodeID,
 		Nonce:     p.getNonce(),
@@ -110,7 +110,7 @@ func (p *RemotePool) Update(ctx context.Context, req UpdateRequest) (*UpdateResp
 }
 
 func (p *RemotePool) Withdraw(ctx context.Context) error {
-	signedReq := request.Request{
+	signedReq := request.NodeRequest{
 		Method: "vipnode_withdraw",
 		NodeID: p.nodeID,
 		Nonce:  p.getNonce(),
