@@ -13,9 +13,9 @@ const ExpireInterval = KeepaliveInterval * 2
 
 // FIXME: placeholder types, replace with go-ethereum types
 
-type Account string
-type NodeID string
-type Amount int64
+type Account string // TODO: Switch to common.Address?
+type NodeID string  // TODO: Switch to discv5.NodeID?
+type Amount int64   // TODO: Switch to big.Int?
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
