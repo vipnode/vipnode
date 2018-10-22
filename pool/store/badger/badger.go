@@ -137,13 +137,17 @@ func (s *badgerStore) AddBalance(nodeID store.NodeID, credit store.Amount) error
 	})
 }
 
-func (s *badgerStore) GetSpendable(account store.Account, nodeID store.NodeID) (store.Balance, error) {
+func (s *badgerStore) IsSpender(account store.Account, nodeID store.NodeID) (store.Balance, error) {
 	return store.Balance{}, errors.New("not implemented")
 }
 
-func (s *badgerStore) SetSpendable(account store.Account, nodeID store.NodeID) error {
+func (s *badgerStore) AddSpender(account store.Account, nodeID store.NodeID) error {
 	// TODO: Migrate trial account if exists
 	return errors.New("not implemented")
+}
+
+func (s *badgerStore) GetSpenders(account store.Account) ([]store.NodeID, error) {
+	return nil, errors.New("not implemented")
 }
 
 // ActiveHosts loads all nodes, then return a valid shuffled subset of size limit.

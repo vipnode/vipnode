@@ -1,7 +1,6 @@
 package store
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
@@ -11,9 +10,18 @@ import (
 func MemoryStore() *memoryStore {
 	return &memoryStore{
 		balances: map[Account]Balance{},
-		nodes:    map[NodeID]Node{},
+		nodes:    map[NodeID]memNode{},
+		accounts: map[NodeID]Account{},
+		trials:   map[NodeID]Balance{},
 		nonces:   map[string]int64{},
 	}
+}
+
+type memNode struct {
+	Node
+
+	// FIXME: These shouldn't be part of store.Node, but a separate memory store Node wrapper.
+	peers map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
 }
 
 // Assert Store implementation
@@ -26,9 +34,24 @@ type memoryStore struct {
 	balances map[Account]Balance
 
 	// Connected nodes
-	nodes map[NodeID]Node
+	nodes map[NodeID]memNode
+
+	// Node to balance mapping
+	accounts map[NodeID]Account
+
+	// Trial balances to be migrated once registered
+	trials map[NodeID]Balance
 
 	nonces map[string]int64
+}
+
+// nodeBalance gets a node's balance, assumes lock is held.
+func (s *memoryStore) nodeBalance(nodeID NodeID) Balance {
+	account, ok := s.accounts[nodeID]
+	if !ok {
+		return s.trials[nodeID]
+	}
+	return s.balances[account]
 }
 
 // CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
@@ -48,14 +71,11 @@ func (s *memoryStore) GetBalance(nodeID NodeID) (Balance, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	node, ok := s.nodes[nodeID]
+	_, ok := s.nodes[nodeID]
 	if !ok {
 		return Balance{}, ErrUnregisteredNode
 	}
-	if node.balance == nil {
-		return Balance{}, nil
-	}
-	return *node.balance, nil
+	return s.nodeBalance(nodeID), nil
 }
 
 // AddBalance adds some credit amount to that account balance.
@@ -63,28 +83,71 @@ func (s *memoryStore) AddBalance(nodeID NodeID, credit Amount) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	node, ok := s.nodes[nodeID]
+	_, ok := s.nodes[nodeID]
 	if !ok {
 		return ErrUnregisteredNode
 	}
-	if node.balance == nil {
-		node.balance = &Balance{}
+	account, ok := s.accounts[nodeID]
+	if ok {
+		balance := s.balances[account]
+		balance.Credit += credit
+		s.balances[account] = balance
+	} else {
+		balance := s.trials[nodeID]
+		balance.Credit += credit
+		s.trials[nodeID] = balance
 	}
-	node.balance.Credit += credit
-	s.nodes[nodeID] = node
 	return nil
 }
 
-// GetSpendable returns the balance for an account only if nodeID is
+// IsSpender returns the balance for an account only if nodeID is
 // authorized to spend it.
-func (s *memoryStore) GetSpendable(account Account, nodeID NodeID) (Balance, error) {
-	return Balance{}, errors.New("not implemented")
+func (s *memoryStore) IsSpender(account Account, nodeID NodeID) (Balance, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.accounts[nodeID] != account {
+		return Balance{}, ErrNotAuthorized
+	}
+	return s.balances[account], nil
 }
 
-// SetSpendable authorizes nodeID to spend the balance (ie. allows nodeID
+// AddSpender authorizes nodeID to spend the balance (ie. allows nodeID
 // to access GetSpendable for that account).
-func (s *memoryStore) SetSpendable(account Account, nodeID NodeID) error {
-	return errors.New("not implemented")
+//
+// This storage driver only supports one account per node. Adding a node to a
+// second account will switch it to that account only.
+func (s *memoryStore) AddSpender(account Account, nodeID NodeID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.nodes[nodeID]
+	if !ok {
+		return ErrUnregisteredNode
+	}
+
+	// FIXME: Do we care if there's no account registered?
+	balance, _ := s.balances[account]
+	trial := s.trials[nodeID]
+	balance.Credit += trial.Credit
+	balance.Account = account
+
+	s.balances[account] = balance
+	s.accounts[nodeID] = account
+	return nil
+}
+
+// GetSpenders returns the authorized nodeIDs for this account.
+func (s *memoryStore) GetSpenders(account Account) ([]NodeID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r := []NodeID{}
+	for nodeID, a := range s.accounts {
+		if account == a {
+			r = append(r, nodeID)
+		}
+	}
+	return r, nil
 }
 
 // GetNode returns the node with the given ID.
@@ -95,7 +158,7 @@ func (s *memoryStore) GetNode(id NodeID) (*Node, error) {
 	if !ok {
 		return nil, ErrUnregisteredNode
 	}
-	return &node, nil
+	return &node.Node, nil
 }
 
 // SetNode saves a node.
@@ -105,16 +168,11 @@ func (s *memoryStore) SetNode(n Node) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if n.balance == nil {
-		// Use existing balance?
-		if existing, ok := s.nodes[n.ID]; ok {
-			n.balance = existing.balance
-		}
+	node := memNode{Node: n}
+	if node.peers == nil {
+		node.peers = map[NodeID]time.Time{}
 	}
-	if n.peers == nil {
-		n.peers = map[NodeID]time.Time{}
-	}
-	s.nodes[n.ID] = n
+	s.nodes[n.ID] = node
 	return nil
 }
 
@@ -147,7 +205,7 @@ func (s *memoryStore) ActiveHosts(kind string, limit int) ([]Node, error) {
 		if !n.LastSeen.After(seenSince) {
 			continue
 		}
-		r = append(r, n)
+		r = append(r, n.Node)
 		limit -= 1
 		if limit == 0 {
 			// If limit is originally 0, then limit is effectively ignored
@@ -170,7 +228,7 @@ func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
 	peers := []Node{}
 	for nodeID, _ := range node.peers {
 		if node, ok := s.nodes[nodeID]; ok {
-			peers = append(peers, node)
+			peers = append(peers, node.Node)
 		}
 	}
 	return peers, nil

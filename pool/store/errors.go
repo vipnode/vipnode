@@ -10,3 +10,6 @@ var ErrUnregisteredNode = errors.New("unregistered node")
 
 // ErrMalformedNode is returned when the Node struct is incomplete or field values are invalid.
 var ErrMalformedNode = errors.New("malformed node")
+
+// ErrNotAuthorized is returned when a node is not an authorized spender of an account's balance.
+var ErrNotAuthorized = errors.New("node is not an authorized spender")

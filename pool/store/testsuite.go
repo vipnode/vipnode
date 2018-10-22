@@ -194,6 +194,44 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 	})
 
+	t.Run("Spender", func(t *testing.T) {
+		s := newStore()
+		defer s.Close()
+
+		node := Node{
+			ID: NodeID("abc"),
+		}
+		if err := s.SetNode(node); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+
+		account := Account("somewallet")
+
+		if _, err := s.IsSpender(account, node.ID); err != ErrNotAuthorized {
+			t.Errorf("expected ErrNotAuthorized, got: %s", err)
+		}
+
+		if err := s.AddSpender(account, node.ID); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+
+		if b, err := s.IsSpender(account, node.ID); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		} else if b.Account != account {
+			t.Errorf("invalid balance account: %q", b.Account)
+		}
+
+		// Adding again should have no effect
+		if err := s.AddSpender(account, node.ID); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+
+		if spenders, err := s.GetSpenders(account); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		} else if !reflect.DeepEqual(spenders, []NodeID{node.ID}) {
+			t.Errorf("invalid spenders: %q", spenders)
+		}
+	})
 }
 
 func nodeIDs(nodes []Node) []string {

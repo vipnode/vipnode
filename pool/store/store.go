@@ -40,11 +40,6 @@ type Node struct {
 	Kind     string    `json:"kind"`
 	IsHost   bool
 	Payout   Account
-
-	// FIXME: These shouldn't be part of store.Node, but a separate memory store Node wrapper.
-	balance *Balance             // Multiple nodes can share a balance (account), so it's a reference.
-	peers   map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
-	inSync  bool                 // TODO: Do we need a penalty if a full node wants to accept peers while not in sync?
 }
 
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
@@ -58,14 +53,21 @@ type Store interface {
 	// GetBalance returns the current account balance for a node.
 	GetBalance(nodeID NodeID) (Balance, error)
 	// AddBalance adds some credit amount to a node's account balance. (Can be negative)
+	// Nodes which don't have accounts registered to them yet should still
+	// retain a balance, such as through temporary trial accounts that get
+	// migrated later.
 	AddBalance(nodeID NodeID, credit Amount) error
 
-	// GetSpendable returns the balance for an account only if nodeID is
+	// IsSpender returns the balance for an account only if nodeID is
 	// authorized to spend it.
-	GetSpendable(account Account, nodeID NodeID) (Balance, error)
-	// SetSpendable authorizes nodeID to spend the balance (ie. allows nodeID
+	IsSpender(account Account, nodeID NodeID) (Balance, error)
+	// AddSpender authorizes nodeID to spend the balance (ie. allows nodeID
 	// to access GetSpendable for that account).
-	SetSpendable(account Account, nodeID NodeID) error
+	// AddSpender should migrate any trial account balances to the spending
+	// account (see AddBalance notes).
+	AddSpender(account Account, nodeID NodeID) error
+	// GetSpenders returns the authorized nodeIDs for this account.
+	GetSpenders(account Account) ([]NodeID, error)
 
 	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 	// empty list, if none are available.
