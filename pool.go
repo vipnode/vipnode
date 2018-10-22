@@ -56,8 +56,13 @@ func runPool(options Options) error {
 	p := pool.New(storeDriver)
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 	handler := &server{
-		ws: &ws.Upgrader{},
+		ws:     &ws.Upgrader{},
+		header: http.Header{},
 	}
+	if options.Pool.AllowOrigin != "" {
+		handler.header.Set("Access-Control-Allow-Origin", options.Pool.AllowOrigin)
+	}
+
 	if err := handler.Register("vipnode_", p); err != nil {
 		return err
 	}

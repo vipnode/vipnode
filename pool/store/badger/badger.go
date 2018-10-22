@@ -19,6 +19,7 @@ type peers map[store.NodeID]time.Time
 // Open returns a store.Store implementation using Badger as the storage
 // driver. The store should be (*badgerStore).Close()'d after use.
 func Open(opts badger.Options) (*badgerStore, error) {
+	// TODO: Add versioning and automatic migration support
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, err

@@ -16,12 +16,18 @@ type server struct {
 	jsonrpc2.HTTPServer
 	ws       ws.Upgrader
 	debugLog bool
+	header   http.Header
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		// Assume RPC over HTTP
+		for k, values := range s.header {
+			for _, v := range values {
+				w.Header().Set(k, v)
+			}
+		}
 		s.HTTPServer.ServeHTTP(w, r)
 	case http.MethodGet:
 		if r.Header.Get("Connection") != "Upgrade" {
