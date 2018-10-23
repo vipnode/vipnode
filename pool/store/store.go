@@ -19,9 +19,9 @@ type Amount int64   // TODO: Switch to big.Int?
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
-	Account      Account   `json:"account"`
+	Account      Account   `json:"account,omitempty"`
 	Credit       Amount    `json:"credit"`
-	NextWithdraw time.Time `json:"next_withdraw"`
+	NextWithdraw time.Time `json:"next_withdraw,omitempty"`
 }
 
 func (b *Balance) String() string {
