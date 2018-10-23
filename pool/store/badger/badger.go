@@ -3,7 +3,6 @@ package badger
 import (
 	"bytes"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -144,31 +143,111 @@ func (s *badgerStore) AddNodeBalance(nodeID store.NodeID, credit store.Amount) e
 
 // GetAccountBalance returns an account's balance.
 func (s *badgerStore) GetAccountBalance(account store.Account) (store.Balance, error) {
-	return store.Balance{}, errors.New("not implemented")
+	balanceKey := []byte(fmt.Sprintf("vip:balance:%s", account))
+	var r store.Balance
+	err := s.db.View(func(txn *badger.Txn) error {
+		return s.getItem(txn, balanceKey, &r)
+	})
+	return r, err
 }
 
 // AddNodeBalance adds credit to an account balance. (Can be negative)
 func (s *badgerStore) AddAccountBalance(account store.Account, credit store.Amount) error {
-	return errors.New("not implemented")
+	return s.db.Update(func(txn *badger.Txn) error {
+		balanceKey := []byte(fmt.Sprintf("vip:balance:%s", account))
+		var balance store.Balance
+		if err := s.getItem(txn, balanceKey, &balance); err == badger.ErrKeyNotFound {
+			// No balance = empty balance
+		} else if err != nil {
+			return err
+		}
+		balance.Credit += credit
+		balance.Account = account
+
+		return s.setItem(txn, balanceKey, balance)
+	})
 }
 
 // AddAccountNode authorizes a nodeID to be a spender of an account's
 // balance. This should migrate any existing node's balance credit to the
 // account.
 func (s *badgerStore) AddAccountNode(account store.Account, nodeID store.NodeID) error {
-	return errors.New("not implemented")
+	return s.db.Update(func(txn *badger.Txn) error {
+		// Check nodeID
+		nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
+		if !s.hasKey(txn, nodeKey) {
+			return store.ErrUnregisteredNode
+		}
+
+		// Load trial balance to migrate
+		var trialBalance store.Balance
+		trialKey := []byte(fmt.Sprintf("vip:trial:%s", nodeID))
+		if err := s.getItem(txn, trialKey, &trialBalance); err != nil && err != badger.ErrKeyNotFound {
+			return err
+		}
+
+		// Load existing balance
+		balanceKey := []byte(fmt.Sprintf("vip:balance:%s", account))
+		var balance store.Balance
+		if err := s.getItem(txn, balanceKey, &balance); err != nil && err != badger.ErrKeyNotFound {
+			return err
+		}
+
+		// Authorize node
+		accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
+		if err := s.setItem(txn, accountKey, account); err != nil {
+			return err
+		}
+
+		// Merge trial and save
+		balance.Credit += trialBalance.Credit
+		balance.Account = account
+		if err := s.setItem(txn, balanceKey, balance); err != nil {
+			return err
+		}
+		if err := txn.Delete(trialKey); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // IsAccountNode returns nil if node is a valid spender of the given
 // account.
 func (s *badgerStore) IsAccountNode(account store.Account, nodeID store.NodeID) error {
-	return errors.New("not implemented")
+	accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
+	var nodeAccount store.Account
+	return s.db.View(func(txn *badger.Txn) error {
+		if err := s.getItem(txn, accountKey, &nodeAccount); err == badger.ErrKeyNotFound {
+			return store.ErrNotAuthorized
+		} else if err != nil {
+			return err
+		}
+		if nodeAccount != account {
+			return store.ErrNotAuthorized
+		}
+		return nil
+	})
 }
 
 // GetSpenders returns the authorized nodeIDs for this account, these are
 // nodes that were added to accounts through AddAccountNode.
 func (s *badgerStore) GetAccountNodes(account store.Account) ([]store.NodeID, error) {
-	return nil, errors.New("not implemented")
+	// FIXME: This could be more efficient if we had an account -> nodeID index
+	var r []store.NodeID
+	if err := s.db.View(func(txn *badger.Txn) error {
+		prefix := []byte("vip:account:")
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			key := it.Item().Key()
+			r = append(r, store.NodeID(key[len(prefix):]))
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // ActiveHosts loads all nodes, then return a valid shuffled subset of size limit.
