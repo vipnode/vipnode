@@ -50,23 +50,20 @@ type Store interface {
 	// CheckAndSaveNonce asserts that this is the highest nonce seen for this ID (typically nodeID or wallet address).
 	CheckAndSaveNonce(ID string, nonce int64) error
 
-	// GetBalance returns the current account balance for a node.
-	GetBalance(nodeID NodeID) (Balance, error)
+	// GetBalance returns the current account balance for a node or account. If
+	// both are non-zero values, then nodeID must be a valid spender of the
+	// account.
+	GetBalance(account Account, nodeID NodeID) (Balance, error)
 	// AddBalance adds some credit amount to a node's account balance. (Can be negative)
-	// Nodes which don't have accounts registered to them yet should still
-	// retain a balance, such as through temporary trial accounts that get
-	// migrated later.
-	AddBalance(nodeID NodeID, credit Amount) error
+	// If both account and node is provided, then the node is implicitly added
+	// as a valid spender for this account.
+	// If only a node is provided which doesn't have an account registered to
+	// it, it should retain a balance, such as through temporary trial accounts
+	// that get migrated later.
+	AddBalance(account Account, nodeID NodeID, credit Amount) error
 
-	// IsSpender returns the balance for an account only if nodeID is
-	// authorized to spend it.
-	IsSpender(account Account, nodeID NodeID) (Balance, error)
-	// AddSpender authorizes nodeID to spend the balance (ie. allows nodeID
-	// to access GetSpendable for that account).
-	// AddSpender should migrate any trial account balances to the spending
-	// account (see AddBalance notes).
-	AddSpender(account Account, nodeID NodeID) error
-	// GetSpenders returns the authorized nodeIDs for this account.
+	// GetSpenders returns the authorized nodeIDs for this account, these are
+	// nodes that were added to accounts through AddBalance.
 	GetSpenders(account Account) ([]NodeID, error)
 
 	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an

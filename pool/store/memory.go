@@ -58,81 +58,98 @@ func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
 }
 
 // GetBalance returns the current balance for an account.
-func (s *memoryStore) GetBalance(nodeID NodeID) (Balance, error) {
+func (s *memoryStore) GetBalance(account Account, nodeID NodeID) (Balance, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, ok := s.nodes[nodeID]
-	if !ok {
-		return Balance{}, ErrUnregisteredNode
+	var filterAccount, filterNode bool
+	var balance Balance
+	if nodeID != "" {
+		_, filterNode = s.nodes[nodeID]
+		if !filterNode {
+			return Balance{}, ErrUnregisteredNode
+		}
+	}
+	if account != "" {
+		balance, filterAccount = s.balances[account]
+		if !filterAccount {
+			return Balance{}, ErrNotAuthorized
+		}
 	}
 
-	account, ok := s.accounts[nodeID]
-	if !ok {
-		return s.trials[nodeID], nil
+	if !filterAccount && !filterNode {
+		return Balance{}, ErrNotAuthorized
+	} else if !filterNode {
+		// Only query by account
+		return balance, nil
+	} else if !filterAccount {
+		// Only query by node
+		account, ok := s.accounts[nodeID]
+		if !ok {
+			return s.trials[nodeID], nil
+		}
+		return s.balances[account], nil
 	}
+
+	// Node must be registered to an account
+	nodeAccount, ok := s.accounts[nodeID]
+	if !ok || nodeAccount != account {
+		return Balance{}, ErrNotAuthorized
+	}
+
 	return s.balances[account], nil
 }
 
 // AddBalance adds some credit amount to that account balance.
-func (s *memoryStore) AddBalance(nodeID NodeID, credit Amount) error {
+func (s *memoryStore) AddBalance(account Account, nodeID NodeID, credit Amount) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, ok := s.nodes[nodeID]
-	if !ok {
-		return ErrUnregisteredNode
+	var filterAccount, filterNode bool
+	var balance Balance
+	if nodeID != "" {
+		_, filterNode = s.nodes[nodeID]
+		if !filterNode {
+			return ErrUnregisteredNode
+		}
 	}
-	account, ok := s.accounts[nodeID]
-	if ok {
-		balance := s.balances[account]
-		balance.Credit += credit
+	if account != "" {
+		balance = s.balances[account]
+		filterAccount = true
+	}
+
+	if filterAccount && filterNode {
+		// Link them and port over any trial balance
+		s.accounts[nodeID] = account
+		balance.Credit += s.trials[nodeID].Credit + credit
+		balance.Account = account
+		delete(s.trials, nodeID)
 		s.balances[account] = balance
-	} else {
-		balance := s.trials[nodeID]
+		return nil
+	}
+	if filterAccount {
+		// Only account
 		balance.Credit += credit
-		s.trials[nodeID] = balance
+		balance.Account = account
+		s.balances[account] = balance
+		return nil
 	}
-	return nil
-}
-
-// IsSpender returns the balance for an account only if nodeID is
-// authorized to spend it.
-func (s *memoryStore) IsSpender(account Account, nodeID NodeID) (Balance, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.accounts[nodeID] != account {
-		return Balance{}, ErrNotAuthorized
+	if filterNode {
+		// Only node
+		if account, ok := s.accounts[nodeID]; ok {
+			balance = s.balances[account]
+			balance.Credit += credit
+			balance.Account = account
+			s.balances[account] = balance
+		} else {
+			balance = s.trials[nodeID]
+			balance.Credit += credit
+			s.trials[nodeID] = balance
+		}
+		return nil
 	}
-	return s.balances[account], nil
-}
-
-// AddSpender authorizes nodeID to spend the balance (ie. allows nodeID
-// to access GetSpendable for that account).
-//
-// This storage driver only supports one account per node. Adding a node to a
-// second account will switch it to that account only.
-func (s *memoryStore) AddSpender(account Account, nodeID NodeID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	_, ok := s.nodes[nodeID]
-	if !ok {
-		return ErrUnregisteredNode
-	}
-
-	// FIXME: Do we care if there's no account registered?
-	balance, _ := s.balances[account]
-
-	// Migrate trial balance
-	trial := s.trials[nodeID]
-	balance.Credit += trial.Credit
-	balance.Account = account
-	delete(s.trials, nodeID)
-
-	s.balances[account] = balance
-	s.accounts[nodeID] = account
-	return nil
+	// No node or account provided
+	return ErrUnregisteredNode
 }
 
 // GetSpenders returns the authorized nodeIDs for this account.
