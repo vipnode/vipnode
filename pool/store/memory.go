@@ -45,15 +45,6 @@ type memoryStore struct {
 	nonces map[string]int64
 }
 
-// nodeBalance gets a node's balance, assumes lock is held.
-func (s *memoryStore) nodeBalance(nodeID NodeID) Balance {
-	account, ok := s.accounts[nodeID]
-	if !ok {
-		return s.trials[nodeID]
-	}
-	return s.balances[account]
-}
-
 // CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
 	s.mu.Lock()
@@ -75,7 +66,12 @@ func (s *memoryStore) GetBalance(nodeID NodeID) (Balance, error) {
 	if !ok {
 		return Balance{}, ErrUnregisteredNode
 	}
-	return s.nodeBalance(nodeID), nil
+
+	account, ok := s.accounts[nodeID]
+	if !ok {
+		return s.trials[nodeID], nil
+	}
+	return s.balances[account], nil
 }
 
 // AddBalance adds some credit amount to that account balance.
@@ -127,9 +123,12 @@ func (s *memoryStore) AddSpender(account Account, nodeID NodeID) error {
 
 	// FIXME: Do we care if there's no account registered?
 	balance, _ := s.balances[account]
+
+	// Migrate trial balance
 	trial := s.trials[nodeID]
 	balance.Credit += trial.Credit
 	balance.Account = account
+	delete(s.trials, nodeID)
 
 	s.balances[account] = balance
 	s.accounts[nodeID] = account

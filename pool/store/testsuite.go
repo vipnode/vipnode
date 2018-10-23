@@ -232,6 +232,65 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("invalid spenders: %q", spenders)
 		}
 	})
+
+	t.Run("SpenderBalance", func(t *testing.T) {
+		s := newStore()
+		defer s.Close()
+
+		node := Node{
+			ID: NodeID("abc"),
+		}
+		if err := s.SetNode(node); err != nil {
+			t.Error(err)
+		}
+
+		if err := s.AddBalance(node.ID, 42); err != nil {
+			t.Error(err)
+		}
+		if b, err := s.GetBalance(node.ID); err != err {
+			t.Error(err)
+		} else if b.Credit != 42 {
+			t.Errorf("invalid balance credit: %d", b.Credit)
+		}
+
+		node2 := Node{
+			ID: NodeID("def"),
+		}
+		if err := s.SetNode(node2); err != nil {
+			t.Error(err)
+		}
+		account := Account("somewallet")
+		if err := s.AddSpender(account, node2.ID); err != nil {
+			t.Error(err)
+		}
+		if err := s.AddBalance(node2.ID, 69); err != nil {
+			t.Error(err)
+		}
+		if b, err := s.GetBalance(node2.ID); err != nil {
+			t.Error(err)
+		} else if b.Credit != 69 {
+			t.Errorf("invalid balance credit: %d", b.Credit)
+		}
+
+		if err := s.AddSpender(account, node.ID); err != nil {
+			t.Error(err)
+		}
+		if b, err := s.GetBalance(node2.ID); err != nil {
+			t.Error(err)
+		} else if b.Credit != 42+69 {
+			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Account != account {
+			t.Errorf("invalid account: %s", b.Account)
+		}
+		if b, err := s.GetBalance(node.ID); err != nil {
+			t.Error(err)
+		} else if b.Credit != 42+69 {
+			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Account != account {
+			t.Errorf("invalid account: %s", b.Account)
+		}
+
+	})
 }
 
 func nodeIDs(nodes []Node) []string {
