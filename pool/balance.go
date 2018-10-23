@@ -25,7 +25,7 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 	if node.IsHost {
 		// We ignore host updates, only update balance on client updates. If
 		// client fails to update, then the host will disconnect.
-		return b.Store.GetBalance(node.ID)
+		return b.Store.GetBalance("", node.ID)
 	}
 	if b.Interval <= 0 {
 		// FIXME: Ideally this should be caught earlier. Maybe move to an earlier On* callback once we have more. Also check to make sure the values are big enough for the int64/float64 math.
@@ -35,11 +35,11 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 	var total store.Amount
 	for _, peer := range peers {
 		credit := store.Amount((delta * float64(b.CreditPerInterval)) / b.Interval.Seconds())
-		b.Store.AddBalance(peer.ID, credit)
+		b.Store.AddBalance("", peer.ID, credit)
 		total += credit
 	}
-	if err := b.Store.AddBalance(node.ID, -total); err != nil {
+	if err := b.Store.AddBalance("", node.ID, -total); err != nil {
 		return store.Balance{}, err
 	}
-	return b.Store.GetBalance(node.ID)
+	return b.Store.GetBalance("", node.ID)
 }

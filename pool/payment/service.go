@@ -9,6 +9,12 @@ import (
 	"github.com/vipnode/vipnode/request"
 )
 
+// StatusResponse is returned on RPC calls to pool_status
+type StatusResponse struct {
+	NodeShortIDs []string      `json:"node_short_ids"`
+	Balance      store.Balance `json:"balance"`
+}
+
 type PaymentService struct {
 	Store store.Store
 }
@@ -25,8 +31,24 @@ func (p *PaymentService) verify(sig string, method string, wallet string, nonce 
 }
 
 // GetNodes is an *unverified* endpoint for retrieving a list of node shortIDs associated with a wallet.
-func (p *PaymentService) GetNodes(ctx context.Context, wallet string) ([]string, error) {
-	return nil, errors.New("GetNodes: not implemented yet")
+func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResponse, error) {
+	nodeIDs, err := p.Store.GetSpenders(store.Account(wallet))
+	if err != nil {
+		return nil, err
+	}
+	balance, err := p.Store.GetBalance(store.Account(wallet), "")
+	if err != nil {
+		return nil, err
+	}
+	r := &StatusResponse{
+		Balance: balance,
+	}
+
+	r.NodeShortIDs = make([]string, 0, len(nodeIDs))
+	for _, nodeID := range nodeIDs {
+		r.NodeShortIDs = append(r.NodeShortIDs, string(nodeID)[:12])
+	}
+	return r, nil
 }
 
 // AddNode authorizes a nodeID to be spent by a wallet account.
@@ -34,14 +56,8 @@ func (p *PaymentService) AddNode(ctx context.Context, sig string, wallet string,
 	if err := p.verify(sig, "pool_addNode", wallet, nonce, nodeID); err != nil {
 		return err
 	}
-	return errors.New("AddNode: not implemented yet")
-}
 
-func (p *PaymentService) RemoveNode(ctx context.Context, sig string, wallet string, nonce int64, nodeID string) error {
-	if err := p.verify(sig, "pool_removeNode", wallet, nonce, nodeID); err != nil {
-		return err
-	}
-	return errors.New("RemoveNode: not implemented yet")
+	return p.Store.AddBalance(store.Account(wallet), store.NodeID(nodeID), 0)
 }
 
 // Withdraw schedules a balance withdraw for an account
