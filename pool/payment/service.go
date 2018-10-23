@@ -32,11 +32,11 @@ func (p *PaymentService) verify(sig string, method string, wallet string, nonce 
 
 // GetNodes is an *unverified* endpoint for retrieving a list of node shortIDs associated with a wallet.
 func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResponse, error) {
-	nodeIDs, err := p.Store.GetSpenders(store.Account(wallet))
+	nodeIDs, err := p.Store.GetAccountNodes(store.Account(wallet))
 	if err != nil {
 		return nil, err
 	}
-	balance, err := p.Store.GetNodeBalance(store.Account(wallet), "")
+	balance, err := p.Store.GetAccountBalance(store.Account(wallet))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (p *PaymentService) AddNode(ctx context.Context, sig string, wallet string,
 		return err
 	}
 
-	return p.Store.AddNodeBalance(store.Account(wallet), store.NodeID(nodeID), 0)
+	return p.Store.AddAccountNode(store.Account(wallet), store.NodeID(nodeID))
 }
 
 // Withdraw schedules a balance withdraw for an account
