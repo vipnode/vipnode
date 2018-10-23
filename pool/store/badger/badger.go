@@ -81,7 +81,8 @@ func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
 	})
 }
 
-func (s *badgerStore) GetBalance(nodeID store.NodeID) (store.Balance, error) {
+// GetNodeBalance returns the current account balance for a node.
+func (s *badgerStore) GetNodeBalance(nodeID store.NodeID) (store.Balance, error) {
 	accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
 	var account store.Account
 	var r store.Balance
@@ -109,7 +110,11 @@ func (s *badgerStore) GetBalance(nodeID store.NodeID) (store.Balance, error) {
 	return r, err
 }
 
-func (s *badgerStore) AddBalance(nodeID store.NodeID, credit store.Amount) error {
+// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
+// If only a node is provided which doesn't have an account registered to
+// it, it should retain a balance, such as through temporary trial accounts
+// that get migrated later.
+func (s *badgerStore) AddNodeBalance(nodeID store.NodeID, credit store.Amount) error {
 	accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
 	return s.db.Update(func(txn *badger.Txn) error {
 		var account store.Account
@@ -137,16 +142,32 @@ func (s *badgerStore) AddBalance(nodeID store.NodeID, credit store.Amount) error
 	})
 }
 
-func (s *badgerStore) IsSpender(account store.Account, nodeID store.NodeID) (store.Balance, error) {
+// GetAccountBalance returns an account's balance.
+func (s *badgerStore) GetAccountBalance(account store.Account) (store.Balance, error) {
 	return store.Balance{}, errors.New("not implemented")
 }
 
-func (s *badgerStore) AddSpender(account store.Account, nodeID store.NodeID) error {
-	// TODO: Migrate trial account if exists
+// AddNodeBalance adds credit to an account balance. (Can be negative)
+func (s *badgerStore) AddAccountBalance(account store.Account, credit store.Amount) error {
 	return errors.New("not implemented")
 }
 
-func (s *badgerStore) GetSpenders(account store.Account) ([]store.NodeID, error) {
+// AddAccountNode authorizes a nodeID to be a spender of an account's
+// balance. This should migrate any existing node's balance credit to the
+// account.
+func (s *badgerStore) AddAccountNode(account store.Account, nodeID store.NodeID) error {
+	return errors.New("not implemented")
+}
+
+// IsAccountNode returns nil if node is a valid spender of the given
+// account.
+func (s *badgerStore) IsAccountNode(account store.Account, nodeID store.NodeID) error {
+	return errors.New("not implemented")
+}
+
+// GetSpenders returns the authorized nodeIDs for this account, these are
+// nodes that were added to accounts through AddAccountNode.
+func (s *badgerStore) GetAccountNodes(account store.Account) ([]store.NodeID, error) {
 	return nil, errors.New("not implemented")
 }
 

@@ -44,36 +44,25 @@ type Node struct {
 
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
 type Store interface {
+	PoolStore
+	BalanceStore
+
 	// Close shuts down or disconnects from the storage driver.
 	Close() error
 
 	// CheckAndSaveNonce asserts that this is the highest nonce seen for this ID (typically nodeID or wallet address).
 	CheckAndSaveNonce(ID string, nonce int64) error
+}
 
-	// GetBalance returns the current account balance for a node or account. If
-	// both are non-zero values, then nodeID must be a valid spender of the
-	// account.
-	GetBalance(account Account, nodeID NodeID) (Balance, error)
-	// AddBalance adds some credit amount to a node's account balance. (Can be negative)
-	// If both account and node is provided, then the node is implicitly added
-	// as a valid spender for this account.
-	// If only a node is provided which doesn't have an account registered to
-	// it, it should retain a balance, such as through temporary trial accounts
-	// that get migrated later.
-	AddBalance(account Account, nodeID NodeID, credit Amount) error
-
-	// GetSpenders returns the authorized nodeIDs for this account, these are
-	// nodes that were added to accounts through AddBalance.
-	GetSpenders(account Account) ([]NodeID, error)
-
-	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
-	// empty list, if none are available.
-	ActiveHosts(kind string, limit int) ([]Node, error)
-
+type PoolStore interface {
 	// GetNode returns the node from the set of active nods.
 	GetNode(NodeID) (*Node, error)
 	// SetNode adds a Node to the set of active nodes.
 	SetNode(Node) error
+
+	// ActiveHosts returns `limit`-number of `kind` nodes. This could be an
+	// empty list, if none are available.
+	ActiveHosts(kind string, limit int) ([]Node, error)
 
 	// NodePeers returns a list of active connected peers that this pool knows
 	// about for this NodeID.
@@ -84,4 +73,30 @@ type Store interface {
 	// from the known peers and returned. It also updates nodeID's
 	// LastSeen.
 	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []NodeID, err error)
+}
+
+type BalanceStore interface {
+	// GetNodeBalance returns the current account balance for a node.
+	GetNodeBalance(nodeID NodeID) (Balance, error)
+	// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
+	// If only a node is provided which doesn't have an account registered to
+	// it, it should retain a balance, such as through temporary trial accounts
+	// that get migrated later.
+	AddNodeBalance(nodeID NodeID, credit Amount) error
+
+	// GetAccountBalance returns an account's balance.
+	GetAccountBalance(account Account) (Balance, error)
+	// AddNodeBalance adds credit to an account balance. (Can be negative)
+	AddAccountBalance(account Account, credit Amount) error
+
+	// AddAccountNode authorizes a nodeID to be a spender of an account's
+	// balance. This should migrate any existing node's balance credit to the
+	// account.
+	AddAccountNode(account Account, nodeID NodeID) error
+	// IsAccountNode returns nil if node is a valid spender of the given
+	// account.
+	IsAccountNode(account Account, nodeID NodeID) error
+	// GetSpenders returns the authorized nodeIDs for this account, these are
+	// nodes that were added to accounts through AddAccountNode.
+	GetAccountNodes(account Account) ([]NodeID, error)
 }

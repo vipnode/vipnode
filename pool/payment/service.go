@@ -36,7 +36,7 @@ func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResp
 	if err != nil {
 		return nil, err
 	}
-	balance, err := p.Store.GetBalance(store.Account(wallet), "")
+	balance, err := p.Store.GetNodeBalance(store.Account(wallet), "")
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (p *PaymentService) AddNode(ctx context.Context, sig string, wallet string,
 		return err
 	}
 
-	return p.Store.AddBalance(store.Account(wallet), store.NodeID(nodeID), 0)
+	return p.Store.AddNodeBalance(store.Account(wallet), store.NodeID(nodeID), 0)
 }
 
 // Withdraw schedules a balance withdraw for an account

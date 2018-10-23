@@ -57,103 +57,107 @@ func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
 	return nil
 }
 
-// GetBalance returns the current balance for an account.
-func (s *memoryStore) GetBalance(account Account, nodeID NodeID) (Balance, error) {
+// GetNodeBalance returns the current account balance for a node.
+func (s *memoryStore) GetNodeBalance(nodeID NodeID) (Balance, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var filterAccount, filterNode bool
-	var balance Balance
-	if nodeID != "" {
-		_, filterNode = s.nodes[nodeID]
-		if !filterNode {
-			return Balance{}, ErrUnregisteredNode
-		}
-	}
-	if account != "" {
-		balance, filterAccount = s.balances[account]
-		if !filterAccount {
-			return Balance{}, ErrNotAuthorized
-		}
+	_, ok := s.nodes[nodeID]
+	if !ok {
+		return Balance{}, ErrUnregisteredNode
 	}
 
-	if !filterAccount && !filterNode {
-		return Balance{}, ErrNotAuthorized
-	} else if !filterNode {
-		// Only query by account
-		return balance, nil
-	} else if !filterAccount {
-		// Only query by node
-		account, ok := s.accounts[nodeID]
-		if !ok {
-			return s.trials[nodeID], nil
-		}
-		return s.balances[account], nil
+	account, ok := s.accounts[nodeID]
+	if !ok {
+		return s.trials[nodeID], nil
 	}
-
-	// Node must be registered to an account
-	nodeAccount, ok := s.accounts[nodeID]
-	if !ok || nodeAccount != account {
-		return Balance{}, ErrNotAuthorized
-	}
-
 	return s.balances[account], nil
 }
 
-// AddBalance adds some credit amount to that account balance.
-func (s *memoryStore) AddBalance(account Account, nodeID NodeID, credit Amount) error {
+// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
+// If only a node is provided which doesn't have an account registered to
+// it, it should retain a balance, such as through temporary trial accounts
+// that get migrated later.
+//
+// This driver only supports mapping a nodeID to one account, so remapping it
+// will move the nodeID to the other account.
+func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit Amount) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var filterAccount, filterNode bool
-	var balance Balance
-	if nodeID != "" {
-		_, filterNode = s.nodes[nodeID]
-		if !filterNode {
-			return ErrUnregisteredNode
-		}
+	_, ok := s.nodes[nodeID]
+	if !ok {
+		return ErrUnregisteredNode
 	}
-	if account != "" {
-		balance = s.balances[account]
-		filterAccount = true
-	}
-
-	if filterAccount && filterNode {
-		// Link them and port over any trial balance
-		s.accounts[nodeID] = account
-		balance.Credit += s.trials[nodeID].Credit + credit
-		balance.Account = account
-		delete(s.trials, nodeID)
-		s.balances[account] = balance
-		return nil
-	}
-	if filterAccount {
-		// Only account
+	account, ok := s.accounts[nodeID]
+	if ok {
+		balance := s.balances[account]
 		balance.Credit += credit
-		balance.Account = account
 		s.balances[account] = balance
-		return nil
+	} else {
+		balance := s.trials[nodeID]
+		balance.Credit += credit
+		s.trials[nodeID] = balance
 	}
-	if filterNode {
-		// Only node
-		if account, ok := s.accounts[nodeID]; ok {
-			balance = s.balances[account]
-			balance.Credit += credit
-			balance.Account = account
-			s.balances[account] = balance
-		} else {
-			balance = s.trials[nodeID]
-			balance.Credit += credit
-			s.trials[nodeID] = balance
-		}
-		return nil
-	}
-	// No node or account provided
-	return ErrUnregisteredNode
+	return nil
 }
 
-// GetSpenders returns the authorized nodeIDs for this account.
-func (s *memoryStore) GetSpenders(account Account) ([]NodeID, error) {
+// GetAccountBalance returns an account's balance.
+func (s *memoryStore) GetAccountBalance(account Account) (Balance, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.balances[account], nil
+}
+
+// AddNodeBalance adds credit to an account balance. (Can be negative)
+func (s *memoryStore) AddAccountBalance(account Account, credit Amount) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	balance := s.balances[account]
+	balance.Credit += credit
+	s.balances[account] = balance
+	return nil
+}
+
+// AddAccountNode authorizes a nodeID to be a spender of an account's
+// balance. This should migrate any existing node's balance credit to the
+// account.
+func (s *memoryStore) AddAccountNode(account Account, nodeID NodeID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.nodes[nodeID]
+	if !ok {
+		return ErrUnregisteredNode
+	}
+
+	// Migrate any trial balance
+	balance := s.balances[account]
+	s.accounts[nodeID] = account
+	balance.Credit += s.trials[nodeID].Credit
+	balance.Account = account
+	delete(s.trials, nodeID)
+	s.balances[account] = balance
+	return nil
+}
+
+// AddAccountNode authorizes a nodeID to be a spender of an account's
+// balance.
+func (s *memoryStore) IsAccountNode(account Account, nodeID NodeID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	nodeAccount, ok := s.accounts[nodeID]
+	if !ok || nodeAccount != account {
+		return ErrNotAuthorized
+	}
+	return nil
+}
+
+// GetSpenders returns the authorized nodeIDs for this account, these are
+// nodes that were added to accounts through AddAccountNode.
+func (s *memoryStore) GetAccountNodes(account Account) ([]NodeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
