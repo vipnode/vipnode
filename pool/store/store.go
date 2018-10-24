@@ -2,7 +2,11 @@ package store
 
 import (
 	"fmt"
+	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 )
 
 // KeepaliveInterval is the rate of when clients and hosts are expected to send
@@ -13,23 +17,35 @@ const ExpireInterval = KeepaliveInterval * 2
 
 // FIXME: placeholder types, replace with go-ethereum types
 
-type Account string // TODO: Switch to common.Address?
-type NodeID string  // TODO: Switch to discv5.NodeID?
-type Amount int64   // TODO: Switch to big.Int?
+type Account common.Address // TODO: Switch to common.Address?
+type NodeID [64]byte        // TODO: Switch to discv5.NodeID?
+
+func (id NodeID) IsZero() bool {
+	return id == NodeID{}
+}
+
+func (id NodeID) String() string {
+	return fmt.Sprintf("%x", id[:])
+}
+
+func ParseNodeID(s string) (NodeID, error) {
+	id, err := discv5.HexID(s)
+	return NodeID(id), err
+}
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
 	Account      Account   `json:"account,omitempty"`
-	Credit       Amount    `json:"credit"`
+	Credit       big.Int   `json:"credit"`
 	NextWithdraw time.Time `json:"next_withdraw,omitempty"`
 }
 
 func (b *Balance) String() string {
 	account := b.Account
-	if account == "" {
-		account = "(null account)"
+	if len(account) == 0 {
+		return fmt.Sprintf("Balance(<null account>, %d)", &b.Credit)
 	}
-	return fmt.Sprintf("Balance(%q, %d)", account, b.Credit)
+	return fmt.Sprintf("Balance(%q, %d)", account, &b.Credit)
 }
 
 // Node stores metadata requires for tracking full nodes.
@@ -82,12 +98,12 @@ type BalanceStore interface {
 	// If only a node is provided which doesn't have an account registered to
 	// it, it should retain a balance, such as through temporary trial accounts
 	// that get migrated later.
-	AddNodeBalance(nodeID NodeID, credit Amount) error
+	AddNodeBalance(nodeID NodeID, credit *big.Int) error
 
 	// GetAccountBalance returns an account's balance.
 	GetAccountBalance(account Account) (Balance, error)
 	// AddNodeBalance adds credit to an account balance. (Can be negative)
-	AddAccountBalance(account Account, credit Amount) error
+	AddAccountBalance(account Account, credit *big.Int) error
 
 	// AddAccountNode authorizes a nodeID to be a spender of an account's
 	// balance. This should migrate any existing node's balance credit to the

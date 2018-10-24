@@ -1,6 +1,7 @@
 package store
 
 import (
+	"math/big"
 	"sync"
 	"time"
 )
@@ -81,7 +82,7 @@ func (s *memoryStore) GetNodeBalance(nodeID NodeID) (Balance, error) {
 //
 // This driver only supports mapping a nodeID to one account, so remapping it
 // will move the nodeID to the other account.
-func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit Amount) error {
+func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit *big.Int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -92,11 +93,11 @@ func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit Amount) error {
 	account, ok := s.accounts[nodeID]
 	if ok {
 		balance := s.balances[account]
-		balance.Credit += credit
+		balance.Credit.Add(&balance.Credit, credit)
 		s.balances[account] = balance
 	} else {
 		balance := s.trials[nodeID]
-		balance.Credit += credit
+		balance.Credit.Add(&balance.Credit, credit)
 		s.trials[nodeID] = balance
 	}
 	return nil
@@ -110,12 +111,12 @@ func (s *memoryStore) GetAccountBalance(account Account) (Balance, error) {
 }
 
 // AddNodeBalance adds credit to an account balance. (Can be negative)
-func (s *memoryStore) AddAccountBalance(account Account, credit Amount) error {
+func (s *memoryStore) AddAccountBalance(account Account, credit *big.Int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	balance := s.balances[account]
-	balance.Credit += credit
+	balance.Credit.Add(&balance.Credit, credit)
 	s.balances[account] = balance
 	return nil
 }
@@ -135,7 +136,8 @@ func (s *memoryStore) AddAccountNode(account Account, nodeID NodeID) error {
 	// Migrate any trial balance
 	balance := s.balances[account]
 	s.accounts[nodeID] = account
-	balance.Credit += s.trials[nodeID].Credit
+	trialBalance := s.trials[nodeID]
+	balance.Credit.Add(&balance.Credit, &trialBalance.Credit)
 	balance.Account = account
 	delete(s.trials, nodeID)
 	s.balances[account] = balance
@@ -183,7 +185,7 @@ func (s *memoryStore) GetNode(id NodeID) (*Node, error) {
 
 // SetNode saves a node.
 func (s *memoryStore) SetNode(n Node) error {
-	if n.ID == "" {
+	if n.ID.IsZero() {
 		return ErrMalformedNode
 	}
 	s.mu.Lock()
@@ -271,8 +273,13 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]NodeID, 
 		// Only update peers we already know about
 		// FIXME: If symmetric peers disappear at the same time, then reappear, will it be a problem if they never become inactive? (Okay if the balance manager caps the update interval?)
 		// FIXME: Should the timestamp update happen on the peerNode also? Or is it okay to leave it for the symmetric update call?
-		if _, ok := s.nodes[NodeID(peer)]; ok {
-			node.peers[NodeID(peer)] = now
+		peerID, err := ParseNodeID(peer)
+		if err != nil {
+			// Skip bad peers
+			continue
+		}
+		if _, ok := s.nodes[peerID]; ok {
+			node.peers[peerID] = now
 			numUpdated += 1
 		}
 	}
