@@ -32,14 +32,14 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 		// FIXME: Ideally this should be caught earlier. Maybe move to an earlier On* callback once we have more. Also check to make sure the values are big enough for the int64/float64 math.
 		return store.Balance{}, fmt.Errorf("payPerInterval: Invalid interval value: %d", b.Interval)
 	}
-	delta := big.NewInt(time.Now().Sub(node.LastSeen).Seconds())
+	delta := big.NewInt(int64(time.Now().Sub(node.LastSeen).Seconds()))
 	var total *big.Int
 	for _, peer := range peers {
-		credit := delta.Mul(delta, float64(b.CreditPerInterval)).Div(delta, big.NewInt(b.Interval.Seconds()))
+		credit := delta.Mul(delta, b.CreditPerInterval).Div(delta, big.NewInt(int64(b.Interval.Seconds())))
 		b.Store.AddNodeBalance(peer.ID, credit)
-		total += credit
+		total.Add(total, credit)
 	}
-	if err := b.Store.AddNodeBalance(node.ID, -total); err != nil {
+	if err := b.Store.AddNodeBalance(node.ID, new(big.Int).Neg(total)); err != nil {
 		return store.Balance{}, err
 	}
 	return b.Store.GetNodeBalance(node.ID)

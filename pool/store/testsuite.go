@@ -6,27 +6,24 @@ import (
 	"sort"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // TestSuite runs a suite of tests against a store implementation.
 func TestSuite(t *testing.T, newStore func() Store) {
-	nodes := []Node{
-		{ID: NodeID([64]byte{'a'})},
-		{ID: NodeID([64]byte{'b'})},
-		{ID: NodeID([64]byte{'c'})},
-		{ID: NodeID([64]byte{'d'})},
-		{ID: NodeID([64]byte{'e'})},
-		{ID: NodeID([64]byte{'f'})},
-		{ID: NodeID([64]byte{'g'})},
-		{ID: NodeID([64]byte{'h'})},
-		{ID: NodeID([64]byte{'i'})},
-		{ID: NodeID([64]byte{'j'})},
+	nodes := []Node{}
+	{
+		ids := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+		for _, id := range ids {
+			parsedID, err := ParseNodeID(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nodes = append(nodes, Node{ID: parsedID})
+		}
 	}
 	accounts := []Account{
-		Account(common.HexToAddress("abcd")),
-		Account(common.HexToAddress("efgh")),
+		Account("abcd"),
+		Account("efgh"),
 	}
 
 	t.Helper()
