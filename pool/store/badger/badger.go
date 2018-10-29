@@ -3,13 +3,30 @@ package badger
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"time"
 
 	"github.com/dgraph-io/badger"
 	"github.com/vipnode/vipnode/pool/store"
 )
+
+const dbVersion = 1
+
+// MigrationError is returned when the database is opened with an outdated
+// version and migation fails.
+type MigrationError struct {
+	OldVersion int
+	NewVersion int
+	Path       string
+	Cause      error
+}
+
+func (err MigrationError) Error() string {
+	return fmt.Sprintf("badgerdb migration error: Failed to migrate from version %d to %d at path %q: %s", err.OldVersion, err.NewVersion, err.Path, err.Cause)
+}
 
 // TODO: Set reasonable expiration values?
 
@@ -23,7 +40,41 @@ func Open(opts badger.Options) (*badgerStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &badgerStore{db: db}, nil
+
+	s := &badgerStore{db: db}
+	// Attempt to migrate
+	var oldVersion int
+	err = s.db.Update(func(txn *badger.Txn) error {
+		versionKey := []byte("vip:version")
+		if len(db.Tables()) == 0 {
+			// New database, set current version and continue
+			return s.setItem(txn, versionKey, dbVersion)
+		}
+
+		if err := s.getItem(txn, versionKey, &oldVersion); err != nil {
+			return MigrationError{
+				OldVersion: oldVersion,
+				NewVersion: dbVersion,
+				Path:       opts.Dir,
+				Cause:      err,
+			}
+		}
+
+		// TODO: Implement migration
+		if oldVersion != dbVersion {
+			return MigrationError{
+				OldVersion: oldVersion,
+				NewVersion: dbVersion,
+				Path:       opts.Dir,
+				Cause:      errors.New("migration not implemented yet"),
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 var _ store.Store = &badgerStore{}
@@ -76,7 +127,7 @@ func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
 			return err
 		}
 
-		return s.setItem(txn, key, nonce)
+		return s.setItem(txn, key, &nonce)
 	})
 }
 
@@ -113,7 +164,7 @@ func (s *badgerStore) GetNodeBalance(nodeID store.NodeID) (store.Balance, error)
 // If only a node is provided which doesn't have an account registered to
 // it, it should retain a balance, such as through temporary trial accounts
 // that get migrated later.
-func (s *badgerStore) AddNodeBalance(nodeID store.NodeID, credit store.Amount) error {
+func (s *badgerStore) AddNodeBalance(nodeID store.NodeID, credit *big.Int) error {
 	accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
 	return s.db.Update(func(txn *badger.Txn) error {
 		var account store.Account
@@ -135,9 +186,9 @@ func (s *badgerStore) AddNodeBalance(nodeID store.NodeID, credit store.Amount) e
 		} else if err != nil {
 			return err
 		}
-		balance.Credit += credit
+		balance.Credit.Add(&balance.Credit, credit)
 
-		return s.setItem(txn, balanceKey, balance)
+		return s.setItem(txn, balanceKey, &balance)
 	})
 }
 
@@ -152,7 +203,7 @@ func (s *badgerStore) GetAccountBalance(account store.Account) (store.Balance, e
 }
 
 // AddNodeBalance adds credit to an account balance. (Can be negative)
-func (s *badgerStore) AddAccountBalance(account store.Account, credit store.Amount) error {
+func (s *badgerStore) AddAccountBalance(account store.Account, credit *big.Int) error {
 	return s.db.Update(func(txn *badger.Txn) error {
 		balanceKey := []byte(fmt.Sprintf("vip:balance:%s", account))
 		var balance store.Balance
@@ -161,10 +212,10 @@ func (s *badgerStore) AddAccountBalance(account store.Account, credit store.Amou
 		} else if err != nil {
 			return err
 		}
-		balance.Credit += credit
+		balance.Credit.Add(&balance.Credit, credit)
 		balance.Account = account
 
-		return s.setItem(txn, balanceKey, balance)
+		return s.setItem(txn, balanceKey, &balance)
 	})
 }
 
@@ -195,14 +246,14 @@ func (s *badgerStore) AddAccountNode(account store.Account, nodeID store.NodeID)
 
 		// Authorize node
 		accountKey := []byte(fmt.Sprintf("vip:account:%s", nodeID))
-		if err := s.setItem(txn, accountKey, account); err != nil {
+		if err := s.setItem(txn, accountKey, &account); err != nil {
 			return err
 		}
 
 		// Merge trial and save
-		balance.Credit += trialBalance.Credit
+		balance.Credit.Add(&balance.Credit, &trialBalance.Credit)
 		balance.Account = account
-		if err := s.setItem(txn, balanceKey, balance); err != nil {
+		if err := s.setItem(txn, balanceKey, &balance); err != nil {
 			return err
 		}
 		if err := txn.Delete(trialKey); err != nil {
@@ -318,7 +369,7 @@ func (s *badgerStore) SetNode(n store.Node) error {
 	}
 	key := []byte(fmt.Sprintf("vip:node:%s", n.ID))
 	return s.db.Update(func(txn *badger.Txn) error {
-		return s.setItem(txn, key, n)
+		return s.setItem(txn, key, &n)
 	})
 }
 
@@ -368,7 +419,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 		}
 
 		node.LastSeen = now
-		if err := s.setItem(txn, nodeKey, node); err != nil {
+		if err := s.setItem(txn, nodeKey, &node); err != nil {
 			return err
 		}
 
@@ -387,7 +438,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 		}
 
 		if numUpdated == len(nodePeers) {
-			return s.setItem(txn, peersKey, nodePeers)
+			return s.setItem(txn, peersKey, &nodePeers)
 		}
 
 		inactiveDeadline := now.Add(-store.ExpireInterval)
@@ -398,7 +449,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 			delete(nodePeers, nodeID)
 			inactive = append(inactive, nodeID)
 		}
-		return s.setItem(txn, peersKey, nodePeers)
+		return s.setItem(txn, peersKey, &nodePeers)
 	})
 	return
 }
