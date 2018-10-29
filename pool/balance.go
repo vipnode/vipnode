@@ -18,9 +18,21 @@ type payPerInterval struct {
 	Store             store.Store
 	Interval          time.Duration
 	CreditPerInterval big.Int
+	now               func() time.Time
 }
 
-// OnUpdate takes a node instance (with a Lastseen timestamp of the previous
+func (b *payPerInterval) intervalCredit(lastSeen time.Time) *big.Int {
+	if b.now == nil {
+		b.now = time.Now
+	}
+	delta := big.NewInt(int64(b.now().Sub(lastSeen).Seconds()))
+	interval := big.NewInt(int64(b.Interval.Seconds()))
+	credit := new(big.Int).Mul(delta, &b.CreditPerInterval)
+	credit.Div(credit, interval)
+	return credit
+}
+
+// OnUpdate takes a node instance (with a LastSeen timestamp of the previous
 // update) and the current active peers.
 func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Balance, error) {
 	if node.IsHost {
@@ -32,11 +44,15 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 		// FIXME: Ideally this should be caught earlier. Maybe move to an earlier On* callback once we have more. Also check to make sure the values are big enough for the int64/float64 math.
 		return store.Balance{}, fmt.Errorf("payPerInterval: Invalid interval settings: %d per %s", &b.CreditPerInterval, b.Interval)
 	}
-	delta := big.NewInt(int64(time.Now().Sub(node.LastSeen).Seconds()))
-	interval := big.NewInt(int64(b.Interval.Seconds()))
+
+	credit := b.intervalCredit(node.LastSeen)
+	if credit.Cmp(new(big.Int)) == 0 {
+		// No time passed?
+		return b.Store.GetNodeBalance(node.ID)
+	}
+
 	total := new(big.Int)
 	for _, peer := range peers {
-		credit := new(big.Int).Mul(delta, &b.CreditPerInterval).Div(delta, interval)
 		b.Store.AddNodeBalance(peer.ID, credit)
 		total.Add(total, credit)
 	}
