@@ -25,7 +25,7 @@ func New(storeDriver store.Store) *VipnodePool {
 	balanceManager := &payPerInterval{
 		Store:             storeDriver,
 		Interval:          time.Minute * 1,
-		CreditPerInterval: big.NewInt(1000),
+		CreditPerInterval: *big.NewInt(1000),
 	}
 	return &VipnodePool{
 		Store:          storeDriver,

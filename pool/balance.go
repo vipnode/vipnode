@@ -17,7 +17,7 @@ type BalanceManager interface {
 type payPerInterval struct {
 	Store             store.Store
 	Interval          time.Duration
-	CreditPerInterval *big.Int
+	CreditPerInterval big.Int
 }
 
 // OnUpdate takes a node instance (with a Lastseen timestamp of the previous
@@ -28,14 +28,15 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 		// client fails to update, then the host will disconnect.
 		return b.Store.GetNodeBalance(node.ID)
 	}
-	if b.Interval <= 0 {
+	if b.Interval <= 0 || b.CreditPerInterval.Cmp(new(big.Int)) == 0 {
 		// FIXME: Ideally this should be caught earlier. Maybe move to an earlier On* callback once we have more. Also check to make sure the values are big enough for the int64/float64 math.
-		return store.Balance{}, fmt.Errorf("payPerInterval: Invalid interval value: %d", b.Interval)
+		return store.Balance{}, fmt.Errorf("payPerInterval: Invalid interval settings: %d per %s", &b.CreditPerInterval, b.Interval)
 	}
 	delta := big.NewInt(int64(time.Now().Sub(node.LastSeen).Seconds()))
-	var total *big.Int
+	interval := big.NewInt(int64(b.Interval.Seconds()))
+	total := new(big.Int)
 	for _, peer := range peers {
-		credit := delta.Mul(delta, b.CreditPerInterval).Div(delta, big.NewInt(int64(b.Interval.Seconds())))
+		credit := new(big.Int).Mul(delta, &b.CreditPerInterval).Div(delta, interval)
 		b.Store.AddNodeBalance(peer.ID, credit)
 		total.Add(total, credit)
 	}

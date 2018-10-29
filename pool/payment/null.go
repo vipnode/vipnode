@@ -2,6 +2,7 @@ package payment
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/vipnode/vipnode/pool/store"
 )
@@ -13,6 +14,6 @@ func (p *NullPayment) Verify(sig string, account store.Account, nodeID store.Nod
 	return errors.New("NullPayment does not implement Verify")
 }
 
-func (p *NullPayment) Withdraw(account store.Account, amount store.Amount) (tx string, err error) {
+func (p *NullPayment) Withdraw(account store.Account, amount *big.Int) (tx string, err error) {
 	return "", errors.New("NullPayment does not implement Withdraw")
 }
