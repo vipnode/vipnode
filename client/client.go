@@ -118,9 +118,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		// tracking their host. That means the client is getting a free ride
 		// and it's up to the host to kick the client when the host deems
 		// necessary.
-		logger.Printf("Update: %d peers connected, %d expired in pool, %s balance with pool.", len(peerIDs), len(update.InvalidPeers), credit)
+		logger.Printf("Update: %d peers connected, %d expired in pool, %d balance with pool.", len(peerIDs), len(update.InvalidPeers), credit)
 	} else {
-		logger.Printf("Update: %d peers connected, %s balance with pool.", len(peerIDs), credit)
+		logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), credit)
 	}
 
 	return nil
