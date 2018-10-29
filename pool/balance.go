@@ -2,6 +2,7 @@ package pool
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/vipnode/vipnode/pool/store"
@@ -16,7 +17,7 @@ type BalanceManager interface {
 type payPerInterval struct {
 	Store             store.Store
 	Interval          time.Duration
-	CreditPerInterval store.Amount
+	CreditPerInterval *big.Int
 }
 
 // OnUpdate takes a node instance (with a Lastseen timestamp of the previous
@@ -31,10 +32,10 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 		// FIXME: Ideally this should be caught earlier. Maybe move to an earlier On* callback once we have more. Also check to make sure the values are big enough for the int64/float64 math.
 		return store.Balance{}, fmt.Errorf("payPerInterval: Invalid interval value: %d", b.Interval)
 	}
-	delta := time.Now().Sub(node.LastSeen).Seconds()
-	var total store.Amount
+	delta := big.NewInt(time.Now().Sub(node.LastSeen).Seconds())
+	var total *big.Int
 	for _, peer := range peers {
-		credit := store.Amount((delta * float64(b.CreditPerInterval)) / b.Interval.Seconds())
+		credit := delta.Mul(delta, float64(b.CreditPerInterval)).Div(delta, big.NewInt(b.Interval.Seconds()))
 		b.Store.AddNodeBalance(peer.ID, credit)
 		total += credit
 	}
