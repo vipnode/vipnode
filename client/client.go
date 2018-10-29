@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
@@ -107,9 +108,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		(*c.BalanceCallback)(*update.Balance)
 	}
 
-	var credit store.Amount
+	var credit *big.Int
 	if update.Balance != nil {
-		credit = update.Balance.Credit
+		credit = &update.Balance.Credit
 	}
 
 	if len(update.InvalidPeers) > 0 {
@@ -117,9 +118,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		// tracking their host. That means the client is getting a free ride
 		// and it's up to the host to kick the client when the host deems
 		// necessary.
-		logger.Printf("Update: %d peers connected, %d expired in pool, %d balance with pool.", len(peerIDs), len(update.InvalidPeers), credit)
+		logger.Printf("Update: %d peers connected, %d expired in pool, %s balance with pool.", len(peerIDs), len(update.InvalidPeers), credit)
 	} else {
-		logger.Printf("Update: %d peers connected, %d balance with pool.", len(peerIDs), credit)
+		logger.Printf("Update: %d peers connected, %s balance with pool.", len(peerIDs), credit)
 	}
 
 	return nil
