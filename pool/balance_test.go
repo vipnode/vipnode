@@ -44,6 +44,7 @@ func TestBalanceManager(t *testing.T) {
 			node := store.Node{
 				ID:       parsedID,
 				LastSeen: now,
+				IsHost:   id == "a",
 			}
 			nodes = append(nodes, node)
 			if err := storeDriver.SetNode(node); err != nil {
@@ -51,8 +52,6 @@ func TestBalanceManager(t *testing.T) {
 			}
 		}
 	}
-	host := nodes[0]
-	host.IsHost = true
 
 	check := func(node store.Node, peers []store.Node, wantBalance int64) {
 		t.Helper()
@@ -68,6 +67,8 @@ func TestBalanceManager(t *testing.T) {
 	check(nodes[1], nodes[0:1], 0)
 	check(nodes[0], nodes[1:], 0) // host
 
+	nodes[0].LastSeen = now
+	nodes[1].LastSeen = now
 	now = now.Add(time.Minute * 5)
 
 	check(nodes[1], nodes[0:1], -5000)
