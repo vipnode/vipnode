@@ -2,7 +2,9 @@ package badger
 
 import (
 	"io/ioutil"
+	"math/big"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/dgraph-io/badger"
@@ -70,20 +72,25 @@ func TestBadgerHelpers(t *testing.T) {
 	}
 	defer store.Close()
 
-	var a uint64 = 42
+	type Foo struct {
+		Amount big.Int
+	}
+	a := Foo{
+		Amount: *big.NewInt(42),
+	}
 	if err := store.db.Update(func(txn *badger.Txn) error {
-		return store.setItem(txn, []byte("a"), a)
+		return store.setItem(txn, []byte("a"), &a)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var aa uint64
+	aa := Foo{}
 	if err := store.db.View(func(txn *badger.Txn) error {
 		return store.getItem(txn, []byte("a"), &aa)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if a != aa {
-		t.Errorf("got: %q; want %q", aa, aa)
+	if !reflect.DeepEqual(a, aa) {
+		t.Errorf("got: %v; want %v", aa, aa)
 	}
 }
 

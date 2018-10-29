@@ -1,7 +1,7 @@
 package store
 
 import (
-	"fmt"
+	"math/big"
 	"reflect"
 	"sort"
 	"testing"
@@ -10,6 +10,22 @@ import (
 
 // TestSuite runs a suite of tests against a store implementation.
 func TestSuite(t *testing.T, newStore func() Store) {
+	nodes := []Node{}
+	{
+		ids := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+		for _, id := range ids {
+			parsedID, err := ParseNodeID(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nodes = append(nodes, Node{ID: parsedID})
+		}
+	}
+	accounts := []Account{
+		Account("abcd"),
+		Account("efgh"),
+	}
+
 	t.Helper()
 	t.Run("Nonce", func(t *testing.T) {
 		s := newStore()
@@ -37,9 +53,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := Node{
-			ID: NodeID("abc"),
-		}
+		node := nodes[0]
 		emptynode := Node{}
 		if _, err := s.GetNode(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
@@ -61,45 +75,48 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
+		node := nodes[0]
+		othernode := nodes[1]
+
 		// Unregistered
-		if err := s.AddNodeBalance(NodeID("abc"), 42); err != ErrUnregisteredNode {
+		if err := s.AddNodeBalance(node.ID, big.NewInt(42)); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
-		if _, err := s.GetNodeBalance(NodeID("abc")); err != ErrUnregisteredNode {
+		if _, err := s.GetNodeBalance(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
 
 		// Init node
-		if err := s.SetNode(Node{ID: "abc"}); err != nil {
+		if err := s.SetNode(node); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
 
 		// Test balance adding
-		if err := s.AddNodeBalance(NodeID("abc"), 42); err != nil {
+		if err := s.AddNodeBalance(node.ID, big.NewInt(42)); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
-		if err := s.AddNodeBalance(NodeID("abc"), 3); err != nil {
+		if err := s.AddNodeBalance(node.ID, big.NewInt(3)); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
-		if b, err := s.GetNodeBalance(NodeID("abc")); err != nil {
+		if b, err := s.GetNodeBalance(node.ID); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if b.Credit != 45 {
+		} else if b.Credit.Cmp(big.NewInt(45)) != 0 {
 			t.Errorf("returned nwrong balance: %v", b)
 		}
 
 		// Test subtracting and negative
-		if err := s.AddNodeBalance(NodeID("abc"), -50); err != nil {
+		if err := s.AddNodeBalance(node.ID, big.NewInt(-50)); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
-		if b, err := s.GetNodeBalance(NodeID("abc")); err != nil {
+		if b, err := s.GetNodeBalance(node.ID); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if b.Credit != -5 {
+		} else if b.Credit.Cmp(big.NewInt(-5)) != 0 {
 			t.Errorf("returned nwrong balance: %v", b)
 		}
 
-		if b, err := s.GetNodeBalance(NodeID("def")); err != ErrUnregisteredNode {
+		if b, err := s.GetNodeBalance(othernode.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
-		} else if b.Credit != 0 {
+		} else if b.Credit.Cmp(big.NewInt(0)) != 0 {
 			t.Errorf("returned non-empty balance: %v", b)
 		}
 	})
@@ -108,16 +125,17 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
+		node := nodes[0]
+
 		// Unregistered
-		if _, err := s.NodePeers(NodeID("abc")); err != ErrUnregisteredNode {
+		if _, err := s.NodePeers(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
-		if _, err := s.UpdateNodePeers(NodeID("abc"), []string{"def"}); err != ErrUnregisteredNode {
+		if _, err := s.UpdateNodePeers(node.ID, []string{"def"}); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
 
 		// Init node
-		node := Node{ID: "abc"}
 		if err := s.SetNode(node); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
@@ -130,7 +148,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 
 		// peer1 is not a known node, so it will be ignored
-		peers := []string{"peer1"}
+		peers := []string{nodes[1].ID.String()}
 		if inactive, err := s.UpdateNodePeers(node.ID, peers); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
@@ -138,11 +156,12 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 
 		// Inactives only qualify after ExpireInterval
-		newPeers := []string{"peer2", "peer3"}
-		for _, peerID := range newPeers {
-			if err := s.SetNode(Node{ID: NodeID(peerID)}); err != nil {
-				t.Errorf("unexpected error: %s", err)
-			}
+		newPeers := []string{nodes[2].ID.String(), nodes[3].ID.String()}
+		if err := s.SetNode(nodes[2]); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+		if err := s.SetNode(nodes[3]); err != nil {
+			t.Errorf("unexpected error: %s", err)
 		}
 
 		if inactive, err := s.UpdateNodePeers(node.ID, newPeers); err != nil {
@@ -169,9 +188,9 @@ func TestSuite(t *testing.T, newStore func() Store) {
 
 		// Add some hosts
 		now := time.Now()
-		for i := 0; i < 10; i++ {
+		for i, node := range nodes {
 			node := Node{
-				ID:     NodeID(fmt.Sprintf("n%d", i)),
+				ID:     node.ID,
 				IsHost: i > 3,
 			}
 			if i > 5 {
@@ -183,7 +202,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 		if hosts, err := s.ActiveHosts("", 10); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if got, want := nodeIDs(hosts), []string{"n6", "n7", "n8", "n9"}; !reflect.DeepEqual(got, want) {
+		} else if got, want := nodeIDs(hosts), []string{nodes[6].ID.String(), nodes[7].ID.String(), nodes[8].ID.String(), nodes[9].ID.String()}; !reflect.DeepEqual(got, want) {
 			t.Errorf("got: %v; want: %v", got, want)
 		}
 
@@ -198,14 +217,12 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := Node{
-			ID: NodeID("abc"),
-		}
+		node := nodes[0]
 		if err := s.SetNode(node); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		account := Account("somewallet")
+		account := accounts[0]
 
 		if err := s.IsAccountNode(account, node.ID); err != ErrNotAuthorized {
 			t.Errorf("expected ErrNotAuthorized, got: %s", err)
@@ -237,39 +254,35 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := Node{
-			ID: NodeID("abc"),
-		}
+		node := nodes[0]
 		if err := s.SetNode(node); err != nil {
 			t.Error(err)
 		}
 
-		if err := s.AddNodeBalance(node.ID, 42); err != nil {
+		if err := s.AddNodeBalance(node.ID, big.NewInt(42)); err != nil {
 			t.Error(err)
 		}
 		if b, err := s.GetNodeBalance(node.ID); err != err {
 			t.Error(err)
-		} else if b.Credit != 42 {
-			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Credit.Cmp(big.NewInt(42)) != 0 {
+			t.Errorf("invalid balance credit: %d", &b.Credit)
 		}
 
-		node2 := Node{
-			ID: NodeID("def"),
-		}
+		node2 := nodes[1]
 		if err := s.SetNode(node2); err != nil {
 			t.Error(err)
 		}
-		account := Account("somewallet")
+		account := accounts[0]
 		if err := s.AddAccountNode(account, node2.ID); err != nil {
 			t.Error(err)
 		}
-		if err := s.AddNodeBalance(node2.ID, 69); err != nil {
+		if err := s.AddNodeBalance(node2.ID, big.NewInt(69)); err != nil {
 			t.Error(err)
 		}
 		if b, err := s.GetNodeBalance(node2.ID); err != nil {
 			t.Error(err)
-		} else if b.Credit != 69 {
-			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Credit.Cmp(big.NewInt(69)) != 0 {
+			t.Errorf("invalid balance credit: %d", &b.Credit)
 		}
 
 		if err := s.AddAccountNode(account, node.ID); err != nil {
@@ -277,15 +290,15 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 		if b, err := s.GetNodeBalance(node2.ID); err != nil {
 			t.Error(err)
-		} else if b.Credit != 42+69 {
-			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Credit.Cmp(big.NewInt(42+69)) != 0 {
+			t.Errorf("invalid balance credit: %d", &b.Credit)
 		} else if b.Account != account {
 			t.Errorf("invalid account: %s", b.Account)
 		}
 		if b, err := s.GetNodeBalance(node.ID); err != nil {
 			t.Error(err)
-		} else if b.Credit != 42+69 {
-			t.Errorf("invalid balance credit: %d", b.Credit)
+		} else if b.Credit.Cmp(big.NewInt(42+69)) != 0 {
+			t.Errorf("invalid balance credit: %d", &b.Credit)
 		} else if b.Account != account {
 			t.Errorf("invalid account: %s", b.Account)
 		}
@@ -296,7 +309,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 func nodeIDs(nodes []Node) []string {
 	r := make([]string, 0, len(nodes))
 	for _, n := range nodes {
-		r = append(r, string(n.ID))
+		r = append(r, string(n.ID.String()))
 	}
 	sort.Strings(r)
 	return r

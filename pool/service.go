@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"net/url"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ func New(storeDriver store.Store) *VipnodePool {
 	balanceManager := &payPerInterval{
 		Store:             storeDriver,
 		Interval:          time.Minute * 1,
-		CreditPerInterval: 1000,
+		CreditPerInterval: *big.NewInt(1000),
 	}
 	return &VipnodePool{
 		Store:          storeDriver,
@@ -99,9 +100,9 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	resp.Balance = &balance
 
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), balance.Credit)
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &balance.Credit)
 	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), balance.Credit)
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &balance.Credit)
 
 	}
 

@@ -34,14 +34,17 @@ type contractPayment struct {
 	backend  bind.ContractBackend
 }
 
-func (p *contractPayment) DepositBalance(account store.Account) (store.Amount, error) {
+func (p *contractPayment) DepositBalance(account store.Account) (*big.Int, error) {
 	r, err := p.contract.Clients(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
-	if r.TimeLocked.Cmp(zeroInt) != 0 {
-		return 0, ErrDepositTimelocked
+	if err != nil {
+		return nil, err
 	}
-	return store.Amount(r.Balance.Int64()), err
+	if r.TimeLocked.Cmp(zeroInt) != 0 {
+		return nil, ErrDepositTimelocked
+	}
+	return r.Balance, nil
 }
 
-func (p *contractPayment) Withdraw(account store.Account, amount store.Amount) (tx string, err error) {
+func (p *contractPayment) Withdraw(account store.Account, amount *big.Int) (tx string, err error) {
 	return "", errors.New("ContractPayment has not implemented Withdraw")
 }

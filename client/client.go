@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
@@ -107,9 +108,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		(*c.BalanceCallback)(*update.Balance)
 	}
 
-	var credit store.Amount
+	var credit *big.Int
 	if update.Balance != nil {
-		credit = update.Balance.Credit
+		credit = &update.Balance.Credit
 	}
 
 	if len(update.InvalidPeers) > 0 {

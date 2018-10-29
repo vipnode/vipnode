@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 )
 
@@ -15,21 +16,34 @@ const ExpireInterval = KeepaliveInterval * 2
 
 type Account string // TODO: Switch to common.Address?
 type NodeID string  // TODO: Switch to discv5.NodeID?
-type Amount int64   // TODO: Switch to big.Int?
+
+func (id NodeID) IsZero() bool {
+	return id == ""
+}
+
+func (id NodeID) String() string {
+	return string(id)
+}
+
+func ParseNodeID(s string) (NodeID, error) {
+	return NodeID(s), nil
+}
 
 // Balance describes a node's account balance on the pool.
 type Balance struct {
 	Account      Account   `json:"account,omitempty"`
-	Credit       Amount    `json:"credit"`
+	Deposit      big.Int   `json:"deposit"`
+	Credit       big.Int   `json:"credit"`
 	NextWithdraw time.Time `json:"next_withdraw,omitempty"`
 }
 
 func (b *Balance) String() string {
 	account := b.Account
-	if account == "" {
-		account = "(null account)"
+	total := new(big.Int).Add(&b.Credit, &b.Deposit)
+	if len(account) == 0 {
+		return fmt.Sprintf("Balance(<null account>, %s)", total)
 	}
-	return fmt.Sprintf("Balance(%q, %d)", account, b.Credit)
+	return fmt.Sprintf("Balance(%q, %s)", account, total)
 }
 
 // Node stores metadata requires for tracking full nodes.
@@ -82,12 +96,12 @@ type BalanceStore interface {
 	// If only a node is provided which doesn't have an account registered to
 	// it, it should retain a balance, such as through temporary trial accounts
 	// that get migrated later.
-	AddNodeBalance(nodeID NodeID, credit Amount) error
+	AddNodeBalance(nodeID NodeID, credit *big.Int) error
 
 	// GetAccountBalance returns an account's balance.
 	GetAccountBalance(account Account) (Balance, error)
 	// AddNodeBalance adds credit to an account balance. (Can be negative)
-	AddAccountBalance(account Account, credit Amount) error
+	AddAccountBalance(account Account, credit *big.Int) error
 
 	// AddAccountNode authorizes a nodeID to be a spender of an account's
 	// balance. This should migrate any existing node's balance credit to the
