@@ -25,11 +25,10 @@ func (b *payPerInterval) intervalCredit(lastSeen time.Time) *big.Int {
 	if b.now == nil {
 		b.now = time.Now
 	}
-	delta := big.NewInt(int64(b.now().Sub(lastSeen).Seconds()))
-	interval := big.NewInt(int64(b.Interval.Seconds()))
+	delta := big.NewInt(int64(b.now().Sub(lastSeen)))
+	interval := big.NewInt(int64(b.Interval))
 	credit := new(big.Int).Mul(delta, &b.CreditPerInterval)
-	credit.Div(credit, interval)
-	return credit
+	return credit.Div(credit, interval)
 }
 
 // OnUpdate takes a node instance (with a LastSeen timestamp of the previous
