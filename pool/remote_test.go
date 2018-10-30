@@ -13,7 +13,7 @@ import (
 )
 
 func TestRemotePoolClient(t *testing.T) {
-	pool := New(store.MemoryStore())
+	pool := New(store.MemoryStore(), nil)
 	pool.skipWhitelist = true
 
 	server, client := jsonrpc2.ServePipe()
@@ -59,7 +59,7 @@ func TestRemotePoolClient(t *testing.T) {
 }
 
 func TestRemotePoolHost(t *testing.T) {
-	pool := New(store.MemoryStore())
+	pool := New(store.MemoryStore(), nil)
 	pool.skipWhitelist = true
 
 	server, host := jsonrpc2.ServePipe()

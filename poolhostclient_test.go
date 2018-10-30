@@ -21,7 +21,7 @@ func TestPoolHostClient(t *testing.T) {
 	privkey := keygen.HardcodedKeyIdx(t, 0)
 	payout := ""
 
-	p := pool.New(store.MemoryStore())
+	p := pool.New(store.MemoryStore(), nil)
 	rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Host.Close()
 	defer rpcHost2Pool.Close()
@@ -107,7 +107,7 @@ func TestCloseHost(t *testing.T) {
 	privkey := keygen.HardcodedKeyIdx(t, 0)
 	payout := ""
 
-	p := pool.New(store.MemoryStore())
+	p := pool.New(store.MemoryStore(), nil)
 	c1, c2 := net.Pipe()
 	rpcPool2Host := &jsonrpc2.Remote{
 		Codec:  jsonrpc2.IOCodec(c1),

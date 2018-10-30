@@ -1,4 +1,4 @@
-package pool
+package balance
 
 import (
 	"math/big"
@@ -8,7 +8,7 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
-func TestBalanceInterval(t *testing.T) {
+func TestPerIntervalCredit(t *testing.T) {
 	now := time.Now()
 	balanceManager := &payPerInterval{
 		Interval:          time.Minute * 1,
@@ -22,7 +22,7 @@ func TestBalanceInterval(t *testing.T) {
 	}
 }
 
-func TestBalanceManager(t *testing.T) {
+func TestPerInterval(t *testing.T) {
 	storeDriver := store.MemoryStore()
 
 	now := time.Now()

@@ -45,7 +45,7 @@ func runHost(options Options) error {
 	if options.Host.Pool == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.
 		logger.Infof("Starting in-memory vipnode pool.")
-		p := pool.New(store.MemoryStore())
+		p := pool.New(store.MemoryStore(), nil)
 		rpcPool := &jsonrpc2.Local{}
 		if err := rpcPool.Server.Register("vipnode_", p); err != nil {
 			return err

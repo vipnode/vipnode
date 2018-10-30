@@ -3,14 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/OpenPeeDeeP/xdg"
 	"github.com/dgraph-io/badger"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/balance"
 	"github.com/vipnode/vipnode/pool/payment"
 	"github.com/vipnode/vipnode/pool/store"
 	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
@@ -53,7 +56,14 @@ func runPool(options Options) error {
 	default:
 		return errors.New("storage driver not implemented")
 	}
-	p := pool.New(storeDriver)
+
+	balanceManager := balance.PayPerInterval(
+		storeDriver,
+		time.Minute*1,    // Interval
+		big.NewInt(1000), // Credit per interval
+	)
+
+	p := pool.New(storeDriver, balanceManager)
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 	handler := &server{
 		ws:     &ws.Upgrader{},

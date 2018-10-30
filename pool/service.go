@@ -3,13 +3,13 @@ package pool
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"net/url"
 	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/pool/balance"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
@@ -19,17 +19,15 @@ type hostService struct {
 	jsonrpc2.Service
 }
 
-// New returns a VipnodePool implementation of Pool with the default memory
-// store, which includes balance tracking.
-func New(storeDriver store.Store) *VipnodePool {
-	balanceManager := &payPerInterval{
-		Store:             storeDriver,
-		Interval:          time.Minute * 1,
-		CreditPerInterval: *big.NewInt(1000),
+// New returns a new VipnodePool RPC service with the given storage driver and
+// balance manager. If manager is nil, then balance.NoBalance{} is used.
+func New(storeDriver store.Store, manager balance.Manager) *VipnodePool {
+	if manager == nil {
+		manager = balance.NoBalance{}
 	}
 	return &VipnodePool{
 		Store:          storeDriver,
-		BalanceManager: balanceManager,
+		BalanceManager: manager,
 		remoteHosts:    map[store.NodeID]jsonrpc2.Service{},
 	}
 }
@@ -40,7 +38,7 @@ const poolWhitelistTimeout = 5 * time.Second
 type VipnodePool struct {
 	Version        string
 	Store          store.Store
-	BalanceManager BalanceManager
+	BalanceManager balance.Manager
 	skipWhitelist  bool
 
 	mu          sync.Mutex

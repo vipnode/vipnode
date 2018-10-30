@@ -12,7 +12,7 @@ import (
 )
 
 func TestPoolInstance(t *testing.T) {
-	pool := New(store.MemoryStore())
+	pool := New(store.MemoryStore(), nil)
 
 	r := pool.Ping(context.Background())
 	if r != "pong" {
@@ -40,7 +40,7 @@ func TestPoolInstance(t *testing.T) {
 }
 
 func TestPoolService(t *testing.T) {
-	pool := New(store.MemoryStore())
+	pool := New(store.MemoryStore(), nil)
 	server, client := jsonrpc2.ServePipe()
 	server.Server.Register("vipnode_", pool)
 

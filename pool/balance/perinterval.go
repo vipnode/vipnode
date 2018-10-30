@@ -1,4 +1,4 @@
-package pool
+package balance
 
 import (
 	"fmt"
@@ -8,10 +8,12 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
-type BalanceManager interface {
-	OnUpdate(node store.Node, peers []store.Node) (store.Balance, error)
-	// TODO: OnConnect, OnDisconnect, etc? OnConnect would be useful for time-based trials.
-	// TODO: Support error type that forces a disconnect (eg. trial expired?)
+func PayPerInterval(storeDriver store.Store, interval time.Duration, creditPerInterval *big.Int) *payPerInterval {
+	return &payPerInterval{
+		Store:             storeDriver,
+		Interval:          interval,
+		CreditPerInterval: *creditPerInterval,
+	}
 }
 
 type payPerInterval struct {
