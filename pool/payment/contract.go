@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"context"
 	"errors"
 	"math/big"
 
@@ -34,7 +35,29 @@ type contractPayment struct {
 	backend  bind.ContractBackend
 }
 
-func (p *contractPayment) DepositBalance(account store.Account) (*big.Int, error) {
+func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(account store.Account, amount *big.Int)) error {
+	sink := make(chan *vipnodepool.VipnodePoolBalance, 1)
+	sub, err := p.contract.WatchBalance(&bind.WatchOpts{
+		Context: ctx,
+	}, sink)
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case balanceEvent := <-sink:
+			account := store.Account(balanceEvent.Client.Hex())
+			go handler(account, balanceEvent.Balance)
+		case err := <-sub.Err():
+			return err
+		case <-ctx.Done():
+			sub.Unsubscribe()
+			return ctx.Err()
+		}
+	}
+}
+
+func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	r, err := p.contract.Clients(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
 	if err != nil {
 		return nil, err
