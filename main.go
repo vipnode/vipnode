@@ -62,7 +62,7 @@ type Options struct {
 		TLSHost      string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 		AllowOrigin  string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
 		ContractRPC  string `long:"contract-rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations."`
-		ContractAddr string `long:"contract-address" description:"Deployed contract address, prefixed with network name scheme." default:"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1"`
+		ContractAddr string `long:"contract-address" description:"Deployed contract address, prefixed with network name scheme. (Example: "rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1")`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
 

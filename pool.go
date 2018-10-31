@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/OpenPeeDeeP/xdg"
 	"github.com/dgraph-io/badger"
+	"github.com/ethereum/go-ethereum/common"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/balance"
@@ -57,8 +59,33 @@ func runPool(options Options) error {
 		return errors.New("storage driver not implemented")
 	}
 
+	balanceStore := store.NodeBalanceStore(storeDriver)
+	if options.Pool.ContractAddr != "" {
+		// Payment contract implements NodeBalanceStore used by the balance
+		// manager, but with contract awareness.
+		contractPath, err := url.Parse(options.Pool.ContractAddr)
+		if err != nil {
+			return err
+		}
+
+		contractAddr := common.HexToAddress(contractPath.Hostname())
+		network := contractPath.Scheme
+		nodeRPC, err := findRPC(options.Pool.ContractRPC)
+		if err != nil {
+			return err
+		}
+		// XXX: Check network
+		_ = network
+		contractBackend := nodeRPC.ContractBackend()
+		contract, err := payment.ContractPayment(storeDriver, contractAddr, contractBackend)
+		if err != nil {
+			return err
+		}
+		balanceStore = contract
+	}
+
 	balanceManager := balance.PayPerInterval(
-		storeDriver,
+		balanceStore,
 		time.Minute*1,    // Interval
 		big.NewInt(1000), // Credit per interval
 	)
