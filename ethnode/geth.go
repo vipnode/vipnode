@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -19,6 +21,10 @@ var _ EthNode = &gethNode{}
 
 type gethNode struct {
 	client *rpc.Client
+}
+
+func (n *gethNode) ContractBackend() bind.ContractBackend {
+	return ethclient.NewClient(n.client)
 }
 
 func (n *gethNode) Kind() NodeKind {

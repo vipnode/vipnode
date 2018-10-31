@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -118,6 +119,8 @@ type PeerInfo struct {
 
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
+	ContractBackend() bind.ContractBackend
+
 	// Kind returns the kind of node this is.
 	Kind() NodeKind
 	// Enode returns this node's enode://...

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -15,6 +17,10 @@ type parityPeers struct {
 
 type parityNode struct {
 	client *rpc.Client
+}
+
+func (n *parityNode) ContractBackend() bind.ContractBackend {
+	return ethclient.NewClient(n.client)
 }
 
 func (n *parityNode) Kind() NodeKind {

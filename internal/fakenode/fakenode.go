@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/vipnode/vipnode/ethnode"
 )
 
@@ -34,6 +36,10 @@ type FakeNode struct {
 	Calls           Calls
 	FakePeers       []ethnode.PeerInfo
 	FakeBlockNumber uint64
+}
+
+func (n *FakeNode) ContractBackend() bind.ContractBackend {
+	return &ethclient.Client{}
 }
 
 func (n *FakeNode) Kind() ethnode.NodeKind                    { return n.NodeKind }
