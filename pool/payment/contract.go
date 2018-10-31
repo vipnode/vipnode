@@ -17,22 +17,53 @@ var zeroInt = &big.Int{}
 // is timelocked.
 var ErrDepositTimelocked = errors.New("deposit is timelocked")
 
-// ContractPayment returns an abstraction around a vipnode pool payment contract.
-func ContractPayment(address common.Address, backend bind.ContractBackend) (*contractPayment, error) {
+// ContractPayment returns an abstraction around a vipnode pool payment
+// contract. Contract implements store.NodeBalanceStore.
+func ContractPayment(storeDriver store.BalanceStore, address common.Address, backend bind.ContractBackend) (*contractPayment, error) {
 	contract, err := vipnodepool.NewVipnodePool(address, backend)
 	if err != nil {
 		return nil, err
 	}
 	return &contractPayment{
+		store:    storeDriver,
 		contract: contract,
 		backend:  backend,
 	}, nil
 }
 
+var _ store.NodeBalanceStore = &contractPayment{}
+
 // ContractPayment uses the github.com/vipnode/vipnode-contract smart contract for payment.
 type contractPayment struct {
+	store    store.BalanceStore
 	contract *vipnodepool.VipnodePool
 	backend  bind.ContractBackend
+}
+
+// GetNodeBalance proxies the normal store implementation
+// by adding the contract deposit to the resulting balance.
+func (p *contractPayment) GetNodeBalance(nodeID store.NodeID) (store.Balance, error) {
+	balance, err := p.store.GetNodeBalance(nodeID)
+	if err != nil {
+		return balance, err
+	}
+
+	if len(balance.Account) == 0 {
+		// No account associated, probably on trial
+		return balance, nil
+	}
+
+	// FIXME: Cache this, since it's pretty slow. Use SubscribeBalance to update the cache.
+	deposit, err := p.GetBalance(balance.Account)
+	if err != nil {
+		return balance, err
+	}
+	balance.Deposit = *deposit
+	return balance, nil
+}
+
+func (p *contractPayment) AddNodeBalance(nodeID store.NodeID, credit *big.Int) error {
+	return p.store.AddNodeBalance(nodeID, credit)
 }
 
 func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(account store.Account, amount *big.Int)) error {

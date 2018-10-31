@@ -89,7 +89,8 @@ type PoolStore interface {
 	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []NodeID, err error)
 }
 
-type BalanceStore interface {
+// NodeBalanceStore is a store subset required for the balance manager.
+type NodeBalanceStore interface {
 	// GetNodeBalance returns the current account balance for a node.
 	GetNodeBalance(nodeID NodeID) (Balance, error)
 	// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
@@ -97,6 +98,10 @@ type BalanceStore interface {
 	// it, it should retain a balance, such as through temporary trial accounts
 	// that get migrated later.
 	AddNodeBalance(nodeID NodeID, credit *big.Int) error
+}
+
+type BalanceStore interface {
+	NodeBalanceStore
 
 	// GetAccountBalance returns an account's balance.
 	GetAccountBalance(account Account) (Balance, error)
