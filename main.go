@@ -27,6 +27,7 @@ import (
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/payment"
 )
 
 // Version of the binary, assigned during build.
@@ -61,7 +62,7 @@ type Options struct {
 		DataDir      string `long:"datadir" description:"Path for storing the persistent database."`
 		TLSHost      string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 		AllowOrigin  string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
-		ContractRPC  string `long:"contract-rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations."`
+		ContractRPC  string `long:"contract-rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
 		ContractAddr string `long:"contract-address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
@@ -265,6 +266,7 @@ func main() {
 		pool.SetLogger(logWriter)
 		client.SetLogger(logWriter)
 		host.SetLogger(logWriter)
+		payment.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
 		jsonrpc2.SetLogger(logWriter)
 	}

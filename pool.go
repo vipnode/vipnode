@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -13,6 +14,8 @@ import (
 	"github.com/OpenPeeDeeP/xdg"
 	"github.com/dgraph-io/badger"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/vipnode/vipnode/ethnode"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/balance"
@@ -59,7 +62,7 @@ func runPool(options Options) error {
 		return errors.New("storage driver not implemented")
 	}
 
-	balanceStore := store.NodeBalanceStore(storeDriver)
+	balanceStore := store.BalanceStore(storeDriver)
 	if options.Pool.ContractAddr != "" {
 		// Payment contract implements NodeBalanceStore used by the balance
 		// manager, but with contract awareness.
@@ -70,14 +73,24 @@ func runPool(options Options) error {
 
 		contractAddr := common.HexToAddress(contractPath.Hostname())
 		network := contractPath.Scheme
-		nodeRPC, err := findRPC(options.Pool.ContractRPC)
+		ethclient, err := ethclient.Dial(options.Pool.ContractRPC)
 		if err != nil {
 			return err
 		}
-		// XXX: Check network
-		_ = network
-		contractBackend := nodeRPC.ContractBackend()
-		contract, err := payment.ContractPayment(storeDriver, contractAddr, contractBackend)
+
+		// Confirm we're on the right network
+		gotNetwork, err := ethclient.NetworkID(context.Background())
+		if err != nil {
+			return err
+		}
+		if networkID := ethnode.NetworkID(int(gotNetwork.Int64())); !networkID.Is(network) {
+			return ErrExplain{
+				errors.New("ethereum network mismatch for payment contract"),
+				fmt.Sprintf("Contract is on %q while the Contact RPC is a %q node. Please provide a Contract RPC on the same network as the contract.", network, networkID),
+			}
+		}
+
+		contract, err := payment.ContractPayment(storeDriver, contractAddr, ethclient)
 		if err != nil {
 			return err
 		}
