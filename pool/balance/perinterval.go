@@ -8,7 +8,7 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
-func PayPerInterval(storeDriver store.NodeBalanceStore, interval time.Duration, creditPerInterval *big.Int) *payPerInterval {
+func PayPerInterval(storeDriver store.BalanceStore, interval time.Duration, creditPerInterval *big.Int) *payPerInterval {
 	return &payPerInterval{
 		Store:             storeDriver,
 		Interval:          interval,
@@ -17,7 +17,7 @@ func PayPerInterval(storeDriver store.NodeBalanceStore, interval time.Duration, 
 }
 
 type payPerInterval struct {
-	Store             store.NodeBalanceStore
+	Store             store.BalanceStore
 	Interval          time.Duration
 	CreditPerInterval big.Int
 	now               func() time.Time

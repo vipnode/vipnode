@@ -3,7 +3,9 @@ package payment
 import (
 	"context"
 	"errors"
+	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,7 +21,7 @@ var ErrDepositTimelocked = errors.New("deposit is timelocked")
 
 // ContractPayment returns an abstraction around a vipnode pool payment
 // contract. Contract implements store.NodeBalanceStore.
-func ContractPayment(storeDriver store.BalanceStore, address common.Address, backend bind.ContractBackend) (*contractPayment, error) {
+func ContractPayment(storeDriver store.AccountStore, address common.Address, backend bind.ContractBackend) (*contractPayment, error) {
 	contract, err := vipnodepool.NewVipnodePool(address, backend)
 	if err != nil {
 		return nil, err
@@ -31,11 +33,11 @@ func ContractPayment(storeDriver store.BalanceStore, address common.Address, bac
 	}, nil
 }
 
-var _ store.NodeBalanceStore = &contractPayment{}
+var _ store.BalanceStore = &contractPayment{}
 
 // ContractPayment uses the github.com/vipnode/vipnode-contract smart contract for payment.
 type contractPayment struct {
-	store    store.BalanceStore
+	store    store.AccountStore
 	contract *vipnodepool.VipnodePool
 	backend  bind.ContractBackend
 }
@@ -62,8 +64,30 @@ func (p *contractPayment) GetNodeBalance(nodeID store.NodeID) (store.Balance, er
 	return balance, nil
 }
 
+// AddNodeBalance proxies to the underlying store.BalanceStore
 func (p *contractPayment) AddNodeBalance(nodeID store.NodeID, credit *big.Int) error {
 	return p.store.AddNodeBalance(nodeID, credit)
+}
+
+// GetAccountBalance returns an account's balance, which includes the contract deposit.
+func (p *contractPayment) GetAccountBalance(account store.Account) (store.Balance, error) {
+	balance, err := p.store.GetAccountBalance(account)
+	if err != nil {
+		return balance, err
+	}
+
+	// FIXME: Cache this, since it's pretty slow. Use SubscribeBalance to update the cache.
+	deposit, err := p.GetBalance(balance.Account)
+	if err != nil {
+		return balance, err
+	}
+	balance.Deposit = *deposit
+	return balance, nil
+}
+
+// AddAccountBalance proxies to the underlying store.BalanceStore
+func (p *contractPayment) AddAccountBalance(account store.Account, credit *big.Int) error {
+	return p.store.AddAccountBalance(account, credit)
 }
 
 func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(account store.Account, amount *big.Int)) error {
@@ -89,6 +113,7 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 }
 
 func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
+	timer := time.Now()
 	r, err := p.contract.Clients(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
 	if err != nil {
 		return nil, err
@@ -96,6 +121,7 @@ func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	if r.TimeLocked.Cmp(zeroInt) != 0 {
 		return nil, ErrDepositTimelocked
 	}
+	log.Printf("Retrieved balance for %s in %d: %d", account, time.Now().Sub(timer), r.Balance)
 	return r.Balance, nil
 }
 

@@ -59,7 +59,7 @@ type Node struct {
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
 type Store interface {
 	PoolStore
-	BalanceStore
+	AccountStore
 
 	// Close shuts down or disconnects from the storage driver.
 	Close() error
@@ -89,24 +89,9 @@ type PoolStore interface {
 	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []NodeID, err error)
 }
 
-// NodeBalanceStore is a store subset required for the balance manager.
-type NodeBalanceStore interface {
-	// GetNodeBalance returns the current account balance for a node.
-	GetNodeBalance(nodeID NodeID) (Balance, error)
-	// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
-	// If only a node is provided which doesn't have an account registered to
-	// it, it should retain a balance, such as through temporary trial accounts
-	// that get migrated later.
-	AddNodeBalance(nodeID NodeID, credit *big.Int) error
-}
-
-type BalanceStore interface {
-	NodeBalanceStore
-
-	// GetAccountBalance returns an account's balance.
-	GetAccountBalance(account Account) (Balance, error)
-	// AddNodeBalance adds credit to an account balance. (Can be negative)
-	AddAccountBalance(account Account, credit *big.Int) error
+// AccountStore manages the accounts associated with nodes and their balances.
+type AccountStore interface {
+	BalanceStore
 
 	// AddAccountNode authorizes a nodeID to be a spender of an account's
 	// balance. This should migrate any existing node's balance credit to the
@@ -118,4 +103,20 @@ type BalanceStore interface {
 	// GetSpenders returns the authorized nodeIDs for this account, these are
 	// nodes that were added to accounts through AddAccountNode.
 	GetAccountNodes(account Account) ([]NodeID, error)
+}
+
+// BalanceStore is a store subset required for the balance manager.
+type BalanceStore interface {
+	// GetNodeBalance returns the current account balance for a node.
+	GetNodeBalance(nodeID NodeID) (Balance, error)
+	// AddNodeBalance adds some credit amount to a node's account balance. (Can be negative)
+	// If only a node is provided which doesn't have an account registered to
+	// it, it should retain a balance, such as through temporary trial accounts
+	// that get migrated later.
+	AddNodeBalance(nodeID NodeID, credit *big.Int) error
+
+	// GetAccountBalance returns an account's balance.
+	GetAccountBalance(account Account) (Balance, error)
+	// AddNodeBalance adds credit to an account balance. (Can be negative)
+	AddAccountBalance(account Account, credit *big.Int) error
 }
