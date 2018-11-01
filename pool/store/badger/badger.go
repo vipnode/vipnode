@@ -199,6 +199,10 @@ func (s *badgerStore) GetAccountBalance(account store.Account) (store.Balance, e
 	err := s.db.View(func(txn *badger.Txn) error {
 		return s.getItem(txn, balanceKey, &r)
 	})
+	if err == badger.ErrKeyNotFound {
+		// Default to empty balance
+		return r, nil
+	}
 	return r, err
 }
 
@@ -295,7 +299,9 @@ func (s *badgerStore) GetAccountNodes(account store.Account) ([]store.NodeID, er
 			r = append(r, store.NodeID(key[len(prefix):]))
 		}
 		return nil
-	}); err != nil {
+	}); err == badger.ErrKeyNotFound {
+		return r, nil
+	} else if err != nil {
 		return nil, err
 	}
 	return r, nil
