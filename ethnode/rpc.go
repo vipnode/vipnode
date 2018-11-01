@@ -28,6 +28,27 @@ const (
 	Kovan   NetworkID = 42
 )
 
+func (id NetworkID) String() string {
+	switch id {
+	case Mainnet:
+		return "mainnet"
+	case Morden:
+		return "morden"
+	case Ropsten:
+		return "ropsten"
+	case Rinkeby:
+		return "rinkeby"
+	case Kovan:
+		return "kovan"
+	}
+	return "unknown"
+}
+
+// Is compares the ID to a network name.
+func (id NetworkID) Is(network string) bool {
+	return id.String() == strings.ToLower(network)
+}
+
 func (n NodeKind) String() string {
 	switch n {
 	case Geth:
