@@ -16,11 +16,13 @@ type StatusResponse struct {
 }
 
 type PaymentService struct {
-	Store store.Store
+	NonceStore   store.NonceStore
+	AccountStore store.AccountStore
+	BalanceStore store.BalanceStore
 }
 
 func (p *PaymentService) verify(sig string, method string, wallet string, nonce int64, args ...interface{}) error {
-	if err := p.Store.CheckAndSaveNonce(wallet, nonce); err != nil {
+	if err := p.NonceStore.CheckAndSaveNonce(wallet, nonce); err != nil {
 		return pool.ErrVerifyFailed{Cause: err, Method: method}
 	}
 
@@ -32,11 +34,7 @@ func (p *PaymentService) verify(sig string, method string, wallet string, nonce 
 
 // GetNodes is an *unverified* endpoint for retrieving a list of node shortIDs associated with a wallet.
 func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResponse, error) {
-	nodeIDs, err := p.Store.GetAccountNodes(store.Account(wallet))
-	if err != nil {
-		return nil, err
-	}
-	balance, err := p.Store.GetAccountBalance(store.Account(wallet))
+	balance, err := p.BalanceStore.GetAccountBalance(store.Account(wallet))
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +42,10 @@ func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResp
 		Balance: balance,
 	}
 
+	nodeIDs, err := p.AccountStore.GetAccountNodes(store.Account(wallet))
+	if err != nil {
+		return nil, err
+	}
 	r.NodeShortIDs = make([]string, 0, len(nodeIDs))
 	for _, nodeID := range nodeIDs {
 		r.NodeShortIDs = append(r.NodeShortIDs, string(nodeID)[:12])
@@ -57,7 +59,7 @@ func (p *PaymentService) AddNode(ctx context.Context, sig string, wallet string,
 		return err
 	}
 
-	return p.Store.AddAccountNode(store.Account(wallet), store.NodeID(nodeID))
+	return p.AccountStore.AddAccountNode(store.Account(wallet), store.NodeID(nodeID))
 }
 
 // Withdraw schedules a balance withdraw for an account

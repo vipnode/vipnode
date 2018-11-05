@@ -3,7 +3,6 @@ package payment
 import (
 	"context"
 	"errors"
-	"log"
 	"math/big"
 	"time"
 
@@ -77,7 +76,7 @@ func (p *contractPayment) GetAccountBalance(account store.Account) (store.Balanc
 	}
 
 	// FIXME: Cache this, since it's pretty slow. Use SubscribeBalance to update the cache.
-	deposit, err := p.GetBalance(balance.Account)
+	deposit, err := p.GetBalance(account)
 	if err != nil {
 		return balance, err
 	}
@@ -113,6 +112,9 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 }
 
 func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
+	if account == store.Account("") {
+		return nil, errors.New("failed to get balance: empty account")
+	}
 	timer := time.Now()
 	r, err := p.contract.Clients(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
 	if err != nil {
@@ -121,7 +123,7 @@ func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	if r.TimeLocked.Cmp(zeroInt) != 0 {
 		return nil, ErrDepositTimelocked
 	}
-	log.Printf("Retrieved balance for %s in %d: %d", account, time.Now().Sub(timer), r.Balance)
+	logger.Printf("Retrieved contract balance for %q in %s: %d", account, time.Now().Sub(timer), r.Balance)
 	return r.Balance, nil
 }
 

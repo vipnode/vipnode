@@ -119,7 +119,9 @@ func runPool(options Options) error {
 
 	// Pool payment management API (optional)
 	payment := &payment.PaymentService{
-		Store: storeDriver,
+		NonceStore:   storeDriver,
+		AccountStore: storeDriver,
+		BalanceStore: balanceStore, // Proxy smart contract store if available
 	}
 	if err := handler.Register("pool_", payment); err != nil {
 		return err
