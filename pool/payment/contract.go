@@ -25,20 +25,27 @@ func ContractPayment(storeDriver store.AccountStore, address common.Address, bac
 	if err != nil {
 		return nil, err
 	}
-	return &contractPayment{
+	p := &contractPayment{
 		store:    storeDriver,
 		contract: contract,
 		backend:  backend,
-	}, nil
+	}
+	// Setup cache getter and subscribe to the event-based value fill
+	p.balanceCache.Getter = p.GetBalance
+	if err := p.SubscribeBalance(context.Background(), p.balanceCache.Set); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 var _ store.BalanceStore = &contractPayment{}
 
 // ContractPayment uses the github.com/vipnode/vipnode-contract smart contract for payment.
 type contractPayment struct {
-	store    store.AccountStore
-	contract *vipnodepool.VipnodePool
-	backend  bind.ContractBackend
+	store        store.AccountStore
+	contract     *vipnodepool.VipnodePool
+	backend      bind.ContractBackend
+	balanceCache balanceCache
 }
 
 // GetNodeBalance proxies the normal store implementation
@@ -55,7 +62,7 @@ func (p *contractPayment) GetNodeBalance(nodeID store.NodeID) (store.Balance, er
 	}
 
 	// FIXME: Cache this, since it's pretty slow. Use SubscribeBalance to update the cache.
-	deposit, err := p.GetBalance(balance.Account)
+	deposit, err := p.balanceCache.Get(balance.Account)
 	if err != nil {
 		return balance, err
 	}
@@ -76,7 +83,7 @@ func (p *contractPayment) GetAccountBalance(account store.Account) (store.Balanc
 	}
 
 	// FIXME: Cache this, since it's pretty slow. Use SubscribeBalance to update the cache.
-	deposit, err := p.GetBalance(account)
+	deposit, err := p.balanceCache.Get(account)
 	if err != nil {
 		return balance, err
 	}
@@ -97,18 +104,40 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 	if err != nil {
 		return err
 	}
-	for {
-		select {
-		case balanceEvent := <-sink:
-			account := store.Account(balanceEvent.Client.Hex())
-			go handler(account, balanceEvent.Balance)
-		case err := <-sub.Err():
-			return err
-		case <-ctx.Done():
-			sub.Unsubscribe()
-			return ctx.Err()
+	eventHandler := func() error {
+		for {
+			select {
+			case balanceEvent := <-sink:
+				account := store.Account(balanceEvent.Client.Hex())
+				go handler(account, balanceEvent.Balance)
+			case err := <-sub.Err():
+				return err
+			case <-ctx.Done():
+				sub.Unsubscribe()
+				return ctx.Err()
+			}
 		}
 	}
+	go func() {
+		// FIXME: This is a hacky retry loop because we don't have a convenient
+		// way to bubble up errors. Need to refactor someday.
+		retryTimeout := time.Minute * 10 // Abort if we fail more often than once in 10min
+		var lastErr time.Time
+		for {
+			err := eventHandler()
+			if err == nil {
+				// Clean exit
+				return
+			}
+			logger.Print("SubscribeBalance event handler loop failed: %s", err)
+			if lastErr.Add(retryTimeout).After(time.Now()) {
+				break
+			}
+		}
+		logger.Printf("SubscribeBalance event loop aborted, falling back to expiration cache.")
+		p.balanceCache.Reset(time.Minute * 10)
+	}()
+	return nil
 }
 
 func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {

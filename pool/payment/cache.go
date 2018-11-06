@@ -13,6 +13,8 @@ type balanceItem struct {
 	expire time.Time
 }
 
+// FIXME: Sort of a DOS vector I suppose, since people can fill the memory with
+// a bunch of accounts. Need a cleanup goroutine?
 type balanceCache struct {
 	Getter func(account store.Account) (*big.Int, error)
 
