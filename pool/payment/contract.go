@@ -109,6 +109,7 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 			select {
 			case balanceEvent := <-sink:
 				account := store.Account(balanceEvent.Client.Hex())
+				logger.Printf("SubscribeBalance: Processing event for account: %s", account)
 				go handler(account, balanceEvent.Balance)
 			case err := <-sub.Err():
 				return err
