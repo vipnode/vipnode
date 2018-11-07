@@ -13,6 +13,7 @@ import (
 
 	"github.com/OpenPeeDeeP/xdg"
 	"github.com/dgraph-io/badger"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/vipnode/vipnode/ethnode"
@@ -90,8 +91,29 @@ func runPool(options Options) error {
 			}
 		}
 
-		contract, err := payment.ContractPayment(storeDriver, contractAddr, ethclient)
+		var transactOpts *bind.TransactOpts
+		if options.Pool.ContractKeyStore != "" {
+			transactOpts, err = unlockTransactor(options.Pool.ContractKeyStore)
+			if err != nil {
+				return ErrExplain{
+					err,
+					"Failed to unlock the keystore for the contract operator wallet. Make sure the path is correct and the decryption password is set in the `KEYSTORE_PASSPHRASE` environment variable.",
+				}
+			}
+		}
+
+		if transactOpts == nil {
+			logger.Warningf("Contract payment starting in read-only mode because --contract-keystore was not set. Withdraw and settlement attempts will fail.")
+		}
+
+		contract, err := payment.ContractPayment(storeDriver, contractAddr, ethclient, transactOpts)
 		if err != nil {
+			if err, ok := err.(payment.AddressMismatchError); ok {
+				return ErrExplain{
+					err,
+					"Contract keystore must match the wallet of the contract operator. Make sure you're providing the correct keystore.",
+				}
+			}
 			return err
 		}
 		balanceStore = contract
@@ -140,4 +162,13 @@ func runPool(options Options) error {
 	}
 	logger.Infof("Starting pool (version %s), listening on: %s", Version, options.Pool.Bind)
 	return http.ListenAndServe(options.Pool.Bind, handler)
+}
+
+func unlockTransactor(keystorePath string) (*bind.TransactOpts, error) {
+	pw := os.Getenv("KEYSTORE_PASSPHRASE")
+	r, err := os.Open(keystorePath)
+	if err != nil {
+		return nil, err
+	}
+	return bind.NewTransactor(r, pw)
 }

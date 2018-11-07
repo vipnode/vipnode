@@ -37,7 +37,7 @@ test:
 	go test -vet "all" -timeout 5s -race ./...
 
 stagingpool: $(BINARY)
-	$(RUN) -vv pool --bind "$(FAKEBIND)" --allow-origin "http://localhost:3000" --contract-address="rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1" --contract-rpc="wss://rinkeby.infura.io/ws"
+	$(RUN) -vv pool --bind "$(FAKEBIND)" --allow-origin "http://localhost:3000" --contract-address="rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1" --contract-rpc="wss://rinkeby.infura.io/ws" --contract-keystore="${KEYSTORE_PATH}"
 
 fakepool: $(BINARY)
 	$(RUN) -vv pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000"

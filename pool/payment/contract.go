@@ -3,6 +3,7 @@ package payment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -12,6 +13,17 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+// AddressMismatchError is used when we require a specific address but the wrong one was provided.
+type AddressMismatchError struct {
+	Prelude string
+	Want    common.Address
+	Got     common.Address
+}
+
+func (e AddressMismatchError) Error() string {
+	return fmt.Sprintf("%s: got %q; want %q", e.Prelude, e.Got.Hex(), e.Want.Hex())
+}
+
 var zeroInt = &big.Int{}
 
 // ErrDepositTimelocked is returned when a balance is checked but the deposit
@@ -20,15 +32,31 @@ var ErrDepositTimelocked = errors.New("deposit is timelocked")
 
 // ContractPayment returns an abstraction around a vipnode pool payment
 // contract. Contract implements store.NodeBalanceStore.
-func ContractPayment(storeDriver store.AccountStore, address common.Address, backend bind.ContractBackend) (*contractPayment, error) {
+func ContractPayment(storeDriver store.AccountStore, address common.Address, backend bind.ContractBackend, transactOpts *bind.TransactOpts) (*contractPayment, error) {
 	contract, err := vipnodepool.NewVipnodePool(address, backend)
 	if err != nil {
 		return nil, err
 	}
 	p := &contractPayment{
-		store:    storeDriver,
-		contract: contract,
-		backend:  backend,
+		store:        storeDriver,
+		contract:     contract,
+		backend:      backend,
+		transactOpts: transactOpts,
+	}
+
+	if transactOpts != nil {
+		// Check that the transactor matches the contract operator
+		opAddr, err := contract.Operator(nil)
+		if err != nil {
+			return nil, err
+		}
+		if opAddr != transactOpts.From {
+			return nil, AddressMismatchError{
+				Prelude: "incorrect wallet provided for contract operator",
+				Want:    opAddr,
+				Got:     transactOpts.From,
+			}
+		}
 	}
 	// Setup cache getter and subscribe to the event-based value fill
 	p.balanceCache.Getter = p.GetBalance
@@ -46,6 +74,7 @@ type contractPayment struct {
 	contract     *vipnodepool.VipnodePool
 	backend      bind.ContractBackend
 	balanceCache balanceCache
+	transactOpts *bind.TransactOpts
 }
 
 // GetNodeBalance proxies the normal store implementation
@@ -157,6 +186,14 @@ func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	return r.Balance, nil
 }
 
-func (p *contractPayment) Withdraw(account store.Account, amount *big.Int) (tx string, err error) {
-	return "", errors.New("ContractPayment has not implemented Withdraw")
+func (p *contractPayment) OpSettle(account store.Account, amount *big.Int) (tx string, err error) {
+	if p.transactOpts == nil {
+		return "", errors.New("OpSettle contract write failed: Payment provider is in read-only mode.")
+	}
+	addr := common.HexToAddress(string(account))
+	txn, err := p.contract.OpSettle(p.transactOpts, addr, amount, true)
+	if err != nil {
+		return "", err
+	}
+	return txn.Hash().Hex(), nil
 }
