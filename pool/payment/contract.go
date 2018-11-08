@@ -159,7 +159,7 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 				// Clean exit
 				return
 			}
-			logger.Print("SubscribeBalance event handler loop failed: %s", err)
+			logger.Printf("SubscribeBalance event handler loop failed: %s", err)
 			if lastErr.Add(retryTimeout).After(time.Now()) {
 				break
 			}
@@ -186,12 +186,15 @@ func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	return r.Balance, nil
 }
 
-func (p *contractPayment) OpSettle(account store.Account, amount *big.Int) (tx string, err error) {
+// OpSettle replaces the current on-chain balance for account with newBalance
+// and disburses withdrawAmount to the account wallet.
+func (p *contractPayment) OpSettle(account store.Account, paymentAmount *big.Int, newBalance *big.Int) (tx string, err error) {
 	if p.transactOpts == nil {
 		return "", errors.New("OpSettle contract write failed: Payment provider is in read-only mode.")
 	}
 	addr := common.HexToAddress(string(account))
-	txn, err := p.contract.OpSettle(p.transactOpts, addr, amount, true)
+	// XXX: Port to new contract
+	txn, err := p.contract.OpSettle(p.transactOpts, addr, paymentAmount, true)
 	if err != nil {
 		return "", err
 	}

@@ -3,11 +3,15 @@ package payment
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/request"
 )
+
+var ErrWithdrawDisabled = errors.New("withdraw is disabled")
 
 // StatusResponse is returned on RPC calls to pool_status
 type StatusResponse struct {
@@ -15,10 +19,20 @@ type StatusResponse struct {
 	Balance      store.Balance `json:"balance"`
 }
 
+// PaymentService is an RPC service for managing pool payment-relatd requests.
 type PaymentService struct {
 	NonceStore   store.NonceStore
 	AccountStore store.AccountStore
 	BalanceStore store.BalanceStore
+
+	// Settle is a function that disburses the given paymentAmount and replaces
+	// the current "on-chain" balance with newBalance. It returns a transaction
+	// ID. If nil, then Withdraw calls will error with ErrWithdrawDisabled.
+	Settle func(account store.Account, paymentAmount *big.Int, newBalance *big.Int) (txID string, err error)
+	// WithdrawFee (optional) takes the withdraw total and returns the new total to withdraw (with any fees applied).
+	WithdrawFee func(*big.Int) *big.Int
+	// WithdrawMin (optional) is the minimum amount required to allow a withdraw.
+	WithdrawMin *big.Int
 }
 
 func (p *PaymentService) verify(sig string, method string, wallet string, nonce int64, args ...interface{}) error {
@@ -67,5 +81,33 @@ func (p *PaymentService) Withdraw(ctx context.Context, sig string, wallet string
 	if err := p.verify(sig, "pool_withdraw", wallet, nonce); err != nil {
 		return err
 	}
-	return errors.New("WithdrawRequest: not implemented yet")
+
+	if p.Settle == nil {
+		return ErrWithdrawDisabled
+	}
+
+	account := store.Account(wallet)
+	balance, err := p.BalanceStore.GetAccountBalance(account)
+	if err != nil {
+		return err
+	}
+
+	total := new(big.Int)
+	total.Add(&balance.Deposit, &balance.Credit)
+
+	if p.WithdrawMin != nil && total.Cmp(p.WithdrawMin) < 0 {
+		return fmt.Errorf("withdraw denied: Total balance (%d) is below the minimum required to withdraw (%d)", total, p.WithdrawMin)
+	}
+
+	if p.WithdrawFee != nil {
+		total = p.WithdrawFee(total)
+	}
+
+	newBalance := big.NewInt(0)
+	txID, err := p.Settle(account, total, newBalance)
+	if err != nil {
+		return err
+	}
+	logger.Printf("Withdraw from account %q for %d: %s", account, total, txID)
+	return nil
 }
