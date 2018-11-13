@@ -11,7 +11,19 @@ import (
 	"github.com/vipnode/vipnode/request"
 )
 
+// ErrWithdrawDisabled is returned when the PaymentService is initialized in read-only mode.
 var ErrWithdrawDisabled = errors.New("withdraw is disabled")
+
+// WithdrawBalanceMinimumError is returned when the account balance is below
+// the configured minimum to withdraw.
+type WithdrawBalanceMinimumError struct {
+	Balance *big.Int
+	Minimum *big.Int
+}
+
+func (err WithdrawBalanceMinimumError) Error() string {
+	return fmt.Sprintf("account balance (%d) is below the minimum required to withdraw (%d)", err.Balance, err.Minimum)
+}
 
 // StatusResponse is returned on RPC calls to pool_status
 type StatusResponse struct {
@@ -96,7 +108,10 @@ func (p *PaymentService) Withdraw(ctx context.Context, sig string, wallet string
 	total.Add(&balance.Deposit, &balance.Credit)
 
 	if p.WithdrawMin != nil && total.Cmp(p.WithdrawMin) < 0 {
-		return fmt.Errorf("withdraw denied: Total balance (%d) is below the minimum required to withdraw (%d)", total, p.WithdrawMin)
+		return WithdrawBalanceMinimumError{
+			Balance: total,
+			Minimum: p.WithdrawMin,
+		}
 	}
 
 	if p.WithdrawFee != nil {
