@@ -64,6 +64,7 @@ func runPool(options Options) error {
 	}
 
 	balanceStore := store.BalanceStore(storeDriver)
+	var settleHandler payment.SettleHandler
 	if options.Pool.ContractAddr != "" {
 		// Payment contract implements NodeBalanceStore used by the balance
 		// manager, but with contract awareness.
@@ -117,6 +118,7 @@ func runPool(options Options) error {
 			return err
 		}
 		balanceStore = contract
+		settleHandler = contract.OpSettle
 	}
 
 	balanceManager := balance.PayPerInterval(
@@ -144,6 +146,14 @@ func runPool(options Options) error {
 		NonceStore:   storeDriver,
 		AccountStore: storeDriver,
 		BalanceStore: balanceStore, // Proxy smart contract store if available
+
+		WithdrawFee: func(amount *big.Int) *big.Int {
+			// TODO: Adjust fee dynamically based on gas price?
+			fee := big.NewInt(2500000000000000) // 0.0025 ETH
+			return amount.Sub(amount, fee)
+		},
+		WithdrawMin: big.NewInt(5000000000000000), // 0.005 ETH
+		Settle:      settleHandler,
 	}
 	if err := handler.Register("pool_", payment); err != nil {
 		return err
