@@ -137,7 +137,7 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 		for {
 			select {
 			case balanceEvent := <-sink:
-				account := store.Account(balanceEvent.Client.Hex())
+				account := store.Account(balanceEvent.Account.Hex())
 				logger.Printf("SubscribeBalance: Processing event for account: %s", account)
 				go handler(account, balanceEvent.Balance)
 			case err := <-sub.Err():
@@ -175,7 +175,7 @@ func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 		return nil, errors.New("failed to get balance: empty account")
 	}
 	timer := time.Now()
-	r, err := p.contract.Clients(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
+	r, err := p.contract.Accounts(&bind.CallOpts{Pending: true}, common.HexToAddress(string(account)))
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +193,8 @@ func (p *contractPayment) OpSettle(account store.Account, paymentAmount *big.Int
 		return "", errors.New("OpSettle contract write failed: Payment provider is in read-only mode.")
 	}
 	addr := common.HexToAddress(string(account))
-	// XXX: Port to new contract
-	txn, err := p.contract.OpSettle(p.transactOpts, addr, paymentAmount, true)
+
+	txn, err := p.contract.OpSettle(p.transactOpts, addr, paymentAmount, newBalance)
 	if err != nil {
 		return "", err
 	}

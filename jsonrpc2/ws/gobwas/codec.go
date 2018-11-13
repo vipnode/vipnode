@@ -88,7 +88,7 @@ type Upgrader struct {
 }
 
 func (u *Upgrader) Upgrade(r *http.Request, w http.ResponseWriter, h http.Header) (jsonrpc2.Codec, error) {
-	conn, _, _, err := u.Upgrader.Upgrade(r, w, nil)
+	conn, _, _, err := u.Upgrader.Upgrade(r, w)
 	if err != nil {
 		return nil, err
 	}
