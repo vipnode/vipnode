@@ -93,7 +93,7 @@ func (r AddressRequest) Verify(sig string) error {
 	}
 
 	address := crypto.PubkeyToAddress(*pubkey).String()
-	if address != r.Address {
+	if strings.ToLower(address) != strings.ToLower(r.Address) {
 		return ErrBadSignature
 	}
 	return nil
