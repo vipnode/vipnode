@@ -8,6 +8,7 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+// PayPerInterval creates a balance Manager which implements a pay-per-interval scheme.
 func PayPerInterval(storeDriver store.BalanceStore, interval time.Duration, creditPerInterval *big.Int) *payPerInterval {
 	return &payPerInterval{
 		Store:             storeDriver,
