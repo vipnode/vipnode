@@ -194,6 +194,8 @@ func (p *contractPayment) OpSettle(account store.Account, paymentAmount *big.Int
 	}
 	addr := common.HexToAddress(string(account))
 
+	// TODO: Check balance of transactor/operator before executing transactions.
+	// TODO: p.contract.OpWithdraw occasionally, especially if operator is running low on funds to cover fees.
 	txn, err := p.contract.OpSettle(p.transactOpts, addr, paymentAmount, newBalance)
 	if err != nil {
 		return "", err

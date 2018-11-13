@@ -31,6 +31,10 @@ type StatusResponse struct {
 	Balance      store.Balance `json:"balance"`
 }
 
+// SettleHandler is a function that settles the balance of a given account by
+// updating the internal balance to newBalance and disbursing paymentAmount.
+type SettleHandler func(account store.Account, paymentAmount *big.Int, newBalance *big.Int) (txID string, err error)
+
 // PaymentService is an RPC service for managing pool payment-relatd requests.
 type PaymentService struct {
 	NonceStore   store.NonceStore
@@ -40,7 +44,7 @@ type PaymentService struct {
 	// Settle is a function that disburses the given paymentAmount and replaces
 	// the current "on-chain" balance with newBalance. It returns a transaction
 	// ID. If nil, then Withdraw calls will error with ErrWithdrawDisabled.
-	Settle func(account store.Account, paymentAmount *big.Int, newBalance *big.Int) (txID string, err error)
+	Settle SettleHandler
 	// WithdrawFee (optional) takes the withdraw total and returns the new total to withdraw (with any fees applied).
 	WithdrawFee func(*big.Int) *big.Int
 	// WithdrawMin (optional) is the minimum amount required to allow a withdraw.
