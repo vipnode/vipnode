@@ -48,14 +48,20 @@ func (h *Host) Whitelist(ctx context.Context, nodeID string) error {
 	return h.node.AddTrustedPeer(ctx, nodeID)
 }
 
+// Disconnect a client from this host and remove from whitelist.
+func (h *Host) Disconnect(ctx context.Context, nodeID string) error {
+	logger.Printf("Received disconnect request: %s", nodeID)
+	if err := h.node.RemoveTrustedPeer(ctx, nodeID); err != nil {
+		return err
+	}
+	return h.node.DisconnectPeer(ctx, nodeID)
+}
+
 func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
-	// TODO: Send block number
-	/*
-		block, err := h.node.BlockNumber(ctx)
-		if err != nil {
-			return err
-		}
-	*/
+	block, err := h.node.BlockNumber(ctx)
+	if err != nil {
+		return err
+	}
 
 	peers, err := h.node.Peers(ctx)
 	if err != nil {
@@ -65,7 +71,10 @@ func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
 	for _, peer := range peers {
 		peerUpdate = append(peerUpdate, peer.ID)
 	}
-	update, err := p.Update(ctx, pool.UpdateRequest{Peers: peerUpdate})
+	update, err := p.Update(ctx, pool.UpdateRequest{
+		Peers:       peerUpdate,
+		BlockNumber: block,
+	})
 	if err != nil {
 		return err
 	}
@@ -75,8 +84,11 @@ func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
 	}
 	logger.Printf("Sent pool update: %d peers; Disconnecting from %d invalid peers. Current balance: %s", len(peerUpdate), len(update.InvalidPeers), update.Balance)
 	for _, peerID := range update.InvalidPeers {
+		// FIXME: Are there recoverable errors here?
 		if err := h.node.RemoveTrustedPeer(ctx, peerID); err != nil {
-			// FIXME: Are there recoverable errors here?
+			return err
+		}
+		if err := h.node.DisconnectPeer(ctx, peerID); err != nil {
 			return err
 		}
 	}
@@ -119,7 +131,7 @@ func (h *Host) Start(p pool.Pool) error {
 	logger.Printf("Registered on pool: Version %s", resp.PoolVersion)
 
 	// TODO: Resume tracking peers that we care about (in case of interrupted
-	// shutdown)
+	// shutdown)?
 
 	if err := h.updatePeers(startCtx, p); err != nil {
 		return err
