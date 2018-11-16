@@ -26,7 +26,16 @@ func New(node ethnode.EthNode) *Client {
 type Client struct {
 	ethnode.EthNode
 
-	BalanceCallback *func(store.Balance)
+	// BalanceCallback is called whenever the client receives a balance update
+	// from the pool. It can be used for displaying the current balance to the
+	// client.
+	BalanceCallback func(store.Balance)
+
+	// PoolMessageCallback is called whenever the client receives a message
+	// from the pool. This can be a welcome message including rules and
+	// instructions for how to manage the client's balance. It should be
+	// displayed to the client.
+	PoolMessageCallback func(string)
 
 	connectedHosts []store.Node
 	stopCh         chan struct{}
@@ -49,11 +58,14 @@ func (c *Client) Start(p pool.Pool) error {
 	if err != nil {
 		return err
 	}
+	if resp.Message != "" && c.PoolMessageCallback != nil {
+		c.PoolMessageCallback(resp.Message)
+	}
 	nodes := resp.Hosts
 	if len(nodes) == 0 {
 		return pool.NoHostNodesError{}
 	}
-	logger.Printf("Received %d host candidates, connecting...", len(nodes))
+	logger.Printf("Received %d host candidates from pool (version %s), connecting...", len(nodes), resp.PoolVersion)
 	for _, node := range nodes {
 		if err := c.EthNode.ConnectPeer(starCtx, node.URI); err != nil {
 			return err
@@ -105,7 +117,7 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		return err
 	}
 	if c.BalanceCallback != nil && update.Balance != nil {
-		(*c.BalanceCallback)(*update.Balance)
+		c.BalanceCallback(*update.Balance)
 	}
 
 	var credit *big.Int

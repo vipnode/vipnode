@@ -37,6 +37,9 @@ func runClient(options Options) error {
 
 	errChan := make(chan error)
 	c := client.New(remoteNode)
+	c.PoolMessageCallback = func(msg string) {
+		logger.Alertf("Message from pool: %s", msg)
+	}
 
 	// If we want, we can connect to a vipnode host directly, bypassing the need for a pool.
 	if uri.Scheme == "enode" {
