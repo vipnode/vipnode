@@ -5,26 +5,26 @@ import (
 	"strings"
 )
 
-// ErrNoHostNodes is returned when the pool does not have any hosts available.
-type ErrNoHostNodes struct {
+// NoHostNodesError is returned when the pool does not have any hosts available.
+type NoHostNodesError struct {
 	NumTried int
 }
 
-func (err ErrNoHostNodes) Error() string {
+func (err NoHostNodesError) Error() string {
 	if err.NumTried == 0 {
 		return "no host nodes available"
 	}
 	return fmt.Sprintf("no available host nodes found after trying %d nodes", err.NumTried)
 }
 
-// ErrVerifyFailed is returned when a signature fails to verify. It embeds
+// VerifyFailedError is returned when a signature fails to verify. It embeds
 // the underlying Cause.
-type ErrVerifyFailed struct {
+type VerifyFailedError struct {
 	Cause  error
 	Method string
 }
 
-func (err ErrVerifyFailed) Error() string {
+func (err VerifyFailedError) Error() string {
 	return fmt.Sprintf("method %q failed to verify signature: %s", err.Method, err.Cause)
 }
 

@@ -54,11 +54,11 @@ func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int
 	// TODO: Switch nonce to strictly timestamp within X time
 	// TODO: Switch NodeID to pubkey?
 	if err := p.Store.CheckAndSaveNonce(nodeID, nonce); err != nil {
-		return ErrVerifyFailed{Cause: err, Method: method}
+		return VerifyFailedError{Cause: err, Method: method}
 	}
 
 	if err := request.Verify(sig, method, nodeID, nonce, args...); err != nil {
-		return ErrVerifyFailed{Cause: err, Method: method}
+		return VerifyFailedError{Cause: err, Method: method}
 	}
 	return nil
 }
@@ -238,7 +238,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	}
 	if len(r) == 0 {
 		logger.Printf("New %q client: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
-		return nil, ErrNoHostNodes{}
+		return nil, NoHostNodesError{}
 	}
 
 	if p.skipWhitelist {
@@ -305,7 +305,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		return nil, RemoteHostErrors{"vipnode_whitelist", errors}
 	}
 
-	return nil, ErrNoHostNodes{len(r)}
+	return nil, NoHostNodesError{len(r)}
 }
 
 // Disconnect removes the node from the pool and stops accumulating respective balances.

@@ -51,7 +51,7 @@ func (c *Client) Start(p pool.Pool) error {
 	}
 	nodes := resp.Hosts
 	if len(nodes) == 0 {
-		return pool.ErrNoHostNodes{}
+		return pool.NoHostNodesError{}
 	}
 	logger.Printf("Received %d host candidates, connecting...", len(nodes))
 	for _, node := range nodes {

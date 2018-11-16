@@ -53,11 +53,11 @@ type PaymentService struct {
 
 func (p *PaymentService) verify(sig string, method string, wallet string, nonce int64, args ...interface{}) error {
 	if err := p.NonceStore.CheckAndSaveNonce(wallet, nonce); err != nil {
-		return pool.ErrVerifyFailed{Cause: err, Method: method}
+		return pool.VerifyFailedError{Cause: err, Method: method}
 	}
 
 	if err := request.Verify(sig, method, wallet, nonce, args...); err != nil {
-		return pool.ErrVerifyFailed{Cause: err, Method: method}
+		return pool.VerifyFailedError{Cause: err, Method: method}
 	}
 	return nil
 }

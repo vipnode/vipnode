@@ -209,7 +209,7 @@ func subcommand(cmd string, options Options) error {
 			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry.Cause)
 		} else if _, ok := err.(net.Error); ok {
 			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, err)
-		} else if err.Error() == (pool.ErrNoHostNodes{}).Error() {
+		} else if err.Error() == (pool.NoHostNodesError{}).Error() {
 			logger.Warningf("Pool does not have available hosts, retrying in %s...", waitTime)
 		} else {
 			return err
@@ -297,7 +297,7 @@ func main() {
 		case jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams:
 			err = ErrExplain{err, `Missing a required RPC method. Make sure your Ethereum node is up to date.`}
 		case jsonrpc2.ErrCodeInternal:
-			if err.Error() == (pool.ErrNoHostNodes{}).Error() {
+			if err.Error() == (pool.NoHostNodesError{}).Error() {
 				err = ErrExplain{err, `The pool does not have any hosts who are ready to serve your kind of client right now. Try again later or contact the pool operator for help.`}
 				break
 			}
