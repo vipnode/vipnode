@@ -28,18 +28,19 @@ func (err ErrVerifyFailed) Error() string {
 	return fmt.Sprintf("method %q failed to verify signature: %s", err.Method, err.Cause)
 }
 
-// ErrConnectFailed is returned when connect fails to
-// whitelist the client on remote hosts.
-type ErrConnectFailed struct {
+// RemoteHostErrors is used when a subset of RPC calls to hosts fail.
+type RemoteHostErrors struct {
+	Method string
 	Errors []error
 }
 
-func (err ErrConnectFailed) Error() string {
+func (err RemoteHostErrors) Error() string {
 	if len(err.Errors) == 0 {
-		return "no host connection errors"
+		return "no remote host errors"
 	}
+
 	var s strings.Builder
-	fmt.Fprintf(&s, "failed to connect to %d hosts: ", len(err.Errors))
+	fmt.Fprintf(&s, "failed to call %q on %d hosts: ", err.Method, len(err.Errors))
 	for i, e := range err.Errors {
 		s.WriteString(e.Error())
 		if i != len(err.Errors)-1 {

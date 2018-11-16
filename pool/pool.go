@@ -22,8 +22,15 @@ type ClientRequest struct {
 }
 
 type ClientResponse struct {
-	Hosts       []store.Node `json:"hosts"`
-	PoolVersion string       `json:"pool_version"`
+	// Hosts that have whitelisted the client NodeID and are ready for the
+	// client to connect.
+	Hosts []store.Node `json:"hosts"`
+	// PoolVersion is the version of vipnode-pool that is running.
+	PoolVersion string `json:"pool_version"`
+	// Message contains a prompt for the client from the pool, possibly
+	// instructions for interfacing with this pool. For example, a link to the
+	// DApp for adding a balance deposit.
+	Message string `json:"message"`
 }
 
 type UpdateRequest struct {

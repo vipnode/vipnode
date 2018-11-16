@@ -36,10 +36,15 @@ const poolWhitelistTimeout = 5 * time.Second
 
 // VipnodePool implements a Pool service with balance tracking.
 type VipnodePool struct {
-	Version        string
+	// Version is returned as the PoolVersion in the ClientResponse when a new client connects.
+	Version string
+
 	Store          store.Store
 	BalanceManager balance.Manager
-	skipWhitelist  bool
+	ClientMessager func(nodeID string) string
+
+	// skipWhitelist is used for testing.
+	skipWhitelist bool
 
 	mu          sync.Mutex
 	remoteHosts map[store.NodeID]jsonrpc2.Service
@@ -54,6 +59,39 @@ func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int
 
 	if err := request.Verify(sig, method, nodeID, nonce, args...); err != nil {
 		return ErrVerifyFailed{Cause: err, Method: method}
+	}
+	return nil
+}
+
+func (p *VipnodePool) disconnectPeers(ctx context.Context, nodeID string, peers []store.Node) error {
+	callCtx, cancel := context.WithTimeout(ctx, poolWhitelistTimeout)
+	defer cancel()
+	errCh := make(chan error, 1)
+	count := 0
+	p.mu.Lock()
+	for _, peer := range peers {
+		if remote, ok := p.remoteHosts[peer.ID]; ok {
+			count += 1
+			go func() {
+				errCh <- remote.Call(callCtx, nil, "vipnode_disconnect", nodeID)
+			}()
+		}
+	}
+	p.mu.Unlock()
+
+	errors := []error{}
+	for i := 0; i < count; i++ {
+		err := <-errCh
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	if len(errors) > 0 {
+		return RemoteHostErrors{
+			Method: "vipnode_disconnect",
+			Errors: errors,
+		}
 	}
 	return nil
 }
@@ -91,16 +129,24 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	// FIXME: Is there a bug here when a host is connected to another host?
 	// TODO: Test InvalidPeers
 
-	balance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
+	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
 	if err != nil {
+		if _, ok := err.(balance.LowBalanceError); ok {
+			disconnectErr := p.disconnectPeers(ctx, nodeID, validPeers)
+			if disconnectErr != nil {
+				logger.Printf("Client disconnect due to low balance: %q; disconnect RPC errors: %s", pretty.Abbrev(nodeID), disconnectErr)
+			} else {
+				logger.Printf("Client disconnect due to low balance: %q", pretty.Abbrev(nodeID))
+			}
+		}
 		return nil, err
 	}
-	resp.Balance = &balance
+	resp.Balance = &nodeBalance
 
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &balance.Credit)
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &nodeBalance.Credit)
 	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &balance.Credit)
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &nodeBalance.Credit)
 
 	}
 
@@ -165,8 +211,26 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	}
 
 	kind := req.Kind
-	// TODO: Unhardcode this
+	// TODO: Unhardcode this, maybe add to ClientRequest (but limit to some number)
 	numRequestHosts := 3
+
+	response := &ClientResponse{
+		PoolVersion: p.Version,
+	}
+
+	node := store.Node{
+		ID:       store.NodeID(nodeID),
+		Kind:     kind,
+		LastSeen: time.Now(),
+		IsHost:   false,
+	}
+	if err := p.Store.SetNode(node); err != nil {
+		return nil, err
+	}
+
+	if err := p.BalanceManager.OnClient(node); err != nil {
+		return nil, err
+	}
 
 	r, err := p.Store.ActiveHosts(kind, numRequestHosts)
 	if err != nil {
@@ -179,7 +243,8 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 
 	if p.skipWhitelist {
 		logger.Printf("New %q client: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
-		return &ClientResponse{Hosts: r}, nil
+		response.Hosts = r
+		return response, nil
 	}
 
 	errors := []error{}
@@ -196,18 +261,6 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		}
 	}
 	p.mu.Unlock()
-
-	// FIXME: Node should already be registered at this point?
-	node := store.Node{
-		ID:       store.NodeID(nodeID),
-		Kind:     kind,
-		LastSeen: time.Now(),
-		IsHost:   false,
-	}
-	// TODO: Connect with balance out of band
-	if err := p.Store.SetNode(node); err != nil {
-		return nil, err
-	}
 
 	accepted := make([]store.Node, 0, len(remotes))
 	callCtx, cancel := context.WithTimeout(ctx, poolWhitelistTimeout)
@@ -238,17 +291,18 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	// TODO: Penalize hosts that failed to respond within the deadline?
 
 	if len(errors) > 0 {
-		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), ErrConnectFailed{errors})
+		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), RemoteHostErrors{"vipnode_whitelist", errors})
 	} else {
 		logger.Printf("New %q client: %s (%d hosts found, %d accepted)", kind, nodeID[:8], len(remotes), len(accepted))
 	}
 
 	if len(accepted) >= 1 {
-		return &ClientResponse{Hosts: accepted}, nil
+		response.Hosts = accepted
+		return response, nil
 	}
 
 	if len(errors) > 0 {
-		return nil, ErrConnectFailed{errors}
+		return nil, RemoteHostErrors{"vipnode_whitelist", errors}
 	}
 
 	return nil, ErrNoHostNodes{len(r)}
