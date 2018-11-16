@@ -8,3 +8,7 @@ type NoBalance struct{}
 func (b NoBalance) OnUpdate(node store.Node, peers []store.Node) (store.Balance, error) {
 	return store.Balance{}, nil
 }
+
+func (b NoBalance) OnClient(node store.Node) error {
+	return nil
+}
