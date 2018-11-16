@@ -217,6 +217,9 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	response := &ClientResponse{
 		PoolVersion: p.Version,
 	}
+	if p.ClientMessager != nil {
+		response.Message = p.ClientMessager(nodeID)
+	}
 
 	node := store.Node{
 		ID:       store.NodeID(nodeID),

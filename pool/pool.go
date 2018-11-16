@@ -30,7 +30,7 @@ type ClientResponse struct {
 	// Message contains a prompt for the client from the pool, possibly
 	// instructions for interfacing with this pool. For example, a link to the
 	// DApp for adding a balance deposit.
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 }
 
 type UpdateRequest struct {

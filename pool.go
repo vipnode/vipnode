@@ -129,6 +129,11 @@ func runPool(options Options) error {
 
 	p := pool.New(storeDriver, balanceManager)
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
+	p.ClientMessager = func(nodeID string) string {
+		// FIXME: Unhardcode this. Maybe make it a flag, but realistically we
+		// might need a config file for pools at this point.
+		return fmt.Sprintf("\x1b[31m 👑 Welcome to the demo vipnode pool! 👑 \x1b[0m You can manage your account balance here: https://vipnode.org/pool/?enode=%s", nodeID)
+	}
 	handler := &server{
 		ws:     &ws.Upgrader{},
 		header: http.Header{},
