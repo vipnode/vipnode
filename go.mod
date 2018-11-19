@@ -9,11 +9,11 @@ require (
 	github.com/cespare/cp v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
-	github.com/dgraph-io/badger v1.5.5-0.20181001185807-03870e34f2f1
+	github.com/dgraph-io/badger v1.5.5-0.20181004181505-439fd464b155
 	github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v0.0.0-20170320065105-0bce6a688712 // indirect
-	github.com/ethereum/go-ethereum v1.8.17
+	github.com/ethereum/go-ethereum v1.8.18
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gobwas/httphead v0.0.0-20180130184737-2c6c146eadee // indirect
@@ -41,10 +41,10 @@ require (
 	github.com/syndtr/goleveldb v0.0.0-20181105012736-f9080354173f // indirect
 	github.com/vipnode/vipnode-contract v0.2.1
 	golang.org/x/crypto v0.0.0-20181112202954-3d3f9f413869
-	golang.org/x/net v0.0.0-20181108082009-03003ca0c849 // indirect
+	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f
-	golang.org/x/sys v0.0.0-20181107165924-66b7b1311ac8 // indirect
-	golang.org/x/tools v0.0.0-20181113152950-150d8ac28524 // indirect
+	golang.org/x/sys v0.0.0-20181116161606-93218def8b18 // indirect
+	golang.org/x/tools v0.0.0-20181119181722-6dfe7efaa95e // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
