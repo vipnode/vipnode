@@ -52,6 +52,9 @@ build() {
         ln -f $assets "$outdir"
     fi
 
+    # Rename binary (xgo generates BINARY-OS-VERSION-ARCH binaries).
+    mv $outdir/$bin-* $outdir/$bin
+
     # Create tarball
     tar -C "$BUILDDIR" -czvf "$BUILDDIR/$tarball" "$tardir"
 
