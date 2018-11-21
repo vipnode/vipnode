@@ -30,12 +30,12 @@ func ServePipe() (*Remote, *Remote) {
 	return &server, &client
 }
 
-// ErrContextMissingValue is returned when a context is missing an expected value.
-type ErrContextMissingValue struct {
+// ContextMissingValueError is returned when a context is missing an expected value.
+type ContextMissingValueError struct {
 	Key serviceContext
 }
 
-func (err ErrContextMissingValue) Error() string {
+func (err ContextMissingValueError) Error() string {
 	return fmt.Sprintf("context missing value: %s", err.Key)
 }
 
@@ -48,7 +48,7 @@ var ctxService serviceContext = "service"
 func CtxService(ctx context.Context) (Service, error) {
 	s, ok := ctx.Value(ctxService).(Service)
 	if !ok {
-		return nil, ErrContextMissingValue{ctxService}
+		return nil, ContextMissingValueError{ctxService}
 	}
 	return s, nil
 }
