@@ -19,10 +19,9 @@ type client struct {
 	expire time.Time
 }
 
-func New(nodeURI string, node ethnode.EthNode, payout string) *Host {
+func New(node ethnode.EthNode, payout string) *Host {
 	return &Host{
 		node:   node,
-		uri:    nodeURI,
 		payout: payout,
 		stopCh: make(chan struct{}),
 		waitCh: make(chan error, 1),
@@ -35,8 +34,14 @@ type HostService interface {
 
 // Host represents a single vipnode host.
 type Host struct {
+	// NodeURI can be used to set the enode:// connection string that
+	// the pool should advertise to clients. Normally, the pool will
+	// automatically deduce this string from the connection IP and nodeID, but
+	// we can provide an override if there is a non-standard port or if the
+	// node runs on a different IP from the vipnode agent.
+	NodeURI string
+
 	node   ethnode.EthNode
-	uri    string
 	payout string
 	stopCh chan struct{}
 	waitCh chan error
@@ -122,7 +127,7 @@ func (h *Host) Start(p pool.Pool) error {
 	hostReq := pool.HostRequest{
 		Kind:    h.node.Kind().String(),
 		Payout:  h.payout,
-		NodeURI: h.uri,
+		NodeURI: h.NodeURI,
 	}
 	resp, err := p.Host(startCtx, hostReq)
 	if err != nil {

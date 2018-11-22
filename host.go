@@ -25,9 +25,6 @@ func runHost(options Options) error {
 	}
 	// Confirm that nodeID matches the private key
 	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
-	if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
-		return err
-	}
 	remoteEnode, err := remoteNode.Enode(context.Background())
 	if err != nil {
 		return err
@@ -40,7 +37,13 @@ func runHost(options Options) error {
 		logger.Warning("No --payout address provided, will not receive pool payments.")
 	}
 
-	h := host.New(options.Host.NodeURI, remoteNode, options.Host.Payout)
+	h := host.New(remoteNode, options.Host.Payout)
+	if options.Host.NodeURI != "" {
+		if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
+			return err
+		}
+		h.NodeURI = options.Host.NodeURI
+	}
 
 	if options.Host.Pool == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.

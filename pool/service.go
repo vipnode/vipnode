@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -164,12 +165,12 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		return nil, err
 	}
 
-	remoteAddr := ""
+	remoteHost := ""
 	if withAddr, ok := service.(interface{ RemoteAddr() string }); ok {
-		remoteAddr = withAddr.RemoteAddr()
+		remoteHost = (&url.URL{Host: withAddr.RemoteAddr()}).Hostname()
 	}
-	remotePort := "30303"
-	nodeURI, err := normalizeNodeURI(req.NodeURI, nodeID, remoteAddr, remotePort)
+	defaultPort := "30303"
+	nodeURI, err := normalizeNodeURI(req.NodeURI, nodeID, remoteHost, defaultPort)
 	if err != nil {
 		return nil, err
 	}

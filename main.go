@@ -52,7 +52,7 @@ type Options struct {
 		Pool    string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
 		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
 		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
-		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to."`
+		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
 		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
 	} `command:"host" description:"Host a vipnode."`
 
