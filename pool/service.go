@@ -3,7 +3,6 @@ package pool
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sync"
 	"time"
 
@@ -160,39 +159,39 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 		return nil, err
 	}
 
-	kind, payout, nodeURI := req.Kind, req.Payout, req.NodeURI
-	// Confirm that nodeURI matches nodeID
-	uri, err := url.Parse(nodeURI)
+	service, err := jsonrpc2.CtxService(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if uri.User.Username() != nodeID {
-		return nil, fmt.Errorf("nodeID %q does not match nodeURI: %s", pretty.Abbrev(nodeID), nodeURI)
+	remoteAddr := ""
+	if withAddr, ok := service.(interface{ RemoteAddr() string }); ok {
+		remoteAddr = withAddr.RemoteAddr()
+	}
+	remotePort := "30303"
+	nodeURI, err := normalizeNodeURI(req.NodeURI, nodeID, remoteAddr, remotePort)
+	if err != nil {
+		return nil, err
 	}
 
-	// XXX: Confirm that it's a full node, not a light node.
+	// TODO: Confirm that it's a full node, not a light node? Doesn't super matter since if i
 	// XXX: Check versions
 
-	logger.Printf("New %q host: %q", kind, nodeURI)
+	logger.Printf("New %q host: %q", req.Kind, nodeURI)
 
 	node := store.Node{
 		ID:       store.NodeID(nodeID),
 		URI:      nodeURI,
-		Kind:     kind,
+		Kind:     req.Kind,
 		LastSeen: time.Now(),
 		IsHost:   true,
-		Payout:   store.Account(payout),
+		Payout:   store.Account(req.Payout),
 	}
 	err = p.Store.SetNode(node)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := jsonrpc2.CtxService(ctx)
-	if err != nil {
-		return nil, err
-	}
 	// FIXME: Clean up disconnected hosts
 	p.mu.Lock()
 	p.remoteHosts[node.ID] = service

@@ -6,11 +6,19 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+// TODO: Add HostRequest.Network and ClientRequest.Network?
+// TODO: Add HostRequest.HostVersion?
+
 // HostRequest is the request format for Host RPC calls.
 type HostRequest struct {
-	Kind    string `json:"kind"`
-	Payout  string `json:"payout"`
-	NodeURI string `json:"node_uri"`
+	// Kind is the type of node the host supports: geth, parity
+	Kind string `json:"kind"`
+	// Payout sets the wallet account to register the host credit towards.
+	Payout string `json:"payout"`
+	// Optional public node URI override, useful if the vipnode agent runs on a
+	// separate IP from the actual node host. Otherwise, the pool will
+	// automatically use the same IP and default port as the host connecting.
+	NodeURI string `json:"node_uri,omitempty"`
 }
 
 type HostResponse struct {

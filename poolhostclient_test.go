@@ -31,7 +31,7 @@ func TestPoolHostClient(t *testing.T) {
 
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
-	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1", hostNodeID)
+	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", hostNodeID)
 	h := host.New(hostNodeURI, hostNode, payout)
 	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
 		t.Fatalf("failed to register vipnode_ rpc for host: %s", err)
