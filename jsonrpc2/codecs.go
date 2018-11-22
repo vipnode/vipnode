@@ -30,7 +30,12 @@ func IOCodec(rwc io.ReadWriteCloser) *jsonCodec {
 }
 
 type jsonCodec struct {
-	rwc io.ReadWriteCloser
+	rwc        io.ReadWriteCloser
+	remoteAddr string
+}
+
+func (codec *jsonCodec) RemoteAddr() string {
+	return codec.remoteAddr
 }
 
 func (codec *jsonCodec) ReadMessage() (*Message, error) {

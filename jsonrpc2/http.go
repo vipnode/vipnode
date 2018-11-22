@@ -43,7 +43,11 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = io.LimitReader(r.Body, h.MaxContentLength)
 	}
 
-	codec := IOCodec(rwc{body, w, r.Body})
+	codec := &jsonCodec{
+		rwc:        rwc{body, w, r.Body},
+		remoteAddr: r.RemoteAddr,
+	}
+
 	defer codec.Close()
 	msg, err := codec.ReadMessage()
 	if err != nil {

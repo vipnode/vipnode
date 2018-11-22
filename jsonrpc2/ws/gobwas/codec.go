@@ -32,9 +32,10 @@ func clientWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateClientSide)
 	w := wsutil.NewWriter(conn, ws.StateClientSide, ws.OpBinary)
 	return &wsCodec{
-		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
-		r:     r,
-		w:     w,
+		inner:      jsonrpc2.IOCodec(rwc{r, w, conn}),
+		r:          r,
+		w:          w,
+		remoteAddr: conn.RemoteAddr().String(),
 	}
 }
 
@@ -44,18 +45,24 @@ func serverWebSocketCodec(conn net.Conn) jsonrpc2.Codec {
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary)
 	return &wsCodec{
-		inner: jsonrpc2.IOCodec(rwc{r, w, conn}),
-		r:     r,
-		w:     w,
+		inner:      jsonrpc2.IOCodec(rwc{r, w, conn}),
+		r:          r,
+		w:          w,
+		remoteAddr: conn.RemoteAddr().String(),
 	}
 }
 
 var _ jsonrpc2.Codec = &wsCodec{}
 
 type wsCodec struct {
-	inner jsonrpc2.Codec
-	r     *wsutil.Reader
-	w     *wsutil.Writer
+	inner      jsonrpc2.Codec
+	r          *wsutil.Reader
+	w          *wsutil.Writer
+	remoteAddr string
+}
+
+func (codec *wsCodec) RemoteAddr() string {
+	return codec.remoteAddr
 }
 
 func (codec *wsCodec) ReadMessage() (*jsonrpc2.Message, error) {

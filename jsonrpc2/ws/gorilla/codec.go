@@ -40,6 +40,10 @@ type wsCodec struct {
 	conn    *websocket.Conn
 }
 
+func (codec *wsCodec) RemoteAddr() string {
+	return codec.conn.RemoteAddr().String()
+}
+
 func (codec *wsCodec) ReadMessage() (*jsonrpc2.Message, error) {
 	codec.muRead.Lock()
 	defer codec.muRead.Unlock()
