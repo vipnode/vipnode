@@ -18,6 +18,7 @@ type Codec interface {
 	ReadMessage() (*Message, error)
 	WriteMessage(*Message) error
 	Close() error
+	RemoteAddr() string
 }
 
 var _ Codec = &jsonCodec{}
