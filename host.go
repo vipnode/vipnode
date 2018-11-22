@@ -43,6 +43,10 @@ func runHost(options Options) error {
 			return err
 		}
 		h.NodeURI = options.Host.NodeURI
+	} else {
+		// This will populate all the fields except the host, which is fine
+		// because the pool will use the connection's ip as the host.
+		h.NodeURI = remoteEnode
 	}
 
 	if options.Host.Pool == ":memory:" {
