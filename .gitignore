@@ -1,3 +1,4 @@
 /vipnode
 .*
 /nodekey
+/*.config

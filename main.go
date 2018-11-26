@@ -37,8 +37,10 @@ var rpcTimeout = time.Second * 5
 
 // Options contains the flag options
 type Options struct {
-	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logging."`
-	Version bool   `long:"version" description:"Print version and exit."`
+	Config      string `long:"config" description:"Load configuration from file. (Use --print-config for an example)"`
+	PrintConfig bool   `long:"print-config" description:"Print the current configuration to stdout."`
+	Verbose     []bool `short:"v" long:"verbose" description:"Show verbose logging."`
+	Version     bool   `long:"version" description:"Print version and exit."`
 
 	Client struct {
 		Args struct {
@@ -236,6 +238,7 @@ func subcommand(cmd string, options Options) error {
 func main() {
 	options := Options{}
 	parser := flags.NewParser(&options, flags.Default)
+	parser.Groups()[0].ShortDescription = "vipnode"
 	parser.SubcommandsOptional = true
 	p, err := parser.Parse()
 	if err != nil {
@@ -250,6 +253,13 @@ func main() {
 			}
 		}
 		return
+	}
+
+	if options.Config != "" {
+		ini := flags.NewIniParser(parser)
+		if err := ini.ParseFile(options.Config); err != nil {
+			exit(1, "Failed to parse config: %s", err)
+		}
 	}
 
 	if options.Version {
@@ -279,6 +289,13 @@ func main() {
 
 	if !strings.HasPrefix(Version, "v") || strings.HasPrefix(Version, "v0.") {
 		logger.Warningf("This is a pre-release version (%s). It can stop working at any time.", Version)
+	}
+
+	if options.PrintConfig {
+		options.PrintConfig = false // Silly to include this in the example config
+		ini := flags.NewIniParser(parser)
+		ini.Write(os.Stdout, flags.IniIncludeDefaults|flags.IniIncludeComments)
+		return
 	}
 
 	cmd := "client"
