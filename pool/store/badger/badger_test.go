@@ -79,13 +79,13 @@ func TestBadgerHelpers(t *testing.T) {
 		Amount: *big.NewInt(42),
 	}
 	if err := store.db.Update(func(txn *badger.Txn) error {
-		return store.setItem(txn, []byte("a"), &a)
+		return setItem(txn, []byte("a"), &a)
 	}); err != nil {
 		t.Fatal(err)
 	}
 	aa := Foo{}
 	if err := store.db.View(func(txn *badger.Txn) error {
-		return store.getItem(txn, []byte("a"), &aa)
+		return getItem(txn, []byte("a"), &aa)
 	}); err != nil {
 		t.Fatal(err)
 	}
