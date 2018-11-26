@@ -57,14 +57,19 @@ type Options struct {
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
-		Bind             string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
-		Store            string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
-		DataDir          string `long:"datadir" description:"Path for storing the persistent database."`
-		TLSHost          string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
-		AllowOrigin      string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
-		ContractRPC      string `long:"contract-rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
-		ContractAddr     string `long:"contract-address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
-		ContractKeyStore string `long:"contract-keystore" description:"Path to encrypted JSON wallet keystore for contract operator. (Password set in KEYSTORE_PASSPHRASE env)"`
+		Bind        string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
+		Store       string `long:"store" description:"Storage driver. (persist|memory)" default:"persist"`
+		DataDir     string `long:"datadir" description:"Path for storing the persistent database."`
+		TLSHost     string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
+		AllowOrigin string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
+		Contract    struct {
+			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
+			Addr       string `long:"address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
+			KeyStore   string `long:"keystore" description:"Path to encrypted JSON wallet keystore for contract operator. (Password set in KEYSTORE_PASSPHRASE env)"`
+			Price      string `long:"price" description:"Price per minute (in wei)." default:"1000"`
+			MinBalance string `long:"min-balance" description:"Minimum balance required to join as a client (in wei)." default:"1000"`
+			Welcome    string `long:"welcome" description:"Welcome message for clients. (Example: \"Welcome, {{.NodeID}}\")"`
+		} `group:"contract" namespace:"contract"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
 }
 

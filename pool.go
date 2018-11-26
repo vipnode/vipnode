@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/OpenPeeDeeP/xdg"
@@ -25,6 +28,8 @@ import (
 	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
 	"golang.org/x/crypto/acme/autocert"
 )
+
+const defaultWelcomeMsg = "\x1b[31m 👑 Welcome to the demo vipnode pool! 👑 \x1b[0m You can manage your account balance here: https://vipnode.org/pool/?enode={{.NodeID}}"
 
 // findDataDir returns a valid data dir, will create it if it doesn't
 // exist.
@@ -65,17 +70,17 @@ func runPool(options Options) error {
 
 	balanceStore := store.BalanceStore(storeDriver)
 	var settleHandler payment.SettleHandler
-	if options.Pool.ContractAddr != "" {
+	if options.Pool.Contract.Addr != "" {
 		// Payment contract implements NodeBalanceStore used by the balance
 		// manager, but with contract awareness.
-		contractPath, err := url.Parse(options.Pool.ContractAddr)
+		contractPath, err := url.Parse(options.Pool.Contract.Addr)
 		if err != nil {
 			return err
 		}
 
 		contractAddr := common.HexToAddress(contractPath.Hostname())
 		network := contractPath.Scheme
-		ethclient, err := ethclient.Dial(options.Pool.ContractRPC)
+		ethclient, err := ethclient.Dial(options.Pool.Contract.RPC)
 		if err != nil {
 			return err
 		}
@@ -93,8 +98,8 @@ func runPool(options Options) error {
 		}
 
 		var transactOpts *bind.TransactOpts
-		if options.Pool.ContractKeyStore != "" {
-			transactOpts, err = unlockTransactor(options.Pool.ContractKeyStore)
+		if options.Pool.Contract.KeyStore != "" {
+			transactOpts, err = unlockTransactor(options.Pool.Contract.KeyStore)
 			if err != nil {
 				return ErrExplain{
 					err,
@@ -121,22 +126,51 @@ func runPool(options Options) error {
 		settleHandler = contract.OpSettle
 	}
 
-	creditPerInterval := big.NewInt(1000)
+	price, err := strconv.ParseInt(options.Pool.Contract.Price, 0, 64)
+	if err != nil {
+		return err
+	}
+	minBalance, err := strconv.ParseInt(options.Pool.Contract.MinBalance, 0, 64)
+	if err != nil {
+		return err
+	}
+
+	// Setup balance manager
+	creditPerInterval := big.NewInt(price)
 	balanceManager := balance.PayPerInterval(
 		balanceStore,
 		time.Minute*1, // Interval
 		creditPerInterval,
 	)
-	// Assume min balance is an interval's worth, to avoid going insolvent.
-	balanceManager.MinBalance = creditPerInterval
+	balanceManager.MinBalance = big.NewInt(minBalance)
+
+	// Setup welcome message template
+	welcomeMsg := defaultWelcomeMsg
+	if options.Pool.Contract.Welcome != "" {
+		welcomeMsg = options.Pool.Contract.Welcome
+	}
+
+	welcomeTmpl, err := template.New("vipnode_welcome").Parse(welcomeMsg)
+	if err != nil {
+		return err
+	}
 
 	p := pool.New(storeDriver, balanceManager)
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 	p.ClientMessager = func(nodeID string) string {
-		// FIXME: Unhardcode this. Maybe make it a flag, but realistically we
-		// might need a config file for pools at this point.
-		return fmt.Sprintf("\x1b[31m 👑 Welcome to the demo vipnode pool! 👑 \x1b[0m You can manage your account balance here: https://vipnode.org/pool/?enode=%s", nodeID)
+		var buf bytes.Buffer
+		err := welcomeTmpl.Execute(&buf, struct {
+			NodeID string
+		}{
+			NodeID: nodeID,
+		})
+		if err != nil {
+			// TODO: Should this be recoverable? What conditions would cause this?
+			logger.Errorf("ClientMessager failed: %s", err)
+		}
+		return buf.String()
 	}
+
 	handler := &server{
 		ws:     &ws.Upgrader{},
 		header: http.Header{},
