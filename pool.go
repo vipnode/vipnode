@@ -121,11 +121,14 @@ func runPool(options Options) error {
 		settleHandler = contract.OpSettle
 	}
 
+	creditPerInterval := big.NewInt(1000)
 	balanceManager := balance.PayPerInterval(
 		balanceStore,
-		time.Minute*1,    // Interval
-		big.NewInt(1000), // Credit per interval
+		time.Minute*1, // Interval
+		creditPerInterval,
 	)
+	// Assume min balance is an interval's worth, to avoid going insolvent.
+	balanceManager.MinBalance = creditPerInterval
 
 	p := pool.New(storeDriver, balanceManager)
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
