@@ -14,17 +14,39 @@ func TestMigration(t *testing.T) {
 	defer store.Close()
 	db := store.db
 
-	err = db.View(func(txn *badger.Txn) error {
-		version, err := getVersion(txn)
-		if err != nil {
+	if err = db.View(func(txn *badger.Txn) error {
+		return checkVersion(txn, dbVersion)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	testNonceKey := []byte("vip:nonce:testtesttest")
+	if err = db.Update(func(txn *badger.Txn) error {
+		if err := setVersion(txn, 1); err != nil {
 			return err
 		}
-		if version != dbVersion {
-			t.Errorf("incorrect version on fresh database: %d", version)
+		if err := setItem(txn, testNonceKey, 42); err != nil {
+			return err
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Confirm that migration nukes vip:nonce
+	if err := MigrateLatest(db, "testdb"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = db.View(func(txn *badger.Txn) error {
+		if err := checkVersion(txn, 2); err != nil {
+			t.Error(err)
+		}
+		if hasKey(txn, testNonceKey) {
+			t.Errorf("nonce key is present after migation")
+		}
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 }

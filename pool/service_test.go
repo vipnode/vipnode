@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/internal/keygen"
@@ -23,7 +24,7 @@ func TestPoolInstance(t *testing.T) {
 	req := request.NodeRequest{
 		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
-		Nonce:  42,
+		Nonce:  time.Now().UnixNano(),
 		ExtraArgs: []interface{}{
 			ClientRequest{Kind: "geth"},
 		},
@@ -58,7 +59,7 @@ func TestPoolService(t *testing.T) {
 	req := request.NodeRequest{
 		Method: "vipnode_client",
 		NodeID: discv5.PubkeyID(&privkey.PublicKey).String(),
-		Nonce:  42,
+		Nonce:  time.Now().UnixNano(),
 		ExtraArgs: []interface{}{
 			ClientRequest{Kind: "geth"},
 		},

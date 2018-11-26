@@ -1,23 +1,34 @@
 package badger
 
 import (
-	"errors"
-
 	"github.com/dgraph-io/badger"
 )
 
-const dbVersion = 1
+const dbVersion = 2
 
 var migrations = [dbVersion]MigrationStep{
 	// Version 0 -> 1
 	func(txn *badger.Txn) error {
-		version, err := getVersion(txn)
-		if err != nil {
+		if err := checkVersion(txn, 0); err != nil {
 			return err
 		}
-		if version != 0 {
-			return errors.New("wrong version for migration")
-		}
 		return setVersion(txn, 1)
+	},
+
+	// Version 1 -> 2 (added TTL to nonces, so we just nuke the table)
+	func(txn *badger.Txn) error {
+		if err := checkVersion(txn, 1); err != nil {
+			return err
+		}
+
+		prefix := []byte("vip:nonce:")
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			key := it.Item().Key()
+			txn.Delete(key)
+		}
+
+		return setVersion(txn, 2)
 	},
 }

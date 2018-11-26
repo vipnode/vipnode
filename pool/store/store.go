@@ -12,6 +12,11 @@ const KeepaliveInterval = 60 * time.Second
 
 const ExpireInterval = KeepaliveInterval * 2
 
+// ExpireNonce as non-zero forces nonces to be nanosecond unix timestamps
+// within 15 minutes of now. This allows us to discard old nonces more
+// aggressively. Skewed clocks will get invalid nonce errors.
+const ExpireNonce = 15 * time.Minute
+
 // FIXME: placeholder types, replace with go-ethereum types
 
 type Account string // TODO: Switch to common.Address?

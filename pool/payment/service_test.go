@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/vipnode/vipnode/internal/keygen"
@@ -68,7 +69,8 @@ func TestPaymentWithdraw(t *testing.T) {
 		}
 		return sig
 	}
-	err := p.Withdraw(context.Background(), getSig(1), wallet, 1)
+	nonce := time.Now().UnixNano()
+	err := p.Withdraw(context.Background(), getSig(nonce), wallet, nonce)
 	if _, ok := err.(WithdrawBalanceMinimumError); !ok {
 		t.Errorf("expected WithdrawBalanceMinimumError error, got: %s", err)
 	}
@@ -77,7 +79,8 @@ func TestPaymentWithdraw(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := p.Withdraw(context.Background(), getSig(2), wallet, 2); err != nil {
+	nonce++
+	if err := p.Withdraw(context.Background(), getSig(nonce), wallet, nonce); err != nil {
 		t.Error(err)
 	}
 

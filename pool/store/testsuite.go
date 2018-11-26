@@ -32,19 +32,26 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		defer s.Close()
 
 		nodeID := "abc"
-		if err := s.CheckAndSaveNonce(nodeID, 42); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
-		if err := s.CheckAndSaveNonce(nodeID, 45); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
-		if err := s.CheckAndSaveNonce(nodeID, 43); err != ErrInvalidNonce {
+
+		oldNonce := time.Now().Add(-2 * time.Hour).UnixNano()
+		if err := s.CheckAndSaveNonce(nodeID, oldNonce); err != ErrInvalidNonce {
 			t.Errorf("missing invalid nonce error: %s", err)
 		}
-		if err := s.CheckAndSaveNonce(nodeID, 45); err != ErrInvalidNonce {
+
+		nonce := time.Now().UnixNano()
+		if err := s.CheckAndSaveNonce(nodeID, nonce); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+		if err := s.CheckAndSaveNonce(nodeID, nonce+1); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+		if err := s.CheckAndSaveNonce(nodeID, nonce-1); err != ErrInvalidNonce {
 			t.Errorf("missing invalid nonce error: %s", err)
 		}
-		if err := s.CheckAndSaveNonce("def", 42); err != nil {
+		if err := s.CheckAndSaveNonce(nodeID, nonce); err != ErrInvalidNonce {
+			t.Errorf("missing invalid nonce error: %s", err)
+		}
+		if err := s.CheckAndSaveNonce("def", nonce+100); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
 	})

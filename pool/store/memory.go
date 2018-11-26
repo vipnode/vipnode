@@ -48,9 +48,13 @@ type memoryStore struct {
 
 // CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
+	if ExpireNonce > 0 && nonce <= time.Now().Add(-ExpireNonce).UnixNano() {
+		// Nonce is too old
+		return ErrInvalidNonce
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	if s.nonces[ID] >= nonce {
 		return ErrInvalidNonce
 	}

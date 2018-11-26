@@ -28,7 +28,10 @@ func Open(opts badger.Options) (*badgerStore, error) {
 		return nil, err
 	}
 
-	s := &badgerStore{db: db}
+	s := &badgerStore{
+		db:          db,
+		nonceExpire: store.ExpireNonce,
+	}
 
 	return s, nil
 }
@@ -37,6 +40,8 @@ var _ store.Store = &badgerStore{}
 
 type badgerStore struct {
 	db *badger.DB
+
+	nonceExpire time.Duration
 }
 
 func (s *badgerStore) Close() error {
@@ -44,8 +49,13 @@ func (s *badgerStore) Close() error {
 }
 
 func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
-	// TODO: Check nonce timestamp as timestamp, reject if beyond some age, and
-	// add TTL to nonce store. (Use SetWithTTL)
+	// If nonceExpire is set, nonce should be within nonceExpire of now.
+	if s.nonceExpire > 0 {
+		if nonce <= time.Now().Add(-s.nonceExpire).UnixNano() {
+			// Nonce is too old
+			return store.ErrInvalidNonce
+		}
+	}
 	key := []byte(fmt.Sprintf("vip:nonce:%s", ID))
 	return s.db.Update(func(txn *badger.Txn) error {
 		var lastNonce int64
@@ -57,6 +67,9 @@ func (s *badgerStore) CheckAndSaveNonce(ID string, nonce int64) error {
 			return err
 		}
 
+		if s.nonceExpire > 0 {
+			return setExpiringItem(txn, key, &nonce, s.nonceExpire)
+		}
 		return setItem(txn, key, &nonce)
 	})
 }

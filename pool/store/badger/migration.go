@@ -86,6 +86,17 @@ func (m *Migration) Migrate(db *badger.DB) error {
 	})
 }
 
+func checkVersion(txn *badger.Txn, assertVersion int) error {
+	version, err := getVersion(txn)
+	if err != nil {
+		return err
+	}
+	if version != assertVersion {
+		return errors.New("wrong version for migration")
+	}
+	return nil
+}
+
 func getVersion(txn *badger.Txn) (int, error) {
 	versionKey := []byte("vip:version")
 	var version int

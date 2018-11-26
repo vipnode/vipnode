@@ -3,6 +3,7 @@ package badger
 import (
 	"bytes"
 	"encoding/gob"
+	"time"
 
 	"github.com/dgraph-io/badger"
 )
@@ -28,4 +29,12 @@ func setItem(txn *badger.Txn, key []byte, val interface{}) error {
 		return err
 	}
 	return txn.Set(key, buf.Bytes())
+}
+
+func setExpiringItem(txn *badger.Txn, key []byte, val interface{}, expire time.Duration) error {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(val); err != nil {
+		return err
+	}
+	return txn.SetWithTTL(key, buf.Bytes(), expire)
 }
