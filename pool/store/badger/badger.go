@@ -283,7 +283,7 @@ func (s *badgerStore) ActiveHosts(kind string, limit int) ([]store.Node, error) 
 	if err != nil {
 		return nil, err
 	}
-	if len(r) < limit {
+	if limit > 0 && len(r) < limit {
 		// Skip shuffle since it's a subset
 		return r, nil
 	}
