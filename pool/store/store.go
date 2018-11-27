@@ -53,12 +53,13 @@ func (b *Balance) String() string {
 
 // Node stores metadata requires for tracking full nodes.
 type Node struct {
-	ID       NodeID
-	URI      string    `json:"uri"`
-	LastSeen time.Time `json:"last_seen"`
-	Kind     string    `json:"kind"`
-	IsHost   bool
-	Payout   Account
+	ID          NodeID
+	URI         string    `json:"uri"`
+	LastSeen    time.Time `json:"last_seen"`
+	Kind        string    `json:"kind"`
+	IsHost      bool
+	Payout      Account
+	BlockNumber uint64 `json:"block_number"`
 }
 
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
@@ -94,7 +95,7 @@ type PoolStore interface {
 	// of which client is connected to which host. Any missing peer is removed
 	// from the known peers and returned. It also updates nodeID's
 	// LastSeen.
-	UpdateNodePeers(nodeID NodeID, peers []string) (inactive []NodeID, err error)
+	UpdateNodePeers(nodeID NodeID, peers []string, blockNumber uint64) (inactive []NodeID, err error)
 }
 
 // AccountStore manages the accounts associated with nodes and their balances.

@@ -138,7 +138,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		if _, err := s.NodePeers(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
-		if _, err := s.UpdateNodePeers(node.ID, []string{"def"}); err != ErrUnregisteredNode {
+		if _, err := s.UpdateNodePeers(node.ID, []string{"def"}, 0); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
 
@@ -156,7 +156,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 
 		// peer1 is not a known node, so it will be ignored
 		peers := []string{nodes[1].ID.String()}
-		if inactive, err := s.UpdateNodePeers(node.ID, peers); err != nil {
+		if inactive, err := s.UpdateNodePeers(node.ID, peers, 0); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
 			t.Errorf("unexpected peers: %v", inactive)
@@ -171,7 +171,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		if inactive, err := s.UpdateNodePeers(node.ID, newPeers); err != nil {
+		if inactive, err := s.UpdateNodePeers(node.ID, newPeers, 0); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
 			t.Errorf("unexpected peers: %v", inactive)

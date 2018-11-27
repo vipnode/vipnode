@@ -110,7 +110,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	nodeBeforeUpdate := *node
 
 	peers := req.Peers
-	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers)
+	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers, req.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

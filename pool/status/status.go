@@ -12,11 +12,11 @@ import (
 
 // Host is a public view of a hosting node.
 type Host struct {
-	ShortID  string    `json:"short_id"`
-	LastSeen time.Time `json:"last_seen"`
-	Kind     string    `json:"kind"`
+	ShortID     string    `json:"short_id"`
+	LastSeen    time.Time `json:"last_seen"`
+	Kind        string    `json:"kind"`
+	BlockNumber uint64    `json:"block_number"`
 
-	// TODO: Add latest block
 	// TODO: Add peers
 }
 
@@ -26,9 +26,10 @@ func nodeHost(n store.Node) Host {
 		shortID = shortID[:12]
 	}
 	return Host{
-		ShortID:  shortID,
-		LastSeen: n.LastSeen,
-		Kind:     n.Kind,
+		ShortID:     shortID,
+		LastSeen:    n.LastSeen,
+		Kind:        n.Kind,
+		BlockNumber: n.BlockNumber,
 	}
 }
 

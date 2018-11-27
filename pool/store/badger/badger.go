@@ -283,7 +283,7 @@ func (s *badgerStore) ActiveHosts(kind string, limit int) ([]store.Node, error) 
 	if err != nil {
 		return nil, err
 	}
-	if limit > 0 && len(r) < limit {
+	if limit <= 0 || len(r) < limit {
 		// Skip shuffle since it's a subset
 		return r, nil
 	}
@@ -351,7 +351,7 @@ func (s *badgerStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
 	return r, err
 }
 
-func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inactive []store.NodeID, err error) {
+func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) (inactive []store.NodeID, err error) {
 	nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
 	peersKey := []byte(fmt.Sprintf("vip:peers:%s", nodeID))
 	now := time.Now()
@@ -366,6 +366,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string) (inac
 		}
 
 		node.LastSeen = now
+		node.BlockNumber = blockNumber
 		if err := setItem(txn, nodeKey, &node); err != nil {
 			return err
 		}

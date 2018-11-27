@@ -263,7 +263,7 @@ func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp
 // of nodes we know about. This is used as a keepalive, and to keep track of
 // which client is connected to which host.
-func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string) ([]NodeID, error) {
+func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber uint64) ([]NodeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
