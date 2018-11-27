@@ -9,7 +9,7 @@ import (
 // TODO: Add HostRequest.Network and ClientRequest.Network?
 // TODO: Add HostRequest.HostVersion?
 
-// HostRequest is the request format for Host RPC calls.
+// HostRequest is the request type for Host RPC calls.
 type HostRequest struct {
 	// Kind is the type of node the host supports: geth, parity
 	Kind string `json:"kind"`
@@ -21,14 +21,17 @@ type HostRequest struct {
 	NodeURI string `json:"node_uri,omitempty"`
 }
 
+// HostResponse is the response type for Host RPC calls.
 type HostResponse struct {
 	PoolVersion string `json:"pool_version"`
 }
 
+// ClientRequest is the request type for Client RPC calls.
 type ClientRequest struct {
 	Kind string `json:"kind"`
 }
 
+// ClientResponse is the response type for Client RPC calls.
 type ClientResponse struct {
 	// Hosts that have whitelisted the client NodeID and are ready for the
 	// client to connect.
@@ -41,11 +44,13 @@ type ClientResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// UpdateRequest is the request type for Update RPC calls.
 type UpdateRequest struct {
 	Peers       []string `json:"peers"`
 	BlockNumber uint64   `json:"block_number"`
 }
 
+// UpdateResponse is the response type for Update RPC calls.
 type UpdateResponse struct {
 	Balance      *store.Balance `json:"balance,omitempty"`
 	InvalidPeers []string       `json:"invalid_peers"`
