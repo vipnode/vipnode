@@ -311,16 +311,6 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	return nil, NoHostNodesError{len(r)}
 }
 
-// Disconnect removes the node from the pool and stops accumulating respective balances.
-func (p *VipnodePool) Disconnect(ctx context.Context, sig string, nodeID string, nonce int64) error {
-	if err := p.verify(sig, "vipnode_disconnect", nodeID, nonce); err != nil {
-		return err
-	}
-
-	// TODO: ...
-	return nil
-}
-
 // Ping returns "pong", used for testing.
 func (p *VipnodePool) Ping(ctx context.Context) string {
 	return "pong"
