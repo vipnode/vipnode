@@ -25,8 +25,8 @@ func (err WithdrawBalanceMinimumError) Error() string {
 	return fmt.Sprintf("account balance (%d) is below the minimum required to withdraw (%d)", err.Balance, err.Minimum)
 }
 
-// StatusResponse is returned on RPC calls to pool_status
-type StatusResponse struct {
+// AccountResponse is returned on RPC calls to pool_account
+type AccountResponse struct {
 	NodeShortIDs []string      `json:"node_short_ids"`
 	Balance      store.Balance `json:"balance"`
 }
@@ -62,13 +62,14 @@ func (p *PaymentService) verify(sig string, method string, wallet string, nonce 
 	return nil
 }
 
-// GetNodes is an *unverified* endpoint for retrieving a list of node shortIDs associated with a wallet.
-func (p *PaymentService) Status(ctx context.Context, wallet string) (*StatusResponse, error) {
+// Account is an *unverified* endpoint for retrieving the balance and list of
+// node shortIDs associated with a wallet.
+func (p *PaymentService) Account(ctx context.Context, wallet string) (*AccountResponse, error) {
 	balance, err := p.BalanceStore.GetAccountBalance(store.Account(wallet))
 	if err != nil {
 		return nil, err
 	}
-	r := &StatusResponse{
+	r := &AccountResponse{
 		Balance: balance,
 	}
 
