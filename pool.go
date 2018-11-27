@@ -24,6 +24,7 @@ import (
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/balance"
 	"github.com/vipnode/vipnode/pool/payment"
+	"github.com/vipnode/vipnode/pool/status"
 	"github.com/vipnode/vipnode/pool/store"
 	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
 	"golang.org/x/crypto/acme/autocert"
@@ -198,6 +199,17 @@ func runPool(options Options) error {
 		Settle:      settleHandler,
 	}
 	if err := handler.Register("pool_", payment); err != nil {
+		return err
+	}
+
+	// Pool status dashboard API
+	dashboard := &status.PoolStatus{
+		Store:         storeDriver,
+		TimeStarted:   time.Now(),
+		Version:       Version,
+		CacheDuration: time.Minute * 1,
+	}
+	if err := handler.Register("pool_", dashboard); err != nil {
 		return err
 	}
 
