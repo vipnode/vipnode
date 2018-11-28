@@ -79,18 +79,36 @@ func TestBadgerHelpers(t *testing.T) {
 		Amount: *big.NewInt(42),
 	}
 	if err := store.db.Update(func(txn *badger.Txn) error {
-		return setItem(txn, []byte("a"), &a)
+		return setItem(txn, []byte("someprefix:a"), &a)
 	}); err != nil {
 		t.Fatal(err)
 	}
 	aa := Foo{}
 	if err := store.db.View(func(txn *badger.Txn) error {
-		return getItem(txn, []byte("a"), &aa)
+		return getItem(txn, []byte("someprefix:a"), &aa)
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(a, aa) {
-		t.Errorf("got: %v; want %v", aa, aa)
+		t.Errorf("got: %v; want %v", aa, a)
+	}
+
+	numItems := 0
+	aaa := Foo{}
+	if err := store.db.View(func(txn *badger.Txn) error {
+		return loopItem(txn, []byte("someprefix:"), &aaa, func() error {
+			numItems += 1
+			if !reflect.DeepEqual(a, aaa) {
+				t.Errorf("got: %v; want %v", aaa, a)
+			}
+			return nil
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if numItems != 1 {
+		t.Error("loopItem failed to find prefix")
 	}
 }
 

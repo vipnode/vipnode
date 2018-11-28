@@ -401,3 +401,31 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 	})
 	return
 }
+
+// Stats returns aggregate statistics about the store state.
+func (s *badgerStore) Stats() (*store.Stats, error) {
+	stats := store.Stats{}
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		var n store.Node
+		if err := loopItem(txn, []byte("vip:node:"), &n, func() error {
+			stats.CountNode(n)
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		var b store.Balance
+		countBalance := func() error { stats.CountBalance(b); return nil }
+		if err := loopItem(txn, []byte("vip:balance:"), &b, countBalance); err != nil {
+			return err
+		}
+		if err := loopItem(txn, []byte("vip:trial:"), &b, countBalance); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return &stats, err
+}

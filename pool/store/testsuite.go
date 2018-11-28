@@ -108,7 +108,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		if b, err := s.GetNodeBalance(node.ID); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if b.Credit.Cmp(big.NewInt(45)) != 0 {
-			t.Errorf("returned nwrong balance: %v", b)
+			t.Errorf("wrong balance: %v", b)
 		}
 
 		// Test subtracting and negative
@@ -118,13 +118,27 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		if b, err := s.GetNodeBalance(node.ID); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if b.Credit.Cmp(big.NewInt(-5)) != 0 {
-			t.Errorf("returned nwrong balance: %v", b)
+			t.Errorf("wrong balance: %v", b)
 		}
 
 		if b, err := s.GetNodeBalance(othernode.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		} else if b.Credit.Cmp(big.NewInt(0)) != 0 {
 			t.Errorf("returned non-empty balance: %v", b)
+		}
+
+		gotStats, err := s.Stats()
+		if err != nil {
+			t.Error(err)
+		}
+		wantStats := &Stats{
+			NumTotalClients:  1,
+			TotalCredit:      *big.NewInt(-5),
+			NumTrialBalances: 1,
+		}
+		wantStats.activeSince = gotStats.activeSince
+		if !reflect.DeepEqual(gotStats, wantStats) {
+			t.Errorf("wrong stats:\n got: %+v;\nwant: %+v", gotStats, wantStats)
 		}
 	})
 
@@ -217,6 +231,21 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(hosts) != 2 {
 			t.Errorf("wrong number of hosts: %d", len(hosts))
+		}
+
+		gotStats, err := s.Stats()
+		if err != nil {
+			t.Error(err)
+		}
+		wantStats := &Stats{
+			NumTotalHosts:    6,
+			NumActiveHosts:   4,
+			NumTotalClients:  1,
+			NumActiveClients: 0,
+		}
+		wantStats.activeSince = gotStats.activeSince
+		if !reflect.DeepEqual(gotStats, wantStats) {
+			t.Errorf("wrong stats:\n got: %+v;\nwant: %+v", gotStats, wantStats)
 		}
 	})
 

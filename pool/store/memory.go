@@ -21,7 +21,6 @@ func MemoryStore() *memoryStore {
 type memNode struct {
 	Node
 
-	// FIXME: These shouldn't be part of store.Node, but a separate memory store Node wrapper.
 	peers map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
 }
 
@@ -304,6 +303,25 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber
 
 	s.nodes[nodeID] = node
 	return inactive, nil
+}
+
+// Stats returns aggregate statistics about the store state.
+func (s *memoryStore) Stats() (*Stats, error) {
+	stats := Stats{}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, n := range s.nodes {
+		stats.CountNode(n.Node)
+	}
+	for _, b := range s.balances {
+		stats.CountBalance(b)
+	}
+	for _, b := range s.trials {
+		stats.CountBalance(b)
+	}
+	return &stats, nil
 }
 
 func (s *memoryStore) Close() error {

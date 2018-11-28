@@ -62,11 +62,62 @@ type Node struct {
 	BlockNumber uint64 `json:"block_number"`
 }
 
+// Stats contains various aggregate stats of the store state, used for
+// providing a dashboard.
+type Stats struct {
+	NumActiveHosts    int     `json:"num_active_hosts"`
+	NumTotalHosts     int     `json:"num_total_hosts"`
+	NumActiveClients  int     `json:"num_active_clients"`
+	NumTotalClients   int     `json:"num_total_clients"`
+	LatestBlockNumber uint64  `json:"latest_block_number"`
+	TotalCredit       big.Int `json:"total_credit"`
+	TotalDeposit      big.Int `json:"total_deposit"`
+	NumTrialBalances  int     `json:"num_trial_balances"`
+
+	activeSince time.Time
+}
+
+// CountNode is a helper for aggregating node-related stats. It is not
+// goroutine-safe.
+func (stats *Stats) CountNode(n Node) {
+	if stats.activeSince.IsZero() {
+		stats.activeSince = time.Now().Add(-ExpireInterval)
+	}
+	isActive := n.LastSeen.After(stats.activeSince)
+	if n.IsHost {
+		stats.NumTotalHosts += 1
+		if isActive {
+			stats.NumActiveHosts += 1
+		}
+	} else {
+		stats.NumTotalClients = 1
+		if isActive {
+			stats.NumActiveClients += 1
+		}
+	}
+	if n.BlockNumber > stats.LatestBlockNumber {
+		n.BlockNumber = stats.LatestBlockNumber
+	}
+}
+
+// CountBalance is a helper for aggregating balance-related stats. It is not
+// goroutine-safe.
+func (s *Stats) CountBalance(b Balance) {
+	s.TotalCredit.Add(&s.TotalCredit, &b.Credit)
+	s.TotalDeposit.Add(&s.TotalDeposit, &b.Deposit)
+	if b.Account == "" {
+		s.NumTrialBalances += 1
+	}
+}
+
 // Store is the storage interface used by VipnodePool. It should be goroutine-safe.
 type Store interface {
 	NonceStore
 	PoolStore
 	AccountStore
+
+	// Stats returns aggregate statistics about the store state.
+	Stats() (*Stats, error)
 
 	// Close shuts down or disconnects from the storage driver.
 	Close() error
