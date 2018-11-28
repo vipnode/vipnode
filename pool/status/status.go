@@ -48,6 +48,9 @@ type StatusResponse struct {
 	// ActiveHosts is a list of participating hosts who have been seen recently.
 	ActiveHosts []Host `json:"active_hosts"`
 
+	// Stats contains aggregate statistics about the state of the store.
+	Stats *store.Stats `json:"stats"`
+
 	// Error is set if the last cache update attempt failed and the
 	// timestamp was extended.
 	Error error `json:"error,omitempty"`
@@ -79,6 +82,13 @@ func (s *PoolStatus) getStatus() (*StatusResponse, error) {
 		TimeStarted: s.TimeStarted,
 		Version:     s.Version,
 	}
+
+	stats, err := s.Store.Stats()
+	if err != nil {
+		r.Error = err
+		return r, err
+	}
+	r.Stats = stats
 
 	nodes, err := s.Store.ActiveHosts("", 0)
 	if err != nil {
