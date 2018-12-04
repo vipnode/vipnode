@@ -2,11 +2,14 @@ package status
 
 import (
 	"context"
+	"math/big"
 	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/pool/store"
 )
+
+const statusTimeout = time.Second * 10
 
 // TODO: Support event sub?
 
@@ -62,6 +65,12 @@ type StatusResponse struct {
 type PoolStatus struct {
 	Store store.Store
 
+	// GetTotalDeposit returns the total available deposits in the pool. If
+	// provided, then it will override the total deposit that is computed from
+	// the store.Store. This is useful when there is an external deposit
+	// balance (such as a smart contract).
+	GetTotalDeposit func(context.Context) (*big.Int, error)
+
 	// TimeStarted is the time when the server was started.
 	TimeStarted time.Time
 
@@ -89,6 +98,16 @@ func (s *PoolStatus) getStatus() (*StatusResponse, error) {
 		return r, err
 	}
 	r.Stats = stats
+
+	if s.GetTotalDeposit != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), statusTimeout)
+		totalDeposit, err := s.GetTotalDeposit(ctx)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		r.Stats.TotalDeposit = *totalDeposit
+	}
 
 	nodes, err := s.Store.ActiveHosts("", 0)
 	if err != nil {

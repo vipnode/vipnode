@@ -71,6 +71,7 @@ func runPool(options Options) error {
 
 	balanceStore := store.BalanceStore(storeDriver)
 	var settleHandler payment.SettleHandler
+	var depositGetter func(ctx context.Context) (*big.Int, error)
 	if options.Pool.Contract.Addr != "" {
 		// Payment contract implements NodeBalanceStore used by the balance
 		// manager, but with contract awareness.
@@ -125,6 +126,10 @@ func runPool(options Options) error {
 		}
 		balanceStore = contract
 		settleHandler = contract.OpSettle
+
+		depositGetter = func(ctx context.Context) (*big.Int, error) {
+			return ethclient.PendingBalanceAt(ctx, contractAddr)
+		}
 	}
 
 	price, err := strconv.ParseInt(options.Pool.Contract.Price, 0, 64)
@@ -204,10 +209,11 @@ func runPool(options Options) error {
 
 	// Pool status dashboard API
 	dashboard := &status.PoolStatus{
-		Store:         storeDriver,
-		TimeStarted:   time.Now(),
-		Version:       Version,
-		CacheDuration: time.Minute * 1,
+		Store:           storeDriver,
+		GetTotalDeposit: depositGetter,
+		TimeStarted:     time.Now(),
+		Version:         Version,
+		CacheDuration:   time.Minute * 1,
 	}
 	if err := handler.Register("pool_", dashboard); err != nil {
 		return err

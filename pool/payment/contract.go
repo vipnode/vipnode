@@ -39,6 +39,7 @@ func ContractPayment(storeDriver store.AccountStore, address common.Address, bac
 	}
 	p := &contractPayment{
 		store:        storeDriver,
+		address:      address,
 		contract:     contract,
 		backend:      backend,
 		transactOpts: transactOpts,
@@ -71,6 +72,7 @@ var _ store.BalanceStore = &contractPayment{}
 // ContractPayment uses the github.com/vipnode/vipnode-contract smart contract for payment.
 type contractPayment struct {
 	store        store.AccountStore
+	address      common.Address
 	contract     *vipnodepool.VipnodePool
 	backend      bind.ContractBackend
 	balanceCache balanceCache
@@ -170,6 +172,7 @@ func (p *contractPayment) SubscribeBalance(ctx context.Context, handler func(acc
 	return nil
 }
 
+// GetBalance returns the unlocked deposit balance for an account.
 func (p *contractPayment) GetBalance(account store.Account) (*big.Int, error) {
 	if account == store.Account("") {
 		return nil, errors.New("failed to get balance: empty account")

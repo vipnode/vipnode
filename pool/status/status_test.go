@@ -1,13 +1,33 @@
 package status
 
 import (
+	"bytes"
 	"context"
-	"reflect"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/vipnode/vipnode/pool/store"
 )
+
+func compareJSON(t *testing.T, got, want interface{}) {
+	t.Helper()
+
+	gotBytes, err := json.Marshal(got)
+	if err != nil {
+		t.Errorf("compareJSON: failed to marshal got value: %s", err)
+		return
+	}
+	wantBytes, err := json.Marshal(want)
+	if err != nil {
+		t.Errorf("compareJSON: failed to marshal want value: %s", err)
+		return
+	}
+
+	if bytes.Compare(gotBytes, wantBytes) != 0 {
+		t.Errorf("compareJSON failed:\n got: %s\nwant: %s", gotBytes, wantBytes)
+	}
+}
 
 func TestPoolStatus(t *testing.T) {
 	now := time.Now()
@@ -27,13 +47,12 @@ func TestPoolStatus(t *testing.T) {
 		TimeUpdated: r.TimeUpdated,
 		TimeStarted: now,
 		Version:     "foo",
+		Stats:       &store.Stats{},
 		ActiveHosts: []Host{},
 		Error:       nil,
 	}
 
-	if !reflect.DeepEqual(r, expected) {
-		t.Errorf("incorrect status response:\n got: %v;\nwant: %v", r, expected)
-	}
+	compareJSON(t, r, expected)
 
 	hostNode := store.Node{ID: "12345678901234567890", IsHost: true, Kind: "geth", LastSeen: now}
 	if err := s.Store.SetNode(hostNode); err != nil {
@@ -46,9 +65,7 @@ func TestPoolStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(r, expected) {
-		t.Errorf("expected cached response:\n got: %v;\nwant: %v", r, expected)
-	}
+	compareJSON(t, r, expected)
 
 	// Disable cache and try again
 	s.CacheDuration = 0
@@ -62,6 +79,10 @@ func TestPoolStatus(t *testing.T) {
 		TimeUpdated: r.TimeUpdated,
 		TimeStarted: now,
 		Version:     "foo",
+		Stats: &store.Stats{
+			NumTotalHosts:  1,
+			NumActiveHosts: 1,
+		},
 		ActiveHosts: []Host{
 			Host{
 				ShortID:  "123456789012",
@@ -72,7 +93,5 @@ func TestPoolStatus(t *testing.T) {
 		Error: nil,
 	}
 
-	if !reflect.DeepEqual(r, expected) {
-		t.Errorf("incorrect status response:\n got: %v;\nwant: %v", r, expected)
-	}
+	compareJSON(t, r, expected)
 }
