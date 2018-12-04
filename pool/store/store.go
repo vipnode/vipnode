@@ -128,6 +128,8 @@ type NonceStore interface {
 	CheckAndSaveNonce(ID string, nonce int64) error
 }
 
+// TODO: Replace ActiveHosts params with HostQuery type?
+
 type PoolStore interface {
 	// GetNode returns the node from the set of active nods.
 	GetNode(NodeID) (*Node, error)
