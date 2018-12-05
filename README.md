@@ -1,20 +1,16 @@
-# vipnode
+# Vipnode
 
-**Status**: Beta. Fully functional, needs testing.
+Connect your light client to the Ethereum network instantly, or make money while hosting a full node.
 
-* `vipnode pool` - Run your own vipnode pool.
-* `vipnode host` - Host a vipnode by connecting your full node to a pool.
-* `vipnode client` - Connect to a vipnode with your light node (or full node).
+**Status**: Beta. Fully functional, needs testing. Payment is currently using Rinkeby money, [subscribe to the newsletter for updates](https://tinyletter.com/vipnode).
 
 ## Quickstart
-
-This release has demo support for all commands and the default values connect to the public demo pool.
 
 ### Installing
 
 1. Grab the latest binary release for your platform from here: https://github.com/vipnode/vipnode/releases
    
-   Or run this one-liner for linux_amd64:
+   Or run this one-liner for `linux_amd64` to download and extract:
    
    ```
    curl -s https://api.github.com/repos/vipnode/vipnode/releases | grep -o -m1 "https://.*/vipnode-linux_amd64.tgz" | xargs wget --quiet -O- | tar vxz
