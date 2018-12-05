@@ -1,7 +1,6 @@
 # vipnode
 
-**Status**: Pre-alpha. Big pieces are implemented but it's not fully functional
-yet.
+**Status**: Beta. Fully functional, needs testing.
 
 * `vipnode pool` - Run your own vipnode pool.
 * `vipnode host` - Host a vipnode by connecting your full node to a pool.
@@ -9,18 +8,34 @@ yet.
 
 ## Quickstart
 
-This release has demo support for all commands, and defaults are hardcoded to the _temporary_ deployed pool.
-
-**WARNING**: Everything here is temporary and unstable, don't rely on it in production. **Payment is not implemented.**
+This release has demo support for all commands and the default values connect to the public demo pool.
 
 ### Installing
 
-1. Grab the latest binary release from here: https://github.com/vipnode/vipnode/releases
+1. Grab the latest binary release for your platform from here: https://github.com/vipnode/vipnode/releases
+   
+   Or run this one-liner for linux_amd64:
+   
+   ```
+   curl -s https://api.github.com/repos/vipnode/vipnode/releases | grep -o -m1 "https://.*/vipnode-linux_amd64.tgz" | xargs wget --quiet -O- | tar vxz
+   ```
 
-2. Extract it (`tar xvf vipnode-*.tgz`) and move the binary in your `$PATH` somewhere (`sudo mv vipnode/vipnode-* /usr/local/bin/vipnode`).
+2. Once you extract it, you'll have a `vipnode` directory. You can run the binary inside of it:
+   
+   ```
+   $ tar xzf vipnode*.tgz
+   $ tree vipnode/
+   vipnode
+   ├── LICENSE
+   ├── README.md
+   └── vipnode
+   $ cd vipnode/
+   $ ./vipnode --help
+   ```
 
-You can run `vipnode --help` to see the commands. While exploring, use the `-vv`
-flag for extra verbose output.
+You can move the `vipnode` binary into your `$PATH` for convenience: `sudo mv vipnode /usr/local/bin/`.
+
+While exploring, try using the `-vv` flag for extra verbose output.
 
 ### How to connect as a client
 
@@ -34,31 +49,12 @@ It should automatically find the RPC and nodekey. If it doesn't, it will fail wi
 
 1. Run a local geth in full mode with lightserv enabled, something like:
     `geth --lightserv=60 --rpc`
-2. `vipnode host -vv`
-
-### How to run your own pool
-
-1. `vipnode pool -vv --bind "0.0.0.0:8080"`
+2. `vipnode host -vv --payout=$(MYWALLET)`
 
 
-## Design
+## Advanced Details
 
-![Diagram](https://raw.githubusercontent.com/vipnode/vipnode.org/master/docs/clientflow.png)
-
-Clients are designed to connect to a set of hosts discovered via the pool, but
-the client can also connect to a host directly as if it were a dummy pool.
-
-Pools are designed to provide an economic incentive between the
-client and host. Clients provide a deposit of a spending balance to the pool,
-and the pool keeps track of which hosts the client is connected to. At the end
-of some period (e.g. a week), the pool withdraws the necessary balances from the
-clients' deposits to settle the hosts' earnings.
-
-The payment mechanism is managed by a smart contract maintained here:
-https://github.com/vipnode/vipnode-contract
-
-The goal is to keep the payment and pool registration optional and replaceable.
-
+For high-level design and details on running your own pool, check [ADVANCED.md](https://github.com/vipnode/vipnode/blob/master/ADVANCED.md)
 
 ## License
 
