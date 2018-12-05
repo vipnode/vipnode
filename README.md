@@ -16,7 +16,7 @@ Vipnode creates an economic incentive to run full nodes and serve light clients.
    Or run this one-liner for `linux_amd64` to download and extract:
    
    ```
-   curl -s https://api.github.com/repos/vipnode/vipnode/releases | grep -o -m1 "https://.*/vipnode-linux_amd64.tgz" | xargs wget --quiet -O- | tar vxz
+   curl -s https://api.github.com/repos/vipnode/vipnode/releases | grep -om1 "https://.*/vipnode-linux_amd64.tgz" | xargs curl -sL | tar vxz
    ```
 
 2. Once you extract it, you'll have a `vipnode` directory. You can run the binary inside of it:
