@@ -1,8 +1,10 @@
 # Vipnode
 
-Connect your light client to the Ethereum network instantly, or make money while hosting a full node.
+Vipnode creates an economic incentive to run full nodes and serve light clients.
 
-**Status**: Beta. Fully functional, needs testing. Payment is currently using Rinkeby money, [subscribe to the newsletter for updates](https://tinyletter.com/vipnode).
+Connect your light client to the Ethereum network instantly, with time-metered fees. Hosting a full node? Join a vipnode pool and earn money for every vip client your node serves.
+
+**Status**: Beta. Fully functional, needs testing. Participation payout is currently using Rinkeby money, [subscribe to the newsletter for updates](https://tinyletter.com/vipnode).
 
 ## Quickstart
 
@@ -33,7 +35,10 @@ You can move the `vipnode` binary into your `$PATH` for convenience: `sudo mv vi
 
 While exploring, try using the `-vv` flag for extra verbose output.
 
+
 ### How to connect as a client
+
+Clients pay a small fee per minute of being connected to a vipnode host. When you connect to a pool for the first time, you'll get a welcome message with instructions.
 
 1. Run a local geth in light mode, something like:
     `geth --syncmode=light --rpc --nodiscover --verbosity 7`
@@ -41,7 +46,10 @@ While exploring, try using the `-vv` flag for extra verbose output.
 
 It should automatically find the RPC and nodekey. If it doesn't, it will fail with a useful error message for how to provide those paths.
 
+
 ### How to connect as a full node host
+
+Hosts earn a small fee per minute of being connected to a vipnode client.
 
 1. Run a local geth in full mode with lightserv enabled, something like:
     `geth --lightserv=60 --rpc`
@@ -51,6 +59,7 @@ It should automatically find the RPC and nodekey. If it doesn't, it will fail wi
 ## Advanced Details
 
 For high-level design and details on running your own pool, check [ADVANCED.md](https://github.com/vipnode/vipnode/blob/master/ADVANCED.md)
+
 
 ## License
 
