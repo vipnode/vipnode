@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -139,8 +140,13 @@ func runPool(options Options) error {
 		creditPerInterval,
 	)
 
-	if options.Pool.Contract.MinBalance != 0 {
-		balanceManager.MinBalance = big.NewInt(int64(options.Pool.Contract.MinBalance))
+	if options.Pool.Contract.MinBalance != "off" {
+		minBalance, err := strconv.ParseInt(options.Pool.Contract.MinBalance, 0, 64)
+		if err != nil {
+			return err
+		}
+
+		balanceManager.MinBalance = big.NewInt(minBalance)
 	}
 
 	// Setup welcome message template
