@@ -52,8 +52,9 @@ func (b *payPerInterval) OnClient(node store.Node) error {
 	if err != nil {
 		return err
 	}
+	// TODO: Write a test for this
 	total := new(big.Int).Add(&balance.Credit, &balance.Deposit)
-	if b.MinBalance.Cmp(total) < 0 {
+	if b.MinBalance.Cmp(total) > 0 {
 		return LowBalanceError{
 			CurrentBalance: total,
 			MinBalance:     b.MinBalance,
@@ -91,7 +92,7 @@ func (b *payPerInterval) OnUpdate(node store.Node, peers []store.Node) (store.Ba
 	// insolvent. On the other hand, if we compare too early, then the client
 	// could get into a loop where it disconnects due to low balance, connects
 	// successfully, repeat.
-	if b.MinBalance != nil && b.MinBalance.Cmp(total) < 0 {
+	if b.MinBalance != nil && b.MinBalance.Cmp(total) > 0 {
 		return store.Balance{}, LowBalanceError{
 			CurrentBalance: total,
 			MinBalance:     b.MinBalance,
