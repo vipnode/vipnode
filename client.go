@@ -118,6 +118,7 @@ func runClient(options Options) error {
 		for _ = range sigCh {
 			logger.Info("Shutting down...")
 			c.Stop()
+			// TODO: More aggressive abort if c.Stop() times out?
 		}
 	}()
 

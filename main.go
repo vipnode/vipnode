@@ -68,8 +68,8 @@ type Options struct {
 			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
 			Addr       string `long:"address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
 			KeyStore   string `long:"keystore" description:"Path to encrypted JSON wallet keystore for contract operator. (Password set in KEYSTORE_PASSPHRASE env)"`
-			Price      string `long:"price" description:"Price per minute (in wei)." default:"1000"`
-			MinBalance string `long:"min-balance" description:"Minimum balance required to join as a client (in wei)." default:"1000"`
+			Price      uint64 `long:"price" description:"Price per minute (in wei)." default:"100000000000"`
+			MinBalance uint64 `long:"min-balance" description:"Minimum balance required to join as a client (in wei)." default:"100000000000"`
 			Welcome    string `long:"welcome" description:"Welcome message for clients. (Example: \"Welcome, {{.NodeID}}\")"`
 		} `group:"contract" namespace:"contract"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
