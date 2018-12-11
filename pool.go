@@ -128,7 +128,16 @@ func runPool(options Options) error {
 		settleHandler = contract.OpSettle
 
 		depositGetter = func(ctx context.Context) (*big.Int, error) {
-			return ethclient.PendingBalanceAt(ctx, contractAddr)
+			r, err := ethclient.PendingBalanceAt(ctx, contractAddr)
+			if err != nil {
+				// Try again in case the connection dropped
+				logger.Warningf("PoolStatus: ethclient.PendingBalanceAt failed, retrying: %s", err)
+				r, err = ethclient.PendingBalanceAt(ctx, contractAddr)
+			}
+			if err != nil {
+				logger.Errorf("PoolStatus: ethclient.PendingBalanceAt failed twice: %s", err)
+			}
+			return r, err
 		}
 	}
 
