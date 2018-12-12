@@ -96,7 +96,7 @@ func (stats *Stats) CountNode(n Node) {
 		}
 	}
 	if n.BlockNumber > stats.LatestBlockNumber {
-		n.BlockNumber = stats.LatestBlockNumber
+		stats.LatestBlockNumber = n.BlockNumber
 	}
 }
 

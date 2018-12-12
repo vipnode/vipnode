@@ -211,8 +211,9 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		now := time.Now()
 		for i, node := range nodes {
 			node := Node{
-				ID:     node.ID,
-				IsHost: i > 3,
+				ID:          node.ID,
+				IsHost:      i > 3,
+				BlockNumber: uint64(100 + i),
 			}
 			if i > 5 {
 				node.LastSeen = now
@@ -238,10 +239,11 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Error(err)
 		}
 		wantStats := &Stats{
-			NumTotalHosts:    6,
-			NumActiveHosts:   4,
-			NumTotalClients:  1,
-			NumActiveClients: 0,
+			NumTotalHosts:     6,
+			NumActiveHosts:    4,
+			NumTotalClients:   1,
+			NumActiveClients:  0,
+			LatestBlockNumber: 109,
 		}
 		wantStats.activeSince = gotStats.activeSince
 		if !reflect.DeepEqual(gotStats, wantStats) {
