@@ -21,10 +21,10 @@ func (e Ether) String() string {
 	unit := "wei"
 	denom := big.NewInt(1)
 
-	if i.Cmp(ethBoundary) >= 0 {
+	if i.CmpAbs(ethBoundary) >= 0 {
 		unit = "ether"
 		denom = ethInWei
-	} else if i.Cmp(gweiBoundary) >= 0 {
+	} else if i.CmpAbs(gweiBoundary) >= 0 {
 		unit = "gwei"
 		denom = ethInGwei
 	}

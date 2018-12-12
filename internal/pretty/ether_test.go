@@ -23,6 +23,10 @@ func TestEther(t *testing.T) {
 			Want:   "0.0005 gwei",
 		},
 		{
+			Amount: big.NewInt(-10000000),
+			Want:   "-0.01 gwei",
+		},
+		{
 			Amount: new(big.Int).Mul(ethInWei, big.NewInt(15)),
 			Want:   "15 ether",
 		},
