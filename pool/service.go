@@ -144,10 +144,9 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	resp.Balance = &nodeBalance
 
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &nodeBalance.Credit)
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), nodeBalance.String())
 	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid: Balance: %d", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), &nodeBalance.Credit)
-
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), nodeBalance.String())
 	}
 
 	return &resp, nil

@@ -84,10 +84,10 @@ func (h *Host) updatePeers(ctx context.Context, p pool.Pool) error {
 		return err
 	}
 	if len(update.InvalidPeers) == 0 {
-		logger.Printf("Sent pool update: %d peers; Current balance: %s", len(peerUpdate), update.Balance)
+		logger.Printf("Sent update: %d peers. Pool response: %s", len(peerUpdate), update.Balance.String())
 		return nil
 	}
-	logger.Printf("Sent pool update: %d peers; Disconnecting from %d invalid peers. Current balance: %s", len(peerUpdate), len(update.InvalidPeers), update.Balance)
+	logger.Printf("Sent update: %d peers. Pool response: Disconnect from %d invalid peers, %s", len(peerUpdate), len(update.InvalidPeers), update.Balance.String())
 	for _, peerID := range update.InvalidPeers {
 		// FIXME: Are there recoverable errors here?
 		if err := h.node.RemoveTrustedPeer(ctx, peerID); err != nil {

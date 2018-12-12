@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/vipnode/vipnode/internal/pretty"
 )
 
 // KeepaliveInterval is the rate of when clients and hosts are expected to send
@@ -46,9 +48,9 @@ func (b *Balance) String() string {
 	account := b.Account
 	total := new(big.Int).Add(&b.Credit, &b.Deposit)
 	if len(account) == 0 {
-		return fmt.Sprintf("Balance(<null account>, %s)", total)
+		return fmt.Sprintf("Balance(<null account>, %s)", pretty.Ether(*total))
 	}
-	return fmt.Sprintf("Balance(%q, %s)", account, total)
+	return fmt.Sprintf("Balance(%q, %s)", account, pretty.Ether(*total))
 }
 
 // Node stores metadata requires for tracking full nodes.
