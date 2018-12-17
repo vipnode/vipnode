@@ -48,6 +48,14 @@ func TestParseEther(t *testing.T) {
 	}{
 		{
 			Want:  big.NewInt(0),
+			Input: "0",
+		},
+		{
+			Want:  big.NewInt(42),
+			Input: "42",
+		},
+		{
+			Want:  big.NewInt(0),
 			Input: "0 wei",
 		},
 		{
@@ -66,15 +74,32 @@ func TestParseEther(t *testing.T) {
 			Want:  new(big.Int).Mul(ethInWei, big.NewInt(15)),
 			Input: "15 ether",
 		},
+		{
+			Input:   "",
+			IsError: true,
+		},
+		{
+			Input:   "foo",
+			IsError: true,
+		},
+		{
+			Input:   "1 foo",
+			IsError: true,
+		},
+		{
+			Input:   "- eth",
+			IsError: true,
+		},
 	}
 
 	for i, tc := range cases {
 		got, err := ParseEther(tc.Input)
-		if (err != nil) != tc.IsError {
-			t.Errorf("case #%d: got error: %v; wanted IsError=%t", i, err, tc.IsError)
+		if tc.IsError && err != nil {
 			continue
 		}
-		if got.Cmp(tc.Want) != 0 {
+		if (err != nil) != tc.IsError {
+			t.Errorf("case #%d: got error: %v; wanted IsError=%t", i, err, tc.IsError)
+		} else if got.Cmp(tc.Want) != 0 {
 			t.Errorf("case #%d: got: %q; want %q (input: %q)", i, got, tc.Want, tc.Input)
 		}
 	}
