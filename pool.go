@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/internal/pretty"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/balance"
@@ -142,7 +142,10 @@ func runPool(options Options) error {
 	}
 
 	// Setup balance manager
-	creditPerInterval := big.NewInt(int64(options.Pool.Contract.Price))
+	creditPerInterval, err := pretty.ParseEther(options.Pool.Contract.Price)
+	if err != nil {
+		return fmt.Errorf("failed to parse contract price: %s", err)
+	}
 	balanceManager := balance.PayPerInterval(
 		balanceStore,
 		time.Minute*1, // Interval
@@ -150,12 +153,12 @@ func runPool(options Options) error {
 	)
 
 	if options.Pool.Contract.MinBalance != "off" {
-		minBalance, err := strconv.ParseInt(options.Pool.Contract.MinBalance, 0, 64)
+		minBalance, err := pretty.ParseEther(options.Pool.Contract.MinBalance)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse contract minimum balance: %s", err)
 		}
 
-		balanceManager.MinBalance = big.NewInt(minBalance)
+		balanceManager.MinBalance = minBalance
 	}
 
 	// Setup welcome message template
