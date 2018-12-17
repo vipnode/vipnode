@@ -39,3 +39,43 @@ func TestEther(t *testing.T) {
 		}
 	}
 }
+
+func TestParseEther(t *testing.T) {
+	cases := []struct {
+		Input   string
+		Want    *big.Int
+		IsError bool
+	}{
+		{
+			Want:  big.NewInt(0),
+			Input: "0 wei",
+		},
+		{
+			Want:  big.NewInt(5000000000),
+			Input: "5 gwei",
+		},
+		{
+			Want:  big.NewInt(500000),
+			Input: "0.0005 gwei",
+		},
+		{
+			Want:  big.NewInt(-10000000),
+			Input: "-0.01 gwei",
+		},
+		{
+			Want:  new(big.Int).Mul(ethInWei, big.NewInt(15)),
+			Input: "15 ether",
+		},
+	}
+
+	for i, tc := range cases {
+		got, err := ParseEther(tc.Input)
+		if (err != nil) != tc.IsError {
+			t.Errorf("case #%d: got error: %v; wanted IsError=%t", i, err, tc.IsError)
+			continue
+		}
+		if got.Cmp(tc.Want) != 0 {
+			t.Errorf("case #%d: got: %q; want %q (input: %q)", i, got, tc.Want, tc.Input)
+		}
+	}
+}
