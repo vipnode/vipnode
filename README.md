@@ -9,6 +9,8 @@ Vipnode creates an economic incentive to run full nodes and serve light clients.
 
 ## Quickstart
 
+You'll need to use a terminal and the [geth](https://geth.ethereum.org/downloads/) client for these examples.
+
 ### Installing
 
 1. Grab the latest binary release for your platform from here: https://github.com/vipnode/vipnode/releases
