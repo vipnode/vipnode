@@ -65,6 +65,10 @@ func (p *PaymentService) verify(sig string, method string, wallet string, nonce 
 // Account is an *unverified* endpoint for retrieving the balance and list of
 // node shortIDs associated with a wallet.
 func (p *PaymentService) Account(ctx context.Context, wallet string) (*AccountResponse, error) {
+	if wallet == "" {
+		return nil, errors.New("missing wallet parameter")
+	}
+
 	balance, err := p.BalanceStore.GetAccountBalance(store.Account(wallet))
 	if err != nil {
 		return nil, err
