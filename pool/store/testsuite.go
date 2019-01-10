@@ -281,6 +281,14 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
+		// Adding another account/node should have no effect
+		if err := s.SetNode(nodes[1]); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+		if err := s.AddAccountNode(accounts[1], nodes[1].ID); err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+
 		if spenders, err := s.GetAccountNodes(account); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if !reflect.DeepEqual(spenders, []NodeID{node.ID}) {

@@ -235,9 +235,19 @@ func (s *badgerStore) GetAccountNodes(account store.Account) ([]store.NodeID, er
 	var r []store.NodeID
 	if err := s.db.View(func(txn *badger.Txn) error {
 		prefix := []byte("vip:account:")
+		var gotAccount store.Account
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			// Filter by account: Only accumulate the keys that mapped to our account.
+			if err := it.Item().Value(func(val []byte) error {
+				return gob.NewDecoder(bytes.NewReader(val)).Decode(&gotAccount)
+			}); err != nil {
+				return err
+			}
+			if gotAccount != account {
+				continue
+			}
 			key := it.Item().Key()
 			r = append(r, store.NodeID(key[len(prefix):]))
 		}
