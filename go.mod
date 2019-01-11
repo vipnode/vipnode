@@ -39,6 +39,7 @@ require (
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
 	github.com/syndtr/goleveldb v0.0.0-20181105012736-f9080354173f // indirect
+	github.com/vipnode/ether v0.0.0-20181219204546-d717f248a245
 	github.com/vipnode/vipnode-contract v0.2.1
 	golang.org/x/crypto v0.0.0-20181112202954-3d3f9f413869
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect

@@ -105,6 +105,8 @@ github.com/syndtr/goleveldb v0.0.0-20180815032940-ae2bd5eed72d h1:4J9HCZVpvDmj2t
 github.com/syndtr/goleveldb v0.0.0-20180815032940-ae2bd5eed72d/go.mod h1:Z4AUp2Km+PwemOoO/VB5AOx9XSsIItzFjoJlOSiYmn0=
 github.com/syndtr/goleveldb v0.0.0-20181105012736-f9080354173f h1:EEVjSRihF8NIbfyCcErpSpNHEKrY3s8EAwqiPENZZn8=
 github.com/syndtr/goleveldb v0.0.0-20181105012736-f9080354173f/go.mod h1:Z4AUp2Km+PwemOoO/VB5AOx9XSsIItzFjoJlOSiYmn0=
+github.com/vipnode/ether v0.0.0-20181219204546-d717f248a245 h1:fW7ogAyMkYc3EUKloYmtshQSh9SLAJsSGY2MfiewzTU=
+github.com/vipnode/ether v0.0.0-20181219204546-d717f248a245/go.mod h1:2QzvBmq1Wg3J42bV0h840gX0wqsqgX7GlQi99WlHoEo=
 github.com/vipnode/vipnode-contract v0.0.0-20181011165917-f1c78a4642d4 h1:z/e9YXUAbFWPRH8GWQcIYKeuiH8tpRwO7oWoGtG2RCA=
 github.com/vipnode/vipnode-contract v0.0.0-20181011165917-f1c78a4642d4/go.mod h1:9zYASUVloCf3BMRvzUelLhlg/IcfqxBHo3msROOv1J8=
 github.com/vipnode/vipnode-contract v0.0.0-20181113145521-27d476b0695c h1:Hi7tAxEPiKlbP+GWsGjo8vaXfrRbx+kS5NCZqupgWoE=
