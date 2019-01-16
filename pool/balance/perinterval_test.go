@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
 func TestPerIntervalCredit(t *testing.T) {
@@ -23,7 +24,7 @@ func TestPerIntervalCredit(t *testing.T) {
 }
 
 func TestPerInterval(t *testing.T) {
-	storeDriver := store.MemoryStore()
+	storeDriver := memory.New()
 
 	now := time.Now()
 	balanceManager := &payPerInterval{

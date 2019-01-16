@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
 func compareJSON(t *testing.T, got, want interface{}) {
@@ -32,7 +33,7 @@ func compareJSON(t *testing.T, got, want interface{}) {
 func TestPoolStatus(t *testing.T) {
 	now := time.Now()
 	s := PoolStatus{
-		Store:         store.MemoryStore(),
+		Store:         memory.New(),
 		TimeStarted:   now,
 		Version:       "foo",
 		CacheDuration: time.Minute * 10,

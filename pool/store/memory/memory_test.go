@@ -1,13 +1,15 @@
-package store
+package memory
 
 import (
 	"testing"
+
+	"github.com/vipnode/vipnode/pool/store"
 )
 
 func TestMemoryStore(t *testing.T) {
 	t.Run("MemoryStore", func(t *testing.T) {
-		TestSuite(t, func() Store {
-			return MemoryStore()
+		store.TestSuite(t, func() store.Store {
+			return New()
 		})
 	})
 }

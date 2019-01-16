@@ -8,12 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 	"github.com/vipnode/vipnode/request"
 )
 
 func TestPoolInstance(t *testing.T) {
-	pool := New(store.MemoryStore(), nil)
+	pool := New(memory.New(), nil)
 
 	r := pool.Ping(context.Background())
 	if r != "pong" {
@@ -41,7 +41,7 @@ func TestPoolInstance(t *testing.T) {
 }
 
 func TestPoolService(t *testing.T) {
-	pool := New(store.MemoryStore(), nil)
+	pool := New(memory.New(), nil)
 	server, client := jsonrpc2.ServePipe()
 	server.Server.Register("vipnode_", pool)
 

@@ -27,6 +27,7 @@ import (
 	"github.com/vipnode/vipnode/pool/status"
 	"github.com/vipnode/vipnode/pool/store"
 	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
+	memoryStore "github.com/vipnode/vipnode/pool/store/memory"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -47,7 +48,7 @@ func runPool(options Options) error {
 	var storeDriver store.Store
 	switch options.Pool.Store {
 	case "memory":
-		storeDriver = store.MemoryStore()
+		storeDriver = memoryStore.New()
 		defer storeDriver.Close()
 	case "persist":
 		fallthrough

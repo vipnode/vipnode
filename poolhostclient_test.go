@@ -14,14 +14,14 @@ import (
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
 func TestPoolHostClient(t *testing.T) {
 	privkey := keygen.HardcodedKeyIdx(t, 0)
 	payout := ""
 
-	p := pool.New(store.MemoryStore(), nil)
+	p := pool.New(memory.New(), nil)
 	rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Host.Close()
 	defer rpcHost2Pool.Close()
@@ -108,7 +108,7 @@ func TestCloseHost(t *testing.T) {
 	privkey := keygen.HardcodedKeyIdx(t, 0)
 	payout := ""
 
-	p := pool.New(store.MemoryStore(), nil)
+	p := pool.New(memory.New(), nil)
 	c1, c2 := net.Pipe()
 	rpcPool2Host := &jsonrpc2.Remote{
 		Codec:  jsonrpc2.IOCodec(c1),

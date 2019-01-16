@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 	"github.com/vipnode/vipnode/request"
 )
 
@@ -43,7 +44,7 @@ func TestPaymentWithdraw(t *testing.T) {
 		Paid:    map[store.Account]big.Int{},
 	}
 
-	memStore := store.MemoryStore()
+	memStore := memory.New()
 	p := PaymentService{
 		NonceStore:   memStore,
 		AccountStore: memStore,

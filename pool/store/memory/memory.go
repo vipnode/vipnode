@@ -1,74 +1,76 @@
-package store
+package memory
 
 import (
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/vipnode/vipnode/pool/store"
 )
 
-// MemoryStore implements an ephemeral in-memory store. It may not be a
+// New implements an ephemeral in-memory store. It may not be a
 // complete implementation but it's useful for testing.
-func MemoryStore() *memoryStore {
+func New() *memoryStore {
 	return &memoryStore{
-		balances: map[Account]Balance{},
-		nodes:    map[NodeID]memNode{},
-		accounts: map[NodeID]Account{},
-		trials:   map[NodeID]Balance{},
+		balances: map[store.Account]store.Balance{},
+		nodes:    map[store.NodeID]memNode{},
+		accounts: map[store.NodeID]store.Account{},
+		trials:   map[store.NodeID]store.Balance{},
 		nonces:   map[string]int64{},
 	}
 }
 
 type memNode struct {
-	Node
+	store.Node
 
-	peers map[NodeID]time.Time // Last seen (only for vipnode-registered peers)
+	peers map[store.NodeID]time.Time // Last seen (only for vipnode-registered peers)
 }
 
 // Assert Store implementation
-var _ Store = &memoryStore{}
+var _ store.Store = &memoryStore{}
 
 type memoryStore struct {
 	mu sync.Mutex
 
 	// Registered balances
-	balances map[Account]Balance
+	balances map[store.Account]store.Balance
 
 	// Connected nodes
-	nodes map[NodeID]memNode
+	nodes map[store.NodeID]memNode
 
 	// Node to balance mapping
-	accounts map[NodeID]Account
+	accounts map[store.NodeID]store.Account
 
 	// Trial balances to be migrated once registered
-	trials map[NodeID]Balance
+	trials map[store.NodeID]store.Balance
 
 	nonces map[string]int64
 }
 
 // CheckAndSaveNonce asserts that this is the highest nonce seen for this NodeID.
 func (s *memoryStore) CheckAndSaveNonce(ID string, nonce int64) error {
-	if ExpireNonce > 0 && nonce <= time.Now().Add(-ExpireNonce).UnixNano() {
+	if store.ExpireNonce > 0 && nonce <= time.Now().Add(-store.ExpireNonce).UnixNano() {
 		// Nonce is too old
-		return ErrInvalidNonce
+		return store.ErrInvalidNonce
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.nonces[ID] >= nonce {
-		return ErrInvalidNonce
+		return store.ErrInvalidNonce
 	}
 	s.nonces[ID] = nonce
 	return nil
 }
 
 // GetNodeBalance returns the current account balance for a node.
-func (s *memoryStore) GetNodeBalance(nodeID NodeID) (Balance, error) {
+func (s *memoryStore) GetNodeBalance(nodeID store.NodeID) (store.Balance, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	_, ok := s.nodes[nodeID]
 	if !ok {
-		return Balance{}, ErrUnregisteredNode
+		return store.Balance{}, store.ErrUnregisteredNode
 	}
 
 	account, ok := s.accounts[nodeID]
@@ -85,13 +87,13 @@ func (s *memoryStore) GetNodeBalance(nodeID NodeID) (Balance, error) {
 //
 // This driver only supports mapping a nodeID to one account, so remapping it
 // will move the nodeID to the other account.
-func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit *big.Int) error {
+func (s *memoryStore) AddNodeBalance(nodeID store.NodeID, credit *big.Int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	_, ok := s.nodes[nodeID]
 	if !ok {
-		return ErrUnregisteredNode
+		return store.ErrUnregisteredNode
 	}
 	account, ok := s.accounts[nodeID]
 	if ok {
@@ -107,14 +109,14 @@ func (s *memoryStore) AddNodeBalance(nodeID NodeID, credit *big.Int) error {
 }
 
 // GetAccountBalance returns an account's balance.
-func (s *memoryStore) GetAccountBalance(account Account) (Balance, error) {
+func (s *memoryStore) GetAccountBalance(account store.Account) (store.Balance, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.balances[account], nil
 }
 
 // AddNodeBalance adds credit to an account balance. (Can be negative)
-func (s *memoryStore) AddAccountBalance(account Account, credit *big.Int) error {
+func (s *memoryStore) AddAccountBalance(account store.Account, credit *big.Int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -127,13 +129,13 @@ func (s *memoryStore) AddAccountBalance(account Account, credit *big.Int) error 
 // AddAccountNode authorizes a nodeID to be a spender of an account's
 // balance. This should migrate any existing node's balance credit to the
 // account.
-func (s *memoryStore) AddAccountNode(account Account, nodeID NodeID) error {
+func (s *memoryStore) AddAccountNode(account store.Account, nodeID store.NodeID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	_, ok := s.nodes[nodeID]
 	if !ok {
-		return ErrUnregisteredNode
+		return store.ErrUnregisteredNode
 	}
 
 	// Migrate any trial balance
@@ -149,24 +151,24 @@ func (s *memoryStore) AddAccountNode(account Account, nodeID NodeID) error {
 
 // AddAccountNode authorizes a nodeID to be a spender of an account's
 // balance.
-func (s *memoryStore) IsAccountNode(account Account, nodeID NodeID) error {
+func (s *memoryStore) IsAccountNode(account store.Account, nodeID store.NodeID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	nodeAccount, ok := s.accounts[nodeID]
 	if !ok || nodeAccount != account {
-		return ErrNotAuthorized
+		return store.ErrNotAuthorized
 	}
 	return nil
 }
 
 // GetSpenders returns the authorized nodeIDs for this account, these are
 // nodes that were added to accounts through AddAccountNode.
-func (s *memoryStore) GetAccountNodes(account Account) ([]NodeID, error) {
+func (s *memoryStore) GetAccountNodes(account store.Account) ([]store.NodeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	r := []NodeID{}
+	r := []store.NodeID{}
 	for nodeID, a := range s.accounts {
 		if account == a {
 			r = append(r, nodeID)
@@ -176,33 +178,33 @@ func (s *memoryStore) GetAccountNodes(account Account) ([]NodeID, error) {
 }
 
 // GetNode returns the node with the given ID.
-func (s *memoryStore) GetNode(id NodeID) (*Node, error) {
+func (s *memoryStore) GetNode(id store.NodeID) (*store.Node, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[id]
 	if !ok {
-		return nil, ErrUnregisteredNode
+		return nil, store.ErrUnregisteredNode
 	}
 	return &node.Node, nil
 }
 
 // SetNode saves a node.
-func (s *memoryStore) SetNode(n Node) error {
+func (s *memoryStore) SetNode(n store.Node) error {
 	if n.ID.IsZero() {
-		return ErrMalformedNode
+		return store.ErrMalformedNode
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node := memNode{Node: n}
 	if node.peers == nil {
-		node.peers = map[NodeID]time.Time{}
+		node.peers = map[store.NodeID]time.Time{}
 	}
 	s.nodes[n.ID] = node
 	return nil
 }
 
 // RemoveNode removes a HostNode.
-func (s *memoryStore) RemoveNode(nodeID NodeID) error {
+func (s *memoryStore) RemoveNode(nodeID store.NodeID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.nodes, nodeID)
@@ -211,9 +213,9 @@ func (s *memoryStore) RemoveNode(nodeID NodeID) error {
 
 // ActiveHosts returns `limit`-number of `kind` nodes. This could be an
 // empty list, if none are available.
-func (s *memoryStore) ActiveHosts(kind string, limit int) ([]Node, error) {
-	seenSince := time.Now().Add(-ExpireInterval)
-	r := make([]Node, 0, limit)
+func (s *memoryStore) ActiveHosts(kind string, limit int) ([]store.Node, error) {
+	seenSince := time.Now().Add(-store.ExpireInterval)
+	r := make([]store.Node, 0, limit)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -243,14 +245,14 @@ func (s *memoryStore) ActiveHosts(kind string, limit int) ([]Node, error) {
 
 // NodePeers returns a list of active connected peers that this pool knows
 // about for this NodeID.
-func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
+func (s *memoryStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
 	if !ok {
-		return nil, ErrUnregisteredNode
+		return nil, store.ErrUnregisteredNode
 	}
-	peers := []Node{}
+	peers := []store.Node{}
 	for nodeID, _ := range node.peers {
 		if node, ok := s.nodes[nodeID]; ok {
 			peers = append(peers, node.Node)
@@ -262,12 +264,12 @@ func (s *memoryStore) NodePeers(nodeID NodeID) ([]Node, error) {
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp
 // of nodes we know about. This is used as a keepalive, and to keep track of
 // which client is connected to which host.
-func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber uint64) ([]NodeID, error) {
+func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) ([]store.NodeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
 	if !ok {
-		return nil, ErrUnregisteredNode
+		return nil, store.ErrUnregisteredNode
 	}
 	now := time.Now()
 	node.LastSeen = now
@@ -276,7 +278,7 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber
 		// Only update peers we already know about
 		// FIXME: If symmetric peers disappear at the same time, then reappear, will it be a problem if they never become inactive? (Okay if the balance manager caps the update interval?)
 		// FIXME: Should the timestamp update happen on the peerNode also? Or is it okay to leave it for the symmetric update call?
-		peerID, err := ParseNodeID(peer)
+		peerID, err := store.ParseNodeID(peer)
 		if err != nil {
 			// Skip bad peers
 			continue
@@ -291,8 +293,8 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber
 		s.nodes[nodeID] = node
 		return nil, nil
 	}
-	inactive := []NodeID{}
-	inactiveDeadline := now.Add(-ExpireInterval)
+	inactive := []store.NodeID{}
+	inactiveDeadline := now.Add(-store.ExpireInterval)
 	for nodeID, timestamp := range node.peers {
 		if timestamp.Before(inactiveDeadline) {
 			continue
@@ -306,8 +308,8 @@ func (s *memoryStore) UpdateNodePeers(nodeID NodeID, peers []string, blockNumber
 }
 
 // Stats returns aggregate statistics about the store state.
-func (s *memoryStore) Stats() (*Stats, error) {
-	stats := Stats{}
+func (s *memoryStore) Stats() (*store.Stats, error) {
+	stats := store.Stats{}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

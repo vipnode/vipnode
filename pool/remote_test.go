@@ -10,10 +10,11 @@ import (
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
 func TestRemotePoolClient(t *testing.T) {
-	pool := New(store.MemoryStore(), nil)
+	pool := New(memory.New(), nil)
 	pool.skipWhitelist = true
 
 	server, client := jsonrpc2.ServePipe()
@@ -59,7 +60,7 @@ func TestRemotePoolClient(t *testing.T) {
 }
 
 func TestRemotePoolHost(t *testing.T) {
-	pool := New(store.MemoryStore(), nil)
+	pool := New(memory.New(), nil)
 	pool.skipWhitelist = true
 
 	server, host := jsonrpc2.ServePipe()
