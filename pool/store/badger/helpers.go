@@ -3,6 +3,7 @@ package badger
 import (
 	"bytes"
 	"encoding/gob"
+	"reflect"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -39,11 +40,16 @@ func setExpiringItem(txn *badger.Txn, key []byte, val interface{}, expire time.D
 	return txn.SetWithTTL(key, buf.Bytes(), expire)
 }
 
+// loopItem iterates over a prefix and decodes into `into`
 func loopItem(txn *badger.Txn, prefix []byte, into interface{}, callback func() error) error {
 	it := txn.NewIterator(badger.DefaultIteratorOptions)
 	defer it.Close()
 	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 		if err := it.Item().Value(func(val []byte) error {
+			// Reset `into` before decoding into it (can this be done better?)
+			p := reflect.ValueOf(into).Elem()
+			p.Set(reflect.Zero(p.Type()))
+
 			return gob.NewDecoder(bytes.NewReader(val)).Decode(into)
 		}); err != nil {
 			return err

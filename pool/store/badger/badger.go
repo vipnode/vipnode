@@ -260,6 +260,27 @@ func (s *badgerStore) GetAccountNodes(account store.Account) ([]store.NodeID, er
 	return r, nil
 }
 
+// AllNodes returns all registered nodes, used for debugging.
+func (s *badgerStore) AllNodes() ([]store.Node, error) {
+	var r []store.Node
+	err := s.db.View(func(txn *badger.Txn) error {
+		prefix := []byte("vip:node:")
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			var n store.Node
+			if err := it.Item().Value(func(val []byte) error {
+				return gob.NewDecoder(bytes.NewReader(val)).Decode(&n)
+			}); err != nil {
+				return err
+			}
+			r = append(r, n)
+		}
+		return nil
+	})
+	return r, err
+}
+
 // ActiveHosts loads all nodes, then return a valid shuffled subset of size limit.
 func (s *badgerStore) ActiveHosts(kind string, limit int) ([]store.Node, error) {
 	seenSince := time.Now().Add(-store.ExpireInterval)
@@ -420,6 +441,7 @@ func (s *badgerStore) Stats() (*store.Stats, error) {
 		var n store.Node
 		if err := loopItem(txn, []byte("vip:node:"), &n, func() error {
 			stats.CountNode(n)
+			n = store.Node{}
 			return nil
 		}); err != nil {
 			return err

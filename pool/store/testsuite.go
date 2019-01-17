@@ -212,7 +212,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		for i, node := range nodes {
 			node := Node{
 				ID:          node.ID,
-				IsHost:      i > 3,
+				IsHost:      i%2 == 0, // Half hosts, interlaced to check for insertion order bugs
 				BlockNumber: uint64(100 + i),
 			}
 			if i > 5 {
@@ -224,13 +224,16 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 		if hosts, err := s.ActiveHosts("", 10); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if got, want := nodeIDs(hosts), []string{nodes[6].ID.String(), nodes[7].ID.String(), nodes[8].ID.String(), nodes[9].ID.String()}; !reflect.DeepEqual(got, want) {
+		} else if got, want := nodeIDs(hosts), []string{
+			nodes[6].ID.String(),
+			nodes[8].ID.String(),
+		}; !reflect.DeepEqual(got, want) {
 			t.Errorf("got: %v; want: %v", got, want)
 		}
 
-		if hosts, err := s.ActiveHosts("", 2); err != nil {
+		if hosts, err := s.ActiveHosts("", 1); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if len(hosts) != 2 {
+		} else if len(hosts) != 1 {
 			t.Errorf("wrong number of hosts: %d", len(hosts))
 		}
 
@@ -239,10 +242,10 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Error(err)
 		}
 		wantStats := &Stats{
-			NumTotalHosts:     6,
-			NumActiveHosts:    4,
-			NumTotalClients:   1,
-			NumActiveClients:  0,
+			NumTotalHosts:     5,
+			NumActiveHosts:    2,
+			NumTotalClients:   5,
+			NumActiveClients:  2,
 			LatestBlockNumber: 109,
 		}
 		wantStats.activeSince = gotStats.activeSince

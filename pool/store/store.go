@@ -12,6 +12,7 @@ import (
 // peering updates.
 const KeepaliveInterval = 60 * time.Second
 
+// ExpireInterval is the amount of time that we consider a node "active".
 const ExpireInterval = KeepaliveInterval * 2
 
 // ExpireNonce as non-zero forces nonces to be nanosecond unix timestamps
@@ -92,7 +93,7 @@ func (stats *Stats) CountNode(n Node) {
 			stats.NumActiveHosts += 1
 		}
 	} else {
-		stats.NumTotalClients = 1
+		stats.NumTotalClients += 1
 		if isActive {
 			stats.NumActiveClients += 1
 		}
