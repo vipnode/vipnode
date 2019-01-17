@@ -175,7 +175,7 @@ func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce
 	}
 
 	// TODO: Confirm that it's a full node, not a light node? Doesn't super matter since if i
-	// XXX: Check versions
+	// TODO: Check versions?
 
 	logger.Printf("New %q host: %q", req.Kind, nodeURI)
 
@@ -220,6 +220,9 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		response.Message = p.ClientMessager(nodeID)
 	}
 
+	// FIXME: Need to investigate if there's a vuln here where a client could
+	// get successfully whitelisted, then switched to host status thus bypass
+	// billing?
 	node := store.Node{
 		ID:       store.NodeID(nodeID),
 		Kind:     kind,
