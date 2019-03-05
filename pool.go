@@ -174,6 +174,7 @@ func runPool(options Options) error {
 	}
 
 	p := pool.New(storeDriver, balanceManager)
+	p.MaxRequestHosts = options.Pool.MaxRequestHosts
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 	p.ClientMessager = func(nodeID string) string {
 		var buf bytes.Buffer
