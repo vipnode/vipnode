@@ -28,7 +28,8 @@ type HostResponse struct {
 
 // ClientRequest is the request type for Client RPC calls.
 type ClientRequest struct {
-	Kind string `json:"kind"`
+	Kind     string `json:"kind"`
+	NumHosts int    `json:"num_hosts,omitempty"` // NumHosts is the number of hosts to request from the pool. (Optional)
 }
 
 // ClientResponse is the response type for Client RPC calls.

@@ -14,6 +14,10 @@ import (
 	"github.com/vipnode/vipnode/request"
 )
 
+// defaultRequestNumHosts is the default number of hosts to
+// request as a client, if not provided explicitly.
+const defaultRequestNumHosts = 3
+
 type hostService struct {
 	store.Node
 	jsonrpc2.Service
@@ -39,12 +43,12 @@ type VipnodePool struct {
 	// Version is returned as the PoolVersion in the ClientResponse when a new client connects.
 	Version string
 
-	Store          store.Store
-	BalanceManager balance.Manager
-	ClientMessager func(nodeID string) string
+	Store           store.Store
+	BalanceManager  balance.Manager
+	ClientMessager  func(nodeID string) string
+	MaxRequestHosts int // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
 
-	// skipWhitelist is used for testing.
-	skipWhitelist bool
+	skipWhitelist bool // skipWhitelist is used for testing.
 
 	mu          sync.Mutex
 	remoteHosts map[store.NodeID]jsonrpc2.Service
@@ -210,8 +214,10 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	}
 
 	kind := req.Kind
-	// TODO: Unhardcode this, maybe add to ClientRequest (but limit to some number)
-	numRequestHosts := 3
+	numRequestHosts := defaultRequestNumHosts
+	if p.MaxRequestHosts > 0 && numRequestHosts > p.MaxRequestHosts {
+		numRequestHosts = p.MaxRequestHosts
+	}
 
 	response := &ClientResponse{
 		PoolVersion: p.Version,
