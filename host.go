@@ -73,6 +73,7 @@ func runHost(options Options) error {
 	}
 	logger.Infof("Connected to vipnode pool: %s", options.Host.Pool)
 
+	// Register reverse-directional RPC calls available on the host
 	rpcServer := &jsonrpc2.Server{}
 	if err := rpcServer.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
 		return err
@@ -97,6 +98,12 @@ func runHost(options Options) error {
 	go func() {
 		errChan <- h.Wait()
 	}()
+
+	if options.Host.JoinPeers > 0 {
+		if err := h.ConnectPeers(remotePool, options.Host.JoinPeers); err != nil {
+			return err
+		}
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)

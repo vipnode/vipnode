@@ -51,11 +51,12 @@ type Options struct {
 	} `command:"client" description:"Connect to a vipnode as a client."`
 
 	Host struct {
-		Pool    string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
-		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
-		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
-		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
-		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
+		Pool      string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
+		RPC       string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey   string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI   string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
+		Payout    string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
+		JoinPeers int    `long:"join-peers" description:"Whitelist and connect to N other hosts on the pool." default:"0"`
 	} `command:"host" description:"Host a vipnode."`
 
 	Pool struct {
@@ -189,7 +190,7 @@ func subcommand(cmd string, options Options) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 
-	backoff := []int{5, 30, 60, 90, 300} // Backoff in sequence in seconds.
+	backoff := []int{5, 30, 60, 90, 300} // Backoff sequence in seconds.
 	clearTimeout := time.Second * 300    // Time between attempts before we reset the backoff
 	var err error
 	for i := 0; ; i++ {
