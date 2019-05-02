@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"github.com/vipnode/vipnode/host"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/internal/mkcluster"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store/memory"
@@ -153,4 +155,34 @@ func TestCloseHost(t *testing.T) {
 	}
 	h.Stop()
 	h.Wait()
+}
+
+func TestPoolHostConnectPeers(t *testing.T) {
+	hostKeys := []*ecdsa.PrivateKey{}
+	clientKeys := []*ecdsa.PrivateKey{}
+
+	for i := 0; i < 4; i++ {
+		hostKeys = append(hostKeys, keygen.HardcodedKeyIdx(t, i))
+	}
+
+	cluster, err := mkcluster.MakeCluster(hostKeys, clientKeys)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stats, err := cluster.Pool.Store.Stats()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if stats.NumActiveHosts != 4 {
+		t.Errorf("wrong stats: %+v", stats)
+	}
+
+	// XXX: Test host.ConnectPeers
+
+	err = cluster.Close()
+	if err != nil {
+		t.Error(err)
+	}
 }
