@@ -15,10 +15,26 @@ import (
 	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
+type clusterHost struct {
+	*host.Host
+	Node *fakenode.FakeNode
+	In   *jsonrpc2.Remote
+	Out  *jsonrpc2.Remote
+	Key  *ecdsa.PrivateKey
+}
+
+type clusterClient struct {
+	*client.Client
+	Node *fakenode.FakeNode
+	In   *jsonrpc2.Remote
+	Out  *jsonrpc2.Remote
+	Key  *ecdsa.PrivateKey
+}
+
 // Cluster represents a set of active hosts and clients connected to a pool.
 type Cluster struct {
-	clients []*client.Client
-	hosts   []*host.Host
+	Clients []clusterClient
+	Hosts   []clusterHost
 	Pool    *pool.VipnodePool
 
 	pipes []io.Closer
@@ -27,8 +43,8 @@ type Cluster struct {
 // New returns a pre-connected pool of hosts and clients.
 func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster, error) {
 	cluster := &Cluster{
-		hosts:   []*host.Host{},
-		clients: []*client.Client{},
+		Hosts:   []clusterHost{},
+		Clients: []clusterClient{},
 		pipes:   []io.Closer{},
 	}
 
@@ -55,7 +71,13 @@ func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster
 			return nil, err
 		}
 
-		cluster.hosts = append(cluster.hosts, h)
+		cluster.Hosts = append(cluster.Hosts, clusterHost{
+			Host: h,
+			Node: hostNode,
+			In:   rpcPool2Host,
+			Out:  rpcHost2Pool,
+			Key:  hostKey,
+		})
 	}
 
 	for _, clientKey := range clientKeys {
@@ -70,7 +92,13 @@ func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster
 		if err := c.Start(clientPool); err != nil {
 			return nil, err
 		}
-		cluster.clients = append(cluster.clients, c)
+		cluster.Clients = append(cluster.Clients, clusterClient{
+			Client: c,
+			Node:   clientNode,
+			In:     rpcPool2Client,
+			Out:    rpcClient2Pool,
+			Key:    clientKey,
+		})
 	}
 	return cluster, nil
 }
@@ -83,18 +111,18 @@ func (c *Cluster) Close() error {
 			errors = append(errors, err)
 		}
 	}
-	for _, host := range c.hosts {
+	for _, host := range c.Hosts {
 		host.Stop()
 	}
-	for _, client := range c.clients {
+	for _, client := range c.Clients {
 		client.Stop()
 	}
-	for _, host := range c.hosts {
+	for _, host := range c.Hosts {
 		if err := host.Wait(); err != nil {
 			errors = append(errors, err)
 		}
 	}
-	for _, client := range c.clients {
+	for _, client := range c.Clients {
 		if err := client.Wait(); err != nil {
 			errors = append(errors, err)
 		}

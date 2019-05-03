@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"io"
@@ -169,11 +170,9 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	/*
-		if got, want := len(cluster.Hosts), 4; got != want {
-			t.Errorf("wrong number of hosts: got %d; want %d", got, want)
-		}
-	*/
+	if got, want := len(cluster.Hosts), 4; got != want {
+		t.Errorf("wrong number of hosts: got %d; want %d", got, want)
+	}
 
 	stats, err := cluster.Pool.Store.Stats()
 	if err != nil {
@@ -184,9 +183,51 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		t.Errorf("wrong stats: %+v", stats)
 	}
 
-	// XXX: Test host.ConnectPeers
-	//host := cluster.Hosts[0]
-	//host.ConnectPeers(cluster.Pool, 3)
+	numHosts := len(hostKeys)
+	{
+		// Connect a host to all the peers (numHosts = peers + 1, because it includes self)
+		host := cluster.Hosts[0]
+		if peers, err := host.Node.Peers(context.Background()); err != nil {
+			t.Fatal(err)
+		} else if len(peers) > 0 {
+			t.Errorf("host has unexpected peers: %s", peers)
+		}
+		hostPool := pool.Remote(host.Out, host.Key)
+
+		if err := host.ConnectPeers(hostPool, numHosts); err != nil {
+			t.Fatal(err)
+		}
+
+		if peers, err := host.Node.Peers(context.Background()); err != nil {
+			t.Fatal(err)
+		} else if len(peers) != numHosts-1 {
+			t.Errorf("host has wrong number of peers: %s", peers)
+		}
+
+		numCalls := 0
+		for _, call := range host.Node.Calls {
+			if call.Method != "ConnectPeer" {
+				t.Errorf("unexpected call to host: %s", call)
+				continue
+			}
+			numCalls++
+		}
+		if got, want := numCalls, numHosts-1; got != want {
+			t.Errorf("wrong number of ConnectPeer calls: got %d; want %d", got, want)
+		}
+	}
+
+	{
+		// Check a peer
+		host := cluster.Hosts[1]
+		peer := cluster.Hosts[0]
+		want := fakenode.Calls{fakenode.Call("AddTrustedPeer", peer.Node.NodeID)}
+		if got := host.Node.Calls; !reflect.DeepEqual(got, want) {
+			t.Errorf("peer host calls do not match:\n  got: %s;\n want: %s", got, want)
+		}
+		// We can't check the Peers of the host here because it's a FakeNode so
+		// it does not actually initiate a connection on Connect.
+	}
 
 	err = cluster.Close()
 	if err != nil {
