@@ -1,4 +1,4 @@
-package mkcluster
+package fakecluster
 
 import (
 	"crypto/ecdsa"
@@ -17,18 +17,18 @@ import (
 
 // Cluster represents a set of active hosts and clients connected to a pool.
 type Cluster struct {
-	Clients []*client.Client
-	Hosts   []*host.Host
+	clients []*client.Client
+	hosts   []*host.Host
 	Pool    *pool.VipnodePool
 
 	pipes []io.Closer
 }
 
-// MakeCluster returns a pre-connected pool of hosts and clients.
-func MakeCluster(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster, error) {
+// New returns a pre-connected pool of hosts and clients.
+func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster, error) {
 	cluster := &Cluster{
-		Hosts:   []*host.Host{},
-		Clients: []*client.Client{},
+		hosts:   []*host.Host{},
+		clients: []*client.Client{},
 		pipes:   []io.Closer{},
 	}
 
@@ -55,7 +55,7 @@ func MakeCluster(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (
 			return nil, err
 		}
 
-		cluster.Hosts = append(cluster.Hosts, h)
+		cluster.hosts = append(cluster.hosts, h)
 	}
 
 	for _, clientKey := range clientKeys {
@@ -70,7 +70,7 @@ func MakeCluster(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (
 		if err := c.Start(clientPool); err != nil {
 			return nil, err
 		}
-		cluster.Clients = append(cluster.Clients, c)
+		cluster.clients = append(cluster.clients, c)
 	}
 	return cluster, nil
 }
@@ -83,18 +83,18 @@ func (c *Cluster) Close() error {
 			errors = append(errors, err)
 		}
 	}
-	for _, host := range c.Hosts {
+	for _, host := range c.hosts {
 		host.Stop()
 	}
-	for _, client := range c.Clients {
+	for _, client := range c.clients {
 		client.Stop()
 	}
-	for _, host := range c.Hosts {
+	for _, host := range c.hosts {
 		if err := host.Wait(); err != nil {
 			errors = append(errors, err)
 		}
 	}
-	for _, client := range c.Clients {
+	for _, client := range c.clients {
 		if err := client.Wait(); err != nil {
 			errors = append(errors, err)
 		}

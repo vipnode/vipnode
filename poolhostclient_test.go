@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/client"
 	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/internal/fakecluster"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/keygen"
-	"github.com/vipnode/vipnode/internal/mkcluster"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store/memory"
@@ -30,7 +30,6 @@ func TestPoolHostClient(t *testing.T) {
 	if err := rpcPool2Host.Server.Register("vipnode_", p); err != nil {
 		t.Fatalf("failed to register vipnode_ rpc for pool: %s", err)
 	}
-
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
 	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", hostNodeID)
@@ -165,10 +164,16 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		hostKeys = append(hostKeys, keygen.HardcodedKeyIdx(t, i))
 	}
 
-	cluster, err := mkcluster.MakeCluster(hostKeys, clientKeys)
+	cluster, err := fakecluster.New(hostKeys, clientKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	/*
+		if got, want := len(cluster.Hosts), 4; got != want {
+			t.Errorf("wrong number of hosts: got %d; want %d", got, want)
+		}
+	*/
 
 	stats, err := cluster.Pool.Store.Stats()
 	if err != nil {
@@ -180,6 +185,8 @@ func TestPoolHostConnectPeers(t *testing.T) {
 	}
 
 	// XXX: Test host.ConnectPeers
+	//host := cluster.Hosts[0]
+	//host.ConnectPeers(cluster.Pool, 3)
 
 	err = cluster.Close()
 	if err != nil {
