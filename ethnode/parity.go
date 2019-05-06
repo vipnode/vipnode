@@ -55,6 +55,8 @@ func (n *parityNode) Peers(ctx context.Context) ([]PeerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	// FIXME: Only return connected peers who completed the handshake? In that
+	// case, need to filter by non-empty Protocols
 	return result.Peers, nil
 }
 
