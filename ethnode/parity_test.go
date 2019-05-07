@@ -57,6 +57,36 @@ func TestParityParsePeerInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: []byte(`{
+				"peers":[
+				  {
+				    "caps":["foo"],
+				    "id":"someid",
+				    "name":"somename",
+				    "protocols":{}
+				  },
+				  {
+				    "caps":["bar"],
+				    "id":"anotherid",
+				    "name":"anothername",
+				    "protocols":{"bar": "baz"}
+				  }
+				]
+			}`),
+			want: parityPeers{
+				Peers: []PeerInfo{
+					{
+						ID:   "anotherid",
+						Name: "anothername",
+						Caps: []string{"bar"},
+						Protocols: map[string]json.RawMessage{
+							"bar": json.RawMessage(`"baz"`),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, tc := range testcases {
@@ -66,7 +96,7 @@ func TestParityParsePeerInfo(t *testing.T) {
 			t.Errorf("[case %d] unexpected error for testcase: %s", i, err)
 			continue
 		}
-		// Clear protocol values for comparison
+		result.Peers = filterActivePeers(result.Peers)
 		if !reflect.DeepEqual(result, tc.want) {
 			t.Errorf("[case %d] wrong agent values:\n  got: %+v;\n want: %+v", i, result, tc.want)
 		}
