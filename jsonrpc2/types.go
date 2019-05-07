@@ -2,6 +2,7 @@ package jsonrpc2
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 const Version = "2.0"
@@ -22,6 +23,16 @@ type Message struct {
 	*Response
 	ID      json.RawMessage `json:"id,omitempty"`
 	Version string          `json:"jsonrpc"` // TODO: Replace this with a null-type that encodes to 2.0, like https://go-review.googlesource.com/c/tools/+/136675/1/internal/jsonrpc2/jsonrpc2.go#221
+}
+
+func (m Message) String() string {
+	// This method is here to satisfy vet
+	b, err := json.Marshal(m)
+	if err != nil {
+		// This shouldn't happen. Might even be worth panic'ing?
+		return fmt.Sprintf("failed to marshal %T: %s", m, err)
+	}
+	return string(b)
 }
 
 type Request struct {
