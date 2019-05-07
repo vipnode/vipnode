@@ -55,9 +55,7 @@ func (n *parityNode) Peers(ctx context.Context) ([]PeerInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	// FIXME: Only return connected peers who completed the handshake? In that
-	// case, need to filter by non-empty Protocols
-	return result.Peers, nil
+	return filterActivePeers(result.Peers), nil
 }
 
 func (n *parityNode) Enode(ctx context.Context) (string, error) {
@@ -74,4 +72,19 @@ func (n *parityNode) BlockNumber(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return strconv.ParseUint(result, 0, 64)
+}
+
+// filterActivePeers filters out any peers that have not completed the
+// handshake yet. In Parity, these are peers without any specified Protocols.
+func filterActivePeers(peers []PeerInfo) []PeerInfo {
+	if len(peers) == 0 {
+		return peers
+	}
+	activePeers := make([]PeerInfo, 0, len(peers))
+	for _, peer := range peers {
+		if len(peer.Protocols) > 0 {
+			activePeers = append(activePeers, peer)
+		}
+	}
+	return activePeers
 }
