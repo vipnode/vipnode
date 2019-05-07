@@ -2,6 +2,7 @@ package fakenode
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -59,7 +60,11 @@ func (n *FakeNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 		return err
 	}
 	n.FakePeers = append(n.FakePeers, ethnode.PeerInfo{
-		ID: uri.User.Username(),
+		ID:   uri.User.Username(),
+		Caps: []string{"fake/1", "eth/62", "eth/63", "les/2"},
+		Protocols: map[string]json.RawMessage{
+			"fake": json.RawMessage("{}"),
+		},
 	})
 	return nil
 }
