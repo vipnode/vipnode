@@ -73,6 +73,26 @@ func (p *RemotePool) Client(ctx context.Context, req ClientRequest) (*ClientResp
 	return &resp, nil
 }
 
+func (p *RemotePool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
+	signedReq := request.NodeRequest{
+		Method:    "vipnode_connect",
+		NodeID:    p.nodeID,
+		Nonce:     p.getNonce(),
+		ExtraArgs: []interface{}{req},
+	}
+
+	args, err := signedReq.SignedArgs(p.privkey)
+	if err != nil {
+		return nil, err
+	}
+	var resp ConnectResponse
+	if err := p.client.Call(ctx, &resp, signedReq.Method, args...); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}
+
 func (p *RemotePool) Disconnect(ctx context.Context) error {
 	signedReq := request.NodeRequest{
 		Method: "vipnode_disconnect",

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool/balance"
@@ -46,7 +47,8 @@ type VipnodePool struct {
 	Store           store.Store
 	BalanceManager  balance.Manager
 	ClientMessager  func(nodeID string) string
-	MaxRequestHosts int // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
+	MaxRequestHosts int               // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
+	RestrictNetwork ethnode.NetworkID // TODO: Wire this up
 
 	skipWhitelist bool // skipWhitelist is used for testing.
 
@@ -157,69 +159,87 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 }
 
 // Host registers a full node to participate as a vipnode host in this pool.
+// DEPRECATED: Use Connect
 func (p *VipnodePool) Host(ctx context.Context, sig string, nodeID string, nonce int64, req HostRequest) (*HostResponse, error) {
-	// TODO: Send capabilities?
+	// This is a backport of Host using Connect behind the scenes.
 	if err := p.verify(sig, "vipnode_host", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
 
-	service, err := jsonrpc2.CtxService(ctx)
+	connectReq := ConnectRequest{
+		NodeInfo: ethnode.UserAgent{
+			Kind:       ethnode.ParseNodeKind(req.Kind),
+			IsFullNode: true,
+		},
+		Payout:  req.Payout,
+		NodeURI: req.NodeURI,
+	}
+	connectResp, err := p.connect(ctx, nodeID, connectReq)
 	if err != nil {
 		return nil, err
 	}
-
-	remoteHost := ""
-	if withAddr, ok := service.(interface{ RemoteAddr() string }); ok {
-		remoteHost = (&url.URL{Host: withAddr.RemoteAddr()}).Hostname()
-	}
-	defaultPort := "30303"
-	nodeURI, err := normalizeNodeURI(req.NodeURI, nodeID, remoteHost, defaultPort)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Confirm that it's a full node, not a light node? Doesn't super matter since if i
-	// TODO: Check versions?
-
-	logger.Printf("New %q host: %q", req.Kind, nodeURI)
-
-	node := store.Node{
-		ID:       store.NodeID(nodeID),
-		URI:      nodeURI,
-		Kind:     req.Kind,
-		LastSeen: time.Now(),
-		IsHost:   true,
-		Payout:   store.Account(req.Payout),
-	}
-	err = p.Store.SetNode(node)
-	if err != nil {
-		return nil, err
-	}
-
-	// FIXME: Clean up disconnected hosts
-	p.mu.Lock()
-	p.remoteHosts[node.ID] = service
-	p.mu.Unlock()
 
 	resp := &HostResponse{
-		PoolVersion: p.Version,
+		PoolVersion: connectResp.PoolVersion,
 	}
 	return resp, nil
 }
 
 // Client returns a list of enodes who are ready for the client node to connect.
+// DEPRECATED: Use Connect
 func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, nonce int64, req ClientRequest) (*ClientResponse, error) {
+	// This is a backport of Client using Connect behind the scenes.
 	if err := p.verify(sig, "vipnode_client", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
-
-	kind := req.Kind
+	// Clients have a default number of hosts they request. Hosts don't.
 	numRequestHosts := defaultRequestNumHosts
+	if req.NumHosts > 0 {
+		numRequestHosts = req.NumHosts
+	}
+	connectReq := ConnectRequest{
+		NumHosts: numRequestHosts,
+		NodeInfo: ethnode.UserAgent{
+			Kind:       ethnode.ParseNodeKind(req.Kind),
+			IsFullNode: false,
+		},
+	}
+	connectResp, err := p.connect(ctx, nodeID, connectReq)
+	if err != nil {
+		return nil, err
+	}
+	resp := &ClientResponse{
+		Hosts:       connectResp.Hosts,
+		PoolVersion: connectResp.PoolVersion,
+		Message:     connectResp.Message,
+	}
+	return resp, nil
+}
+
+// Client returns a list of enodes who are ready for the client node to connect.
+func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, req ConnectRequest) (*ConnectResponse, error) {
+	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, req); err != nil {
+		return nil, err
+	}
+
+	return p.connect(ctx, nodeID, req)
+}
+
+// connect is same as Connect without signature verification. Used as a helper.
+// TODO: We can inline connect into Connect once Client/Host are removed.
+func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectRequest) (*ConnectResponse, error) {
+	kind := req.NodeInfo.Kind.String()
+	isHost := req.NodeInfo.IsFullNode
+	if p.RestrictNetwork != 0 && p.RestrictNetwork != req.NodeInfo.Network {
+		return nil, fmt.Errorf("node is on the wrong network, pool requires: %s", p.RestrictNetwork)
+	}
+
+	numRequestHosts := req.NumHosts
 	if p.MaxRequestHosts > 0 && numRequestHosts > p.MaxRequestHosts {
 		numRequestHosts = p.MaxRequestHosts
 	}
 
-	response := &ClientResponse{
+	response := &ConnectResponse{
 		PoolVersion: p.Version,
 	}
 	if p.ClientMessager != nil {
@@ -233,8 +253,33 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		ID:       store.NodeID(nodeID),
 		Kind:     kind,
 		LastSeen: time.Now(),
-		IsHost:   false,
+		IsHost:   isHost,
+		Payout:   store.Account(req.Payout),
 	}
+
+	if isHost {
+		// We only care about publicly-visible nodeURIs for hosts.
+		service, err := jsonrpc2.CtxService(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		remoteHost := ""
+		if withAddr, ok := service.(interface{ RemoteAddr() string }); ok {
+			remoteHost = (&url.URL{Host: withAddr.RemoteAddr()}).Hostname()
+		}
+		defaultPort := "30303"
+		node.URI, err = normalizeNodeURI(req.NodeURI, nodeID, remoteHost, defaultPort)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: Clean up disconnected/failed host services
+		p.mu.Lock()
+		p.remoteHosts[node.ID] = service
+		p.mu.Unlock()
+	}
+
 	if err := p.Store.SetNode(node); err != nil {
 		return nil, err
 	}
@@ -243,17 +288,22 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		return nil, err
 	}
 
+	if numRequestHosts == 0 {
+		// Nothing left to do
+		return response, nil
+	}
+
 	r, err := p.Store.ActiveHosts(kind, numRequestHosts)
 	if err != nil {
 		return nil, err
 	}
-	if len(r) == 0 {
-		logger.Printf("New %q client: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
+	if !isHost && len(r) == 0 {
+		logger.Printf("New %q peer: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
 		return nil, NoHostNodesError{}
 	}
 
 	if p.skipWhitelist {
-		logger.Printf("New %q client: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
+		logger.Printf("New %q peer: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
 		response.Hosts = r
 		return response, nil
 	}
@@ -302,9 +352,9 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	// TODO: Penalize hosts that failed to respond within the deadline?
 
 	if len(errors) > 0 {
-		logger.Printf("New %q client: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), RemoteHostErrors{"vipnode_whitelist", errors})
+		logger.Printf("New %q peer: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), RemoteHostErrors{"vipnode_whitelist", errors})
 	} else {
-		logger.Printf("New %q client: %s (%d hosts found, %d accepted)", kind, nodeID[:8], len(remotes), len(accepted))
+		logger.Printf("New %q peer: %s (%d hosts found, %d accepted)", kind, nodeID[:8], len(remotes), len(accepted))
 	}
 
 	if len(accepted) >= 1 {
@@ -316,6 +366,12 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 		return nil, RemoteHostErrors{"vipnode_whitelist", errors}
 	}
 
+	if isHost {
+		// Hosts are ok without peers
+		return response, nil
+	}
+
+	// FIXME: Should clients also be ok without peers? Just stay connected and retry later?
 	return nil, NoHostNodesError{len(r)}
 }
 
