@@ -19,6 +19,17 @@ const (
 	Parity
 )
 
+func ParseNodeKind(s string) NodeKind {
+	switch strings.ToLower(s) {
+	case "geth":
+		return Geth
+	case "parity":
+		return Parity
+	default:
+		return Unknown
+	}
+}
+
 type NetworkID int
 
 const (
@@ -63,13 +74,13 @@ func (n NodeKind) String() string {
 
 // UserAgent is the metadata about node client.
 type UserAgent struct {
-	Version     string // Result of web3_clientVersion
-	EthProtocol string // Result of eth_protocolVersion
+	Version     string `json:"version"`      // Result of web3_clientVersion
+	EthProtocol string `json:"eth_protocol"` // Result of eth_protocolVersion
 
 	// Parsed/derived values
-	Kind       NodeKind  // Node implementation
-	Network    NetworkID // Network ID
-	IsFullNode bool      // Is this a full node? (or a light client?)
+	Kind       NodeKind  `json:"kind"`         // Node implementation
+	Network    NetworkID `json:"network"`      // Network ID
+	IsFullNode bool      `json:"is_full_node"` // Is this a full node? (or a light client?)
 }
 
 // ParseUserAgent takes string values as output from the web3 RPC for
@@ -139,7 +150,9 @@ type PeerInfo struct {
 	Name      string                     `json:"name"`      // Name of the node, including client type, version, OS, custom data
 	Caps      []string                   `json:"caps"`      // Capabilities the node is advertising.
 	Protocols map[string]json.RawMessage `json:"protocols"` // Sub-protocol specific metadata fields
-	Network   struct {
+
+	// FIXME: Do we want to include node-local network address state? Or is it unnecessary security leakage?
+	Network struct {
 		LocalAddress  string `json:"localAddress"`  // Local endpoint of the TCP data connection
 		RemoteAddress string `json:"remoteAddress"` // Remote endpoint of the TCP data connection
 	} `json:"network"`
