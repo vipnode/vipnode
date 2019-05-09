@@ -229,14 +229,13 @@ func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, no
 // TODO: We can inline connect into Connect once Client/Host are removed.
 func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectRequest) (*ConnectResponse, error) {
 	kind := req.NodeInfo.Kind.String()
+	if kind == "unknown" {
+		kind = ""
+	}
+
 	isHost := req.NodeInfo.IsFullNode
 	if p.RestrictNetwork != 0 && p.RestrictNetwork != req.NodeInfo.Network {
 		return nil, fmt.Errorf("node is on the wrong network, pool requires: %s", p.RestrictNetwork)
-	}
-
-	numRequestHosts := req.NumHosts
-	if p.MaxRequestHosts > 0 && numRequestHosts > p.MaxRequestHosts {
-		numRequestHosts = p.MaxRequestHosts
 	}
 
 	response := &ConnectResponse{
@@ -288,24 +287,51 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 		return nil, err
 	}
 
+	reqKind := kind
+	if isHost {
+		// Any kind of host peer will do.
+		reqKind = ""
+	}
+
+	hosts, err := p.requestHosts(ctx, nodeID, req.NumHosts, reqKind)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isHost && len(hosts) == 0 {
+		logger.Printf("New %q peer: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
+		return nil, NoHostNodesError{}
+	}
+
+	response.Hosts = hosts
+	if p.skipWhitelist {
+		logger.Printf("New %q peer: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(hosts))
+	} else {
+		logger.Printf("New %q peer: %q (%d hosts found)", kind, pretty.Abbrev(nodeID), len(hosts))
+	}
+
+	return response, nil
+}
+
+func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numRequestHosts int, kind string) ([]store.Node, error) {
+	if p.MaxRequestHosts > 0 && numRequestHosts > p.MaxRequestHosts {
+		numRequestHosts = p.MaxRequestHosts
+	}
+
+	var hosts []store.Node
 	if numRequestHosts == 0 {
 		// Nothing left to do
-		return response, nil
+		return hosts, nil
 	}
 
 	r, err := p.Store.ActiveHosts(kind, numRequestHosts)
 	if err != nil {
 		return nil, err
 	}
-	if !isHost && len(r) == 0 {
-		logger.Printf("New %q peer: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
-		return nil, NoHostNodesError{}
-	}
 
 	if p.skipWhitelist {
-		logger.Printf("New %q peer: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(r))
-		response.Hosts = r
-		return response, nil
+		// Bypass whitelisting, used for making testing simpler
+		return r, nil
 	}
 
 	errors := []error{}
@@ -352,26 +378,20 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	// TODO: Penalize hosts that failed to respond within the deadline?
 
 	if len(errors) > 0 {
-		logger.Printf("New %q peer: %s (%d hosts found, %d accepted) %s", kind, nodeID[:8], len(remotes), len(accepted), RemoteHostErrors{"vipnode_whitelist", errors})
-	} else {
-		logger.Printf("New %q peer: %s (%d hosts found, %d accepted)", kind, nodeID[:8], len(remotes), len(accepted))
+		err = RemoteHostErrors{"vipnode_whitelist", errors}
 	}
+
+	logger.Printf("Request hosts from %q: kind=%q (%d hosts found, %d accepted), failures=%s", pretty.Abbrev(nodeID), kind, len(remotes), len(accepted), err)
 
 	if len(accepted) >= 1 {
-		response.Hosts = accepted
-		return response, nil
+		// We're okay returning without an error as long as some hosts succeeded.
+		return accepted, nil
 	}
 
-	if len(errors) > 0 {
-		return nil, RemoteHostErrors{"vipnode_whitelist", errors}
+	if err != nil {
+		return nil, err
 	}
 
-	if isHost {
-		// Hosts are ok without peers
-		return response, nil
-	}
-
-	// FIXME: Should clients also be ok without peers? Just stay connected and retry later?
 	return nil, NoHostNodesError{len(r)}
 }
 

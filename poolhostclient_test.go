@@ -195,7 +195,7 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		hostPool := pool.Remote(host.Out, host.Key)
 
 		if err := host.ConnectPeers(hostPool, numHosts); err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 
 		if peers, err := host.Node.Peers(context.Background()); err != nil {
