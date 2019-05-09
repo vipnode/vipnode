@@ -115,7 +115,7 @@ type Pool interface {
 	// DEREPCATED: Use Connect
 	Client(ctx context.Context, req ClientRequest) (*ClientResponse, error)
 
-	// Host subscribes a host to receive vipnode_whitelist instructions.
+	// Connect subscribes to the active nodes set.
 	Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error)
 
 	// Disconnect stops tracking the connection and billing, will prompt a
