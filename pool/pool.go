@@ -94,7 +94,7 @@ type ClientResponse struct {
 
 // UpdateRequest is the request type for Update RPC calls.
 type UpdateRequest struct {
-	Peers       []string           `json:"peers"` // DEPRECATED
+	Peers       []string           `json:"peers,omitempty"` // DEPRECATED
 	PeerInfo    []ethnode.PeerInfo `json:"peers_info"`
 	BlockNumber uint64             `json:"block_number"`
 }
@@ -126,6 +126,8 @@ type Pool interface {
 	// a list of peers that are no longer corroborated by the pool, and current
 	// balance for the node (if relevant).
 	Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error)
+
+	// TODO: RequestHosts(ctx context.Context, req RequestHostsRequest) (*RequestHostsRequest, error)
 
 	// Withdraw prompts a request to settle the node's balance.
 	Withdraw(ctx context.Context) error

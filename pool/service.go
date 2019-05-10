@@ -115,8 +115,17 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	nodeBeforeUpdate := *node
 
-	peers := req.Peers
-	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peers, req.BlockNumber)
+	peerTypes := segmentPeers(req.PeerInfo)
+	if peerTypes.Count == 0 {
+		// DEPRECATED: Remove this backport for req.Peers once deprecation is complete.
+		peerTypes.Clients = req.Peers
+		peerTypes.Count = len(req.Peers)
+	}
+
+	// FIXME: We only consider peers who are light clients, and effectively
+	// ignore host peers. It may be useful to take hosts into account in the
+	// future too.
+	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peerTypes.Clients, req.BlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +159,9 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	resp.Balance = &nodeBalance
 
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), nodeBalance.String())
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
 	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), len(peers), len(validPeers), len(inactive), nodeBalance.String())
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
 	}
 
 	return &resp, nil
@@ -398,4 +407,29 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 // Ping returns "pong", used for testing.
 func (p *VipnodePool) Ping(ctx context.Context) string {
 	return "pong"
+}
+
+// peerTypes stores the subset of peer IDs by type, derived from the capabilities.
+type peerTypes struct {
+	Count   int
+	Hosts   []string
+	Clients []string
+}
+
+func segmentPeers(peers []ethnode.PeerInfo) peerTypes {
+	r := peerTypes{}
+	for _, p := range peers {
+		r.Count++
+
+		if _, ok := p.Protocols["eth"]; ok {
+			// Hosts have eth/62 or eth/63 capability (comes up as "eth" protocol)
+			r.Hosts = append(r.Hosts, p.ID)
+		} else if len(p.Protocols) > 0 {
+			// Anything else is probably "les" or "pip"
+			r.Clients = append(r.Clients, p.ID)
+		}
+		// Empty p.Protocols means the peer has not completed the handshake yet,
+		// so we can ignore them.
+	}
+	return r
 }
