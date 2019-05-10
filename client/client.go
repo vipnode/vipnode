@@ -106,12 +106,7 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 	if err != nil {
 		return err
 	}
-	peerIDs := make([]string, 0, len(peers))
-	for _, p := range peers {
-		peerIDs = append(peerIDs, p.ID)
-	}
-
-	update, err := p.Update(ctx, pool.UpdateRequest{Peers: peerIDs})
+	update, err := p.Update(ctx, pool.UpdateRequest{PeerInfo: peers})
 	if err != nil {
 		return err
 	}
@@ -124,9 +119,9 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 		// tracking their host. That means the client is getting a free ride
 		// and it's up to the host to kick the client when the host deems
 		// necessary.
-		logger.Printf("Sent update: %d peers connected, %d expired in pool. Pool response: %s", len(peerIDs), len(update.InvalidPeers), update.Balance.String())
+		logger.Printf("Sent update: %d peers connected, %d expired in pool. Pool response: %s", len(peers), len(update.InvalidPeers), update.Balance.String())
 	} else {
-		logger.Printf("Sent update: %d peers connected. Pool response: %s", len(peerIDs), update.Balance.String())
+		logger.Printf("Sent update: %d peers connected. Pool response: %s", len(peers), update.Balance.String())
 	}
 
 	return nil
