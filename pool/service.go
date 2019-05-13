@@ -31,9 +31,10 @@ func New(storeDriver store.Store, manager balance.Manager) *VipnodePool {
 		manager = balance.NoBalance{}
 	}
 	return &VipnodePool{
-		Store:          storeDriver,
-		BalanceManager: manager,
-		remoteHosts:    map[store.NodeID]jsonrpc2.Service{},
+		Store:            storeDriver,
+		BalanceManager:   manager,
+		remoteHosts:      map[store.NodeID]jsonrpc2.Service{},
+		remoteNodeLookup: map[jsonrpc2.Service]store.NodeID{},
 	}
 }
 
@@ -49,11 +50,28 @@ type VipnodePool struct {
 	ClientMessager  func(nodeID string) string
 	MaxRequestHosts int               // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
 	RestrictNetwork ethnode.NetworkID // TODO: Wire this up
+	skipWhitelist   bool              // skipWhitelist is used for testing.
 
-	skipWhitelist bool // skipWhitelist is used for testing.
+	mu               sync.Mutex
+	remoteHosts      map[store.NodeID]jsonrpc2.Service
+	remoteNodeLookup map[jsonrpc2.Service]store.NodeID // Reverse lookup
+}
 
-	mu          sync.Mutex
-	remoteHosts map[store.NodeID]jsonrpc2.Service
+// OnDisconnect is to be called when a remote service is disconnected. It is used to clean up state.
+func (p *VipnodePool) OnDisconnect(remote jsonrpc2.Service) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	nodeID, ok := p.remoteNodeLookup[remote]
+	if !ok {
+		// Nothing to clean up
+		return nil
+	}
+
+	delete(p.remoteNodeLookup, remote)
+	delete(p.remoteHosts, nodeID)
+
+	return nil
 }
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
@@ -282,9 +300,9 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 			return nil, err
 		}
 
-		// TODO: Clean up disconnected/failed host services
 		p.mu.Lock()
 		p.remoteHosts[node.ID] = service
+		p.remoteNodeLookup[service] = node.ID
 		p.mu.Unlock()
 	}
 
