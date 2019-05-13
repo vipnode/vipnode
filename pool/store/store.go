@@ -63,6 +63,9 @@ type Node struct {
 	IsHost      bool
 	Payout      Account
 	BlockNumber uint64 `json:"block_number"`
+
+	NodeVersion    string `json:"node_version"`
+	VipnodeVersion string `json:"vipnode_version"`
 }
 
 // Stats contains various aggregate stats of the store state, used for
