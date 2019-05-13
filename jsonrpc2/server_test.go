@@ -9,7 +9,7 @@ import (
 func TestServer(t *testing.T) {
 	service := &FruitService{}
 	s := Server{}
-	if err := s.Register("foo_", service); err != nil {
+	if err := s.Register("foo_", service, "apple", "banana"); err != nil {
 		t.Error(err)
 	}
 
@@ -41,5 +41,20 @@ func TestServer(t *testing.T) {
 
 	if string(resp.Response.Result) != "null" {
 		t.Errorf("unexpected result: %q", resp.Result)
+	}
+
+	resp = s.Handle(context.Background(), &Message{
+		ID:      json.RawMessage([]byte("3")),
+		Version: Version,
+		Request: &Request{
+			Method: "foo_cherry",
+		},
+	})
+	if resp.Error == nil {
+		t.Errorf("expected error, got: %q", resp)
+	}
+
+	if resp.Error.Message != "method not found: foo_cherry" {
+		t.Errorf("unexpected error message: %q", resp.Error)
 	}
 }
