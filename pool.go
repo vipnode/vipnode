@@ -199,7 +199,7 @@ func runPool(options Options) error {
 		handler.header.Set("Access-Control-Allow-Origin", options.Pool.AllowOrigin)
 	}
 
-	if err := handler.Register("vipnode_", p); err != nil {
+	if err := handler.Register("vipnode_", p, "connect", "disconnect", "ping", "update", "client", "host"); err != nil {
 		return err
 	}
 
