@@ -406,9 +406,10 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 
 	if len(errors) > 0 {
 		err = RemoteHostErrors{"vipnode_whitelist", errors}
+		logger.Printf("Request %q hosts: %q (%d hosts found, %d accepted); failures: %s", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted), err)
+	} else {
+		logger.Printf("Request %q hosts: %q (%d hosts found, %d accepted)", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted))
 	}
-
-	logger.Printf("Request hosts from %q: kind=%q (%d hosts found, %d accepted), failures=%s", pretty.Abbrev(nodeID), kind, len(remotes), len(accepted), err)
 
 	if len(accepted) >= 1 {
 		// We're okay returning without an error as long as some hosts succeeded.
