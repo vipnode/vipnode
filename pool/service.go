@@ -285,11 +285,13 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	// get successfully whitelisted, then switched to host status thus bypass
 	// billing?
 	node := store.Node{
-		ID:       store.NodeID(nodeID),
-		Kind:     kind,
-		LastSeen: time.Now(),
-		IsHost:   isHost,
-		Payout:   store.Account(req.Payout),
+		ID:             store.NodeID(nodeID),
+		Kind:           kind,
+		LastSeen:       time.Now(),
+		IsHost:         isHost,
+		Payout:         store.Account(req.Payout),
+		NodeVersion:    req.NodeInfo.Version,
+		VipnodeVersion: req.VipnodeVersion,
 	}
 
 	if isHost {

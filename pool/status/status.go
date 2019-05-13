@@ -20,6 +20,9 @@ type Host struct {
 	Kind        string    `json:"kind"`
 	BlockNumber uint64    `json:"block_number"`
 
+	NodeVersion    string `json:"node_version"`
+	VipnodeVersion string `json:"vipnode_version"`
+
 	// TODO: Add peers
 }
 
@@ -33,6 +36,9 @@ func nodeHost(n store.Node) Host {
 		LastSeen:    n.LastSeen,
 		Kind:        n.Kind,
 		BlockNumber: n.BlockNumber,
+
+		NodeVersion:    n.NodeVersion,
+		VipnodeVersion: n.VipnodeVersion,
 	}
 }
 
