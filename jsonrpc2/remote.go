@@ -13,6 +13,8 @@ import (
 
 // ServePipe sets up symmetric server/clients over a net.Pipe() and starts
 // both in goroutines. Useful for testing. Services still need to be registered.
+// FIXME: This is a testing helper, ideally we want to get rid of it. It leaks
+// goroutines by design.
 func ServePipe() (*Remote, *Remote) {
 	c1, c2 := net.Pipe()
 	client := Remote{
