@@ -14,9 +14,10 @@ type wsHandler interface {
 
 type server struct {
 	jsonrpc2.HTTPServer
-	ws       ws.Upgrader
-	debugLog bool
-	header   http.Header
+	ws           ws.Upgrader
+	debugLog     bool
+	header       http.Header
+	onDisconnect func(remote jsonrpc2.Service) error
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +44,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if s.debugLog {
 			codec = jsonrpc2.DebugCodec(r.RemoteAddr, codec)
 		}
+		defer codec.Close()
+
 		remote := &jsonrpc2.Remote{
 			Codec:  codec,
 			Server: &s.HTTPServer.Server,
@@ -53,6 +56,12 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := remote.Serve(); err != nil && err != io.EOF {
 			logger.Warningf("jsonrpc2.Remote.Serve() error: %s", err)
+		}
+
+		if s.onDisconnect != nil {
+			if err := s.onDisconnect(remote); err != nil {
+				logger.Warningf("jsonrpc2.Service disconnect error: %s", err)
+			}
 		}
 	default:
 		http.Error(w, "unsupported method", http.StatusUnsupportedMediaType)
