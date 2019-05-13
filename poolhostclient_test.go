@@ -174,6 +174,10 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		t.Errorf("wrong number of hosts: got %d; want %d", got, want)
 	}
 
+	if got, want := cluster.Pool.NumRemotes(), 4; got != want {
+		t.Errorf("wrong number of remotes: got %d; want %d", got, want)
+	}
+
 	stats, err := cluster.Pool.Store.Stats()
 	if err != nil {
 		t.Error(err)
@@ -232,5 +236,9 @@ func TestPoolHostConnectPeers(t *testing.T) {
 	err = cluster.Close()
 	if err != nil {
 		t.Error(err)
+	}
+
+	if got, want := cluster.Pool.NumRemotes(), 0; got != want {
+		t.Errorf("wrong number of remotes: got %d; want %d", got, want)
 	}
 }

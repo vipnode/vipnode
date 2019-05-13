@@ -57,6 +57,8 @@ type VipnodePool struct {
 	remoteNodeLookup map[jsonrpc2.Service]store.NodeID // Reverse lookup
 }
 
+// TODO: Move CloseRemote and NumRemotes, and remoteHosts etc into a separate struct?
+
 // CloseRemote is to be called when a remote service is disconnected. It is used to clean up state.
 func (p *VipnodePool) CloseRemote(remote jsonrpc2.Service) error {
 	p.mu.Lock()
@@ -72,6 +74,13 @@ func (p *VipnodePool) CloseRemote(remote jsonrpc2.Service) error {
 	delete(p.remoteHosts, nodeID)
 
 	return nil
+}
+
+// NumRemotes returns the number of remote hosts that the pool is currently maintaining.
+func (p *VipnodePool) NumRemotes() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.remoteHosts)
 }
 
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
