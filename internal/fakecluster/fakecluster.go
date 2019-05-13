@@ -118,6 +118,9 @@ func (c *Cluster) Close() error {
 		client.Stop()
 	}
 	for _, host := range c.Hosts {
+		if err := c.Pool.CloseRemote(host.In); err != nil {
+			errors = append(errors, err)
+		}
 		if err := host.Wait(); err != nil {
 			errors = append(errors, err)
 		}
