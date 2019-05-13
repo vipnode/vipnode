@@ -193,7 +193,7 @@ func runPool(options Options) error {
 	handler := &server{
 		ws:           &ws.Upgrader{},
 		header:       http.Header{},
-		onDisconnect: p.OnDisconnect,
+		onDisconnect: p.CloseRemote,
 	}
 	if options.Pool.AllowOrigin != "" {
 		handler.header.Set("Access-Control-Allow-Origin", options.Pool.AllowOrigin)
