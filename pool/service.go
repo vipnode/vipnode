@@ -57,8 +57,8 @@ type VipnodePool struct {
 	remoteNodeLookup map[jsonrpc2.Service]store.NodeID // Reverse lookup
 }
 
-// OnDisconnect is to be called when a remote service is disconnected. It is used to clean up state.
-func (p *VipnodePool) OnDisconnect(remote jsonrpc2.Service) error {
+// CloseRemote is to be called when a remote service is disconnected. It is used to clean up state.
+func (p *VipnodePool) CloseRemote(remote jsonrpc2.Service) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
