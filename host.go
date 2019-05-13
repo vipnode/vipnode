@@ -49,10 +49,20 @@ func runHost(options Options) error {
 		h.NodeURI = remoteEnode
 	}
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	go func() {
+		for _ = range sigCh {
+			logger.Info("Shutting down...")
+			h.Stop()
+		}
+	}()
+
 	if options.Host.Pool == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.
 		logger.Infof("Starting in-memory vipnode pool.")
 		p := pool.New(memory.New(), nil)
+		p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
 		rpcPool := &jsonrpc2.Local{}
 		if err := rpcPool.Server.Register("vipnode_", p); err != nil {
 			return err
@@ -104,15 +114,6 @@ func runHost(options Options) error {
 			return err
 		}
 	}
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	go func() {
-		for _ = range sigCh {
-			logger.Info("Shutting down...")
-			h.Stop()
-		}
-	}()
 
 	return <-errChan
 
