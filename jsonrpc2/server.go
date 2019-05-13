@@ -17,8 +17,9 @@ var ErrNoPublicMethods = errors.New("no public methods")
 type Handler interface {
 	// Handle takes a request message and returns a response message.
 	Handle(ctx context.Context, request *Message) (response *Message)
+
 	// FIXME: Register* really shouldn't be part of this signature, right?
-	Register(prefix string, receiver interface{}) error
+	Register(prefix string, receiver interface{}, onlyMethods ...string) error
 	RegisterMethod(rpcName string, receiver interface{}, methodName string) error
 }
 
@@ -34,7 +35,7 @@ type Server struct {
 
 // Register adds valid methods from the receiver to the registry with the given
 // prefix. Method names are lowercased.
-func (s *Server) Register(prefix string, receiver interface{}) error {
+func (s *Server) Register(prefix string, receiver interface{}, onlyMethods ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -52,13 +53,30 @@ func (s *Server) Register(prefix string, receiver interface{}) error {
 		return ErrNoPublicMethods
 	}
 
+	var methodWhitelist map[string]struct{}
+	if len(onlyMethods) > 0 {
+		methodWhitelist = map[string]struct{}{}
+		for _, name := range onlyMethods {
+			methodWhitelist[name] = struct{}{}
+		}
+	}
+
 	var buf bytes.Buffer
 	for name, m := range methods {
+		buf.Reset()
 		buf.WriteString(prefix)
 		buf.WriteRune(unicode.ToLower(rune(name[0])))
 		buf.WriteString(name[1:])
+
+		if methodWhitelist != nil {
+			// Skip methods that are not whitelisted
+			methodName := buf.String()[len(prefix):]
+			if _, ok := methodWhitelist[methodName]; !ok {
+				continue
+			}
+		}
+
 		s.registry[buf.String()] = m
-		buf.Reset()
 	}
 	return nil
 }
