@@ -24,9 +24,10 @@ func Call(method string, args ...interface{}) call {
 
 func Node(nodeID string) *FakeNode {
 	return &FakeNode{
-		NodeKind: ethnode.Geth,
-		NodeID:   nodeID,
-		Calls:    Calls{},
+		NodeKind:   ethnode.Geth,
+		NodeID:     nodeID,
+		Calls:      Calls{},
+		IsFullNode: true,
 	}
 }
 
@@ -37,12 +38,21 @@ type FakeNode struct {
 	Calls           Calls
 	FakePeers       []ethnode.PeerInfo
 	FakeBlockNumber uint64
+	IsFullNode      bool
 }
 
 func (n *FakeNode) ContractBackend() bind.ContractBackend {
 	return &ethclient.Client{}
 }
 
+func (n *FakeNode) UserAgent() ethnode.UserAgent {
+	return ethnode.UserAgent{
+		Version:    "Geth/Fakenode/Go-tests",
+		Network:    1,
+		IsFullNode: n.IsFullNode,
+		Kind:       n.NodeKind,
+	}
+}
 func (n *FakeNode) Kind() ethnode.NodeKind                    { return n.NodeKind }
 func (n *FakeNode) Enode(ctx context.Context) (string, error) { return n.NodeID, nil }
 func (n *FakeNode) AddTrustedPeer(ctx context.Context, nodeID string) error {
