@@ -37,6 +37,7 @@ func runClient(options Options) error {
 
 	errChan := make(chan error)
 	c := client.New(remoteNode)
+	c.Version = fmt.Sprintf("vipnode/client/%s", Version)
 	c.PoolMessageCallback = func(msg string) {
 		logger.Alertf("Message from pool: %s", msg)
 	}

@@ -24,7 +24,8 @@ func TestPoolHostClient(t *testing.T) {
 	privkey := keygen.HardcodedKeyIdx(t, 0)
 	payout := ""
 
-	p := pool.New(memory.New(), nil)
+	db := memory.New()
+	p := pool.New(db, nil)
 	rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Host.Close()
 	defer rpcHost2Pool.Close()
@@ -46,6 +47,12 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	defer h.Stop()
 
+	if stats, err := db.Stats(); err != nil {
+		t.Fatal(err)
+	} else if stats.NumActiveHosts != 1 {
+		t.Errorf("wrong number of active hosts: %+v", stats)
+	}
+
 	rpcPool2Client, rpcClient2Pool := jsonrpc2.ServePipe()
 	defer rpcPool2Client.Close()
 	defer rpcClient2Pool.Close()
@@ -54,6 +61,7 @@ func TestPoolHostClient(t *testing.T) {
 	clientPrivkey := keygen.HardcodedKeyIdx(t, 1)
 	clientNodeID := discv5.PubkeyID(&clientPrivkey.PublicKey).String()
 	clientNode := fakenode.Node(clientNodeID)
+	clientNode.IsFullNode = false
 	c := client.New(clientNode)
 	clientPool := pool.Remote(rpcClient2Pool, clientPrivkey)
 	if err := c.Start(clientPool); err != nil {

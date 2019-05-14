@@ -21,10 +21,11 @@ type client struct {
 
 func New(node ethnode.EthNode, payout string) *Host {
 	return &Host{
-		node:   node,
-		payout: payout,
-		stopCh: make(chan struct{}),
-		waitCh: make(chan error, 1),
+		Version: "dev",
+		node:    node,
+		payout:  payout,
+		stopCh:  make(chan struct{}),
+		waitCh:  make(chan error, 1),
 	}
 }
 
@@ -40,6 +41,9 @@ type Host struct {
 	// we can provide an override if there is a non-standard port or if the
 	// node runs on a different IP from the vipnode agent.
 	NodeURI string
+
+	// Version is the version of the vipnode agent that the host is running.
+	Version string
 
 	node   ethnode.EthNode
 	payout string
@@ -120,12 +124,13 @@ func (h *Host) Start(p pool.Pool) error {
 	}
 	logger.Printf("Connected to local node: %s", enode)
 
-	hostReq := pool.HostRequest{
-		Kind:    h.node.Kind().String(),
-		Payout:  h.payout,
-		NodeURI: h.NodeURI,
+	connectReq := pool.ConnectRequest{
+		Payout:         h.payout,
+		NodeURI:        h.NodeURI,
+		VipnodeVersion: h.Version,
+		NodeInfo:       h.node.UserAgent(),
 	}
-	resp, err := p.Host(startCtx, hostReq)
+	resp, err := p.Connect(startCtx, connectReq)
 	if err != nil {
 		return err
 	}

@@ -19,14 +19,13 @@ type Host struct {
 	LastSeen    time.Time `json:"last_seen"`
 	Kind        string    `json:"kind"`
 	BlockNumber uint64    `json:"block_number"`
+	NumPeers    int       `json:"num_peers"`
 
 	NodeVersion    string `json:"node_version"`
 	VipnodeVersion string `json:"vipnode_version"`
-
-	// TODO: Add peers
 }
 
-func nodeHost(n store.Node) Host {
+func nodeHost(n store.Node, numPeers int) Host {
 	shortID := string(n.ID)
 	if len(shortID) > 12 {
 		shortID = shortID[:12]
@@ -36,6 +35,7 @@ func nodeHost(n store.Node) Host {
 		LastSeen:    n.LastSeen,
 		Kind:        n.Kind,
 		BlockNumber: n.BlockNumber,
+		NumPeers:    numPeers,
 
 		NodeVersion:    n.NodeVersion,
 		VipnodeVersion: n.VipnodeVersion,
@@ -123,7 +123,12 @@ func (s *PoolStatus) getStatus() (*StatusResponse, error) {
 
 	r.ActiveHosts = make([]Host, 0, len(nodes))
 	for _, n := range nodes {
-		r.ActiveHosts = append(r.ActiveHosts, nodeHost(n))
+		peers, err := s.Store.NodePeers(n.ID)
+		if err != nil {
+			r.Error = err
+			return r, err
+		}
+		r.ActiveHosts = append(r.ActiveHosts, nodeHost(n, len(peers)))
 	}
 
 	return r, nil

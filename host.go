@@ -38,6 +38,7 @@ func runHost(options Options) error {
 	}
 
 	h := host.New(remoteNode, options.Host.Payout)
+	h.Version = fmt.Sprintf("vipnode/host/%s", Version)
 	if options.Host.NodeURI != "" {
 		if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
 			return err

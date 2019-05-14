@@ -7,16 +7,11 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
-// TODO: Add HostRequest.Network and ClientRequest.Network?
-// TODO: Add HostRequest.HostVersion?
-
 // ConnectRequest is a base request done when a vipnode agent connects to a pool.
 // It is common between hosts and clients
 type ConnectRequest struct {
 	// VipnodeVersion is the version string of the vipnode agent
 	VipnodeVersion string `json:"vipnode_version"`
-
-	// XXX: Add Protocols/Capabilities
 
 	// NodeInfo is the metadata of the Ethereum node, includes node kind.
 	NodeInfo ethnode.UserAgent `json:"node_info"`

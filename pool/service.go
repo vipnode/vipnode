@@ -31,6 +31,8 @@ func New(storeDriver store.Store, manager balance.Manager) *VipnodePool {
 		manager = balance.NoBalance{}
 	}
 	return &VipnodePool{
+		Version: "dev",
+
 		Store:            storeDriver,
 		BalanceManager:   manager,
 		remoteHosts:      map[store.NodeID]jsonrpc2.Service{},
