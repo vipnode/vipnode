@@ -297,12 +297,13 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	}
 
 	if isHost {
-		// We only care about publicly-visible nodeURIs for hosts.
+		// Hosts expose a reverse-RPC for vipnode_whitelist.
 		service, err := jsonrpc2.CtxService(ctx)
 		if err != nil {
 			return nil, err
 		}
 
+		// We only care about publicly-visible nodeURIs for hosts.
 		remoteHost := ""
 		if withAddr, ok := service.(interface{ RemoteAddr() string }); ok {
 			remoteHost = (&url.URL{Host: withAddr.RemoteAddr()}).Hostname()
