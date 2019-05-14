@@ -164,6 +164,8 @@ type EthNode interface {
 
 	// Kind returns the kind of node this is.
 	Kind() NodeKind
+	// UserAgent returns the versions of the client.
+	UserAgent() UserAgent
 	// Enode returns this node's enode://...
 	Enode(ctx context.Context) (string, error)
 	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
@@ -184,17 +186,23 @@ type EthNode interface {
 // RemoteNode autodetects the node kind and returns the appropriate EthNode
 // implementation.
 func RemoteNode(client *rpc.Client) (EthNode, error) {
-	version, err := DetectClient(client)
+	agent, err := DetectClient(client)
 	if err != nil {
 		return nil, err
 	}
-	switch version.Kind {
+	switch agent.Kind {
 	case Parity:
-		return &parityNode{client: client}, nil
+		return &parityNode{
+			agent:  *agent,
+			client: client,
+		}, nil
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
-		node := &gethNode{client: client}
+		node := &gethNode{
+			agent:  *agent,
+			client: client,
+		}
 		ctx := context.TODO()
 		if err := node.CheckCompatible(ctx); err != nil {
 			return nil, err

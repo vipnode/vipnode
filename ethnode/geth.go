@@ -20,11 +20,16 @@ type codedError interface {
 var _ EthNode = &gethNode{}
 
 type gethNode struct {
+	agent  UserAgent
 	client *rpc.Client
 }
 
 func (n *gethNode) ContractBackend() bind.ContractBackend {
 	return ethclient.NewClient(n.client)
+}
+
+func (n *gethNode) UserAgent() UserAgent {
+	return n.agent
 }
 
 func (n *gethNode) Kind() NodeKind {

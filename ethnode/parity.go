@@ -16,11 +16,16 @@ type parityPeers struct {
 }
 
 type parityNode struct {
+	agent  UserAgent
 	client *rpc.Client
 }
 
 func (n *parityNode) ContractBackend() bind.ContractBackend {
 	return ethclient.NewClient(n.client)
+}
+
+func (n *parityNode) UserAgent() UserAgent {
+	return n.agent
 }
 
 func (n *parityNode) Kind() NodeKind {
