@@ -10,20 +10,28 @@ import (
 	"github.com/vipnode/vipnode/pool/store"
 )
 
+const defaultNumHosts = 3
+
 // ErrAlreadyConnected is returned on Connect() if the client is already connected.
 var ErrAlreadyConnected = errors.New("client already connected")
 
 func New(node ethnode.EthNode) *Client {
 	return &Client{
-		EthNode: node,
-		stopCh:  make(chan struct{}),
-		waitCh:  make(chan error, 1),
+		Version:  "dev",
+		EthNode:  node,
+		NumHosts: defaultNumHosts,
+
+		stopCh: make(chan struct{}),
+		waitCh: make(chan error, 1),
 	}
 }
 
 // Client represents a vipnode client which connects to a vipnode host.
 type Client struct {
 	ethnode.EthNode
+
+	// Version is the vipnode agent version that the client is using.
+	Version string
 
 	// BalanceCallback is called whenever the client receives a balance update
 	// from the pool. It can be used for displaying the current balance to the
@@ -35,6 +43,10 @@ type Client struct {
 	// instructions for how to manage the client's balance. It should be
 	// displayed to the client.
 	PoolMessageCallback func(string)
+
+	// NumHosts is the number of vipnode hosts the client should try to connect
+	// with.
+	NumHosts int
 
 	connectedHosts []store.Node
 	stopCh         chan struct{}
@@ -52,8 +64,11 @@ func (c *Client) Wait() error {
 func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
 	starCtx := context.Background()
-	kind := c.EthNode.Kind().String()
-	resp, err := p.Client(starCtx, pool.ClientRequest{Kind: kind})
+	resp, err := p.Connect(starCtx, pool.ConnectRequest{
+		VipnodeVersion: c.Version,
+		NodeInfo:       c.EthNode.UserAgent(),
+		NumHosts:       c.NumHosts,
+	})
 	if err != nil {
 		return err
 	}
