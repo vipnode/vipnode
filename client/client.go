@@ -26,6 +26,8 @@ func New(node ethnode.EthNode) *Client {
 	}
 }
 
+// FIXME: I think we can rid of Client altogether, and merge with Host which is almost a superset.
+
 // Client represents a vipnode client which connects to a vipnode host.
 type Client struct {
 	ethnode.EthNode
@@ -44,13 +46,12 @@ type Client struct {
 	// displayed to the client.
 	PoolMessageCallback func(string)
 
-	// NumHosts is the number of vipnode hosts the client should try to connect
-	// with.
+	// NumHosts is the number of vipnode hosts the client should try to connect with.
+	// TODO: Autorequest more hosts if the number drops below this.
 	NumHosts int
 
-	connectedHosts []store.Node
-	stopCh         chan struct{}
-	waitCh         chan error
+	stopCh chan struct{}
+	waitCh chan error
 }
 
 // Wait blocks until the client is stopped.
@@ -63,10 +64,17 @@ func (c *Client) Wait() error {
 // break out into a separate goroutine and Start returns.
 func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Requesting host candidates...")
+
+	// We override IsFullNode here just because Client does not bother to
+	// expose a reverse RPC service which the Connect RPC expects for hosts to
+	// be able to whitelist. This will be moot when we merge Client+Host.
+	nodeInfo := c.EthNode.UserAgent()
+	nodeInfo.IsFullNode = false
+
 	starCtx := context.Background()
 	resp, err := p.Connect(starCtx, pool.ConnectRequest{
 		VipnodeVersion: c.Version,
-		NodeInfo:       c.EthNode.UserAgent(),
+		NodeInfo:       nodeInfo,
 		NumHosts:       c.NumHosts,
 	})
 	if err != nil {
