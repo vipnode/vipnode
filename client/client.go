@@ -72,22 +72,25 @@ func (c *Client) Start(p pool.Pool) error {
 	nodeInfo.IsFullNode = false
 
 	starCtx := context.Background()
-	resp, err := p.Connect(starCtx, pool.ConnectRequest{
+	connResp, err := p.Connect(starCtx, pool.ConnectRequest{
 		VipnodeVersion: c.Version,
 		NodeInfo:       nodeInfo,
-		NumHosts:       c.NumHosts,
 	})
 	if err != nil {
 		return err
 	}
-	if resp.Message != "" && c.PoolMessageCallback != nil {
-		c.PoolMessageCallback(resp.Message)
+	if connResp.Message != "" && c.PoolMessageCallback != nil {
+		c.PoolMessageCallback(connResp.Message)
 	}
-	nodes := resp.Hosts
+
+	peerResp, err := p.Peer(starCtx, pool.PeerRequest{
+		Num: c.NumHosts,
+	})
+	nodes := peerResp.Peers
 	if len(nodes) == 0 {
 		return pool.NoHostNodesError{}
 	}
-	logger.Printf("Received %d host candidates from pool (version %s), connecting...", len(nodes), resp.PoolVersion)
+	logger.Printf("Received %d host candidates from pool (version %s), connecting...", len(nodes), connResp.PoolVersion)
 	for _, node := range nodes {
 		if err := c.EthNode.ConnectPeer(starCtx, node.URI); err != nil {
 			return err
