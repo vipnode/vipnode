@@ -22,10 +22,6 @@ type ConnectRequest struct {
 	// connecting.
 	NodeURI string `json:"node_uri,omitempty"`
 
-	// NumHosts is the number of hosts to request from the pool. (Optional)
-	// XXX: Remove and replace with call to Peer
-	NumHosts int `json:"num_hosts,omitempty"`
-
 	// Payout sets the wallet account to register the host credit towards. (Optional)
 	Payout string `json:"payout"`
 }

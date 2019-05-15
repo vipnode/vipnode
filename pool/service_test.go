@@ -71,7 +71,9 @@ func TestPoolService(t *testing.T) {
 			t.Fatal(err)
 		}
 		var result interface{}
-		if err := client.Call(context.TODO(), &result, req.Method, args...); err.Error() != (NoHostNodesError{}).Error() {
+		if err := client.Call(context.TODO(), &result, req.Method, args...); err == nil {
+			t.Error("expected NoHostsNodeError, got nil")
+		} else if err.Error() != (NoHostNodesError{}).Error() {
 			t.Error(err)
 		}
 	}
