@@ -23,6 +23,7 @@ type ConnectRequest struct {
 	NodeURI string `json:"node_uri,omitempty"`
 
 	// NumHosts is the number of hosts to request from the pool. (Optional)
+	// XXX: Remove and replace with call to Peer
 	NumHosts int `json:"num_hosts,omitempty"`
 
 	// Payout sets the wallet account to register the host credit towards. (Optional)
@@ -100,6 +101,21 @@ type UpdateResponse struct {
 	InvalidPeers []string       `json:"invalid_peers"`
 }
 
+// PeerRequest is the request type for Peer RPC calls.
+type PeerRequest struct {
+	// Num is the number of peers
+	Num int `json:"num"`
+	// Kind is the type of node we desire, such as "parity" or "geth" (optional)
+	Kind string `json:"kind,omitempty"`
+}
+
+// PeerResponse is the response type for Peer RPC calls.
+type PeerResponse struct {
+	// Peers that have whitelisted the NodeID and are ready for the node to
+	// connect to.
+	Peers []store.Node `json:"peers"`
+}
+
 // Pool represents a vipnode pool for coordinating between clients and hosts.
 type Pool interface {
 	// Host subscribes a host to receive vipnode_whitelist instructions.
@@ -122,7 +138,10 @@ type Pool interface {
 	// balance for the node (if relevant).
 	Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error)
 
-	// TODO: RequestHosts(ctx context.Context, req RequestHostsRequest) (*RequestHostsRequest, error)
+	// Peer initiates a peering request for valid hosts. The returned set of peers
+	// match the request query and are ready to peer with. By default, it
+	// should only return full node hosts as peers.
+	Peer(ctx context.Context, req PeerRequest) (*PeerResponse, error)
 
 	// Withdraw prompts a request to settle the node's balance.
 	Withdraw(ctx context.Context) error
