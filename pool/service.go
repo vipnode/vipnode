@@ -254,7 +254,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	return resp, nil
 }
 
-// Client returns a list of enodes who are ready for the client node to connect.
+// Connect returns a list of enodes who are ready for the client node to connect.
 func (p *VipnodePool) Connect(ctx context.Context, sig string, nodeID string, nonce int64, req ConnectRequest) (*ConnectResponse, error) {
 	if err := p.verify(sig, "vipnode_connect", nodeID, nonce, req); err != nil {
 		return nil, err
@@ -352,6 +352,24 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	}
 
 	return response, nil
+}
+
+// Peer returns a list of enodes who are ready for the node to connect.
+func (p *VipnodePool) Peer(ctx context.Context, sig string, nodeID string, nonce int64, req PeerRequest) (*PeerResponse, error) {
+	// TODO: Should we use protocol capability (eth, les, pip) instead of Kind?
+	// It's hard to get self-reported protocol capability versions though (les/2 vs just les).
+	hosts, err := p.requestHosts(ctx, nodeID, req.Num, req.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Move logs here.
+
+	response := &PeerResponse{
+		Peers: hosts,
+	}
+	return response, nil
+
 }
 
 func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numRequestHosts int, kind string) ([]store.Node, error) {

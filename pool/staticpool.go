@@ -36,6 +36,10 @@ func (s *StaticPool) Connect(ctx context.Context, req ConnectRequest) (*ConnectR
 	return &ConnectResponse{Hosts: s.Nodes}, nil
 }
 
+func (s *StaticPool) Peer(ctx context.Context, req PeerRequest) (*PeerResponse, error) {
+	return &PeerResponse{Peers: s.Nodes}, nil
+}
+
 func (s *StaticPool) Disconnect(ctx context.Context) error {
 	return nil
 }
