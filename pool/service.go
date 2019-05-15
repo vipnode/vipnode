@@ -230,13 +230,7 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	if err := p.verify(sig, "vipnode_client", nodeID, nonce, req); err != nil {
 		return nil, err
 	}
-	// Clients have a default number of hosts they request. Hosts don't.
-	numRequestHosts := defaultRequestNumHosts
-	if req.NumHosts > 0 {
-		numRequestHosts = req.NumHosts
-	}
 	connectReq := ConnectRequest{
-		NumHosts: numRequestHosts,
 		NodeInfo: ethnode.UserAgent{
 			Kind:       ethnode.ParseNodeKind(req.Kind),
 			IsFullNode: false,
@@ -246,8 +240,19 @@ func (p *VipnodePool) Client(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
+
+	// Clients have a default number of hosts they request. Hosts don't.
+	numRequestHosts := defaultRequestNumHosts
+	if req.NumHosts > 0 {
+		numRequestHosts = req.NumHosts
+	}
+	hosts, err := p.requestHosts(ctx, nodeID, numRequestHosts, req.Kind)
+	if err != nil {
+		return nil, err
+	}
+
 	resp := &ClientResponse{
-		Hosts:       connectResp.Hosts,
+		Hosts:       hosts,
 		PoolVersion: connectResp.PoolVersion,
 		Message:     connectResp.Message,
 	}
@@ -327,29 +332,7 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	if err := p.BalanceManager.OnClient(node); err != nil {
 		return nil, err
 	}
-
-	reqKind := kind
-	if isHost {
-		// Any kind of host peer will do.
-		reqKind = ""
-	}
-
-	hosts, err := p.requestHosts(ctx, nodeID, req.NumHosts, reqKind)
-	if err != nil {
-		return nil, err
-	}
-
-	if !isHost && len(hosts) == 0 {
-		logger.Printf("New %q peer: %q (no active hosts found)", kind, pretty.Abbrev(nodeID))
-		return nil, NoHostNodesError{}
-	}
-
-	response.Hosts = hosts
-	if p.skipWhitelist {
-		logger.Printf("New %q peer: %q (%d hosts found, skipping whitelist)", kind, pretty.Abbrev(nodeID), len(hosts))
-	} else {
-		logger.Printf("New %q peer: %q (%d hosts found)", kind, pretty.Abbrev(nodeID), len(hosts))
-	}
+	logger.Printf("New %q peer: %q", kind, pretty.Abbrev(nodeID))
 
 	return response, nil
 }
