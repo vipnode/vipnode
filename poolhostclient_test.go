@@ -212,8 +212,8 @@ func TestPoolHostConnectPeers(t *testing.T) {
 
 		if peers, err := host.Node.Peers(context.Background()); err != nil {
 			t.Fatal(err)
-		} else if len(peers) != numHosts-1 {
-			t.Errorf("host has wrong number of peers: %s", peers)
+		} else if got, want := len(peers), numHosts-1; got != want {
+			t.Errorf("host has wrong number of peers: got %d; want %d", got, want)
 		}
 
 		numCalls := 0
