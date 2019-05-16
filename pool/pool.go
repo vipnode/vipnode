@@ -95,6 +95,7 @@ type UpdateRequest struct {
 type UpdateResponse struct {
 	Balance      *store.Balance `json:"balance,omitempty"`
 	InvalidPeers []string       `json:"invalid_peers"`
+	// TODO: Add PoolPeers []string // PoolPeers is the set of peers that are members of the pool.
 }
 
 // PeerRequest is the request type for Peer RPC calls.

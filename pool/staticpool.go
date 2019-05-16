@@ -33,7 +33,10 @@ func (s *StaticPool) Client(ctx context.Context, req ClientRequest) (*ClientResp
 }
 
 func (s *StaticPool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
-	return &ConnectResponse{Hosts: s.Nodes}, nil
+	return &ConnectResponse{
+		PoolVersion: "staticpool",
+		Hosts:       s.Nodes,
+	}, nil
 }
 
 func (s *StaticPool) Peer(ctx context.Context, req PeerRequest) (*PeerResponse, error) {
