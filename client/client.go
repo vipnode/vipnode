@@ -63,7 +63,7 @@ func (c *Client) Wait() error {
 // blocks until registration is complete, then the keepalive peering updates
 // break out into a separate goroutine and Start returns.
 func (c *Client) Start(p pool.Pool) error {
-	logger.Printf("Requesting host candidates...")
+	logger.Printf("Connecting to pool...")
 
 	// We override IsFullNode here just because Client does not bother to
 	// expose a reverse RPC service which the Connect RPC expects for hosts to
@@ -79,46 +79,43 @@ func (c *Client) Start(p pool.Pool) error {
 	if err != nil {
 		return err
 	}
+	logger.Printf("Connected to pool (version %s), updating state...", connResp.PoolVersion)
+
 	if connResp.Message != "" && c.PoolMessageCallback != nil {
 		c.PoolMessageCallback(connResp.Message)
 	}
 
-	peerResp, err := p.Peer(starCtx, pool.PeerRequest{
-		Num: c.NumHosts,
-	})
-	nodes := peerResp.Peers
-	if len(nodes) == 0 {
-		return pool.NoHostNodesError{}
-	}
-	logger.Printf("Received %d host candidates from pool (version %s), connecting...", len(nodes), connResp.PoolVersion)
-	for _, node := range nodes {
-		if err := c.EthNode.ConnectPeer(starCtx, node.URI); err != nil {
-			return err
-		}
-	}
 	if err := c.updatePeers(context.Background(), p); err != nil {
 		return err
 	}
 
 	go func() {
-		c.waitCh <- c.serveUpdates(p, nodes)
+		c.waitCh <- c.serveUpdates(p)
 	}()
 
 	return nil
 }
 
-func (c *Client) serveUpdates(p pool.Pool, connectedHosts []store.Node) error {
+func (c *Client) serveUpdates(p pool.Pool) error {
 	ticker := time.Tick(store.KeepaliveInterval)
 	for {
 		select {
 		case <-ticker:
 			if err := c.updatePeers(context.Background(), p); err != nil {
+				// FIXME: Does it make sense to continue updating for certain
+				// errors? Eg if no hosts are found, we could keep sending
+				// updates until we find some.
 				return err
 			}
 		case <-c.stopCh:
 			closeCtx := context.Background()
-			for _, node := range connectedHosts {
-				if err := c.EthNode.DisconnectPeer(closeCtx, node.URI); err != nil {
+			// FIXME: Should we only disconnect from vipnode hosts?
+			peers, err := c.EthNode.Peers(closeCtx)
+			if err != nil {
+				return err
+			}
+			for _, node := range peers {
+				if err := c.EthNode.DisconnectPeer(closeCtx, node.ID); err != nil {
 					return err
 				}
 			}
@@ -132,24 +129,55 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 	if err != nil {
 		return err
 	}
+
+	// Do we need more peers?
+	// FIXME: Does it make sense to request more peers before sending a vipnode_update?
+	if needMore := c.NumHosts - len(peers); needMore > 0 {
+		if err := c.addPeers(ctx, p, needMore); err != nil {
+			return err
+		}
+	}
+
 	update, err := p.Update(ctx, pool.UpdateRequest{PeerInfo: peers})
 	if err != nil {
 		return err
 	}
+	var balance store.Balance
 	if c.BalanceCallback != nil && update.Balance != nil {
-		c.BalanceCallback(*update.Balance)
+		balance = *update.Balance
+		c.BalanceCallback(balance)
 	}
-
 	if len(update.InvalidPeers) > 0 {
 		// Client doesn't really need to do anything if the pool stopped
 		// tracking their host. That means the client is getting a free ride
 		// and it's up to the host to kick the client when the host deems
 		// necessary.
-		logger.Printf("Sent update: %d peers connected, %d expired in pool. Pool response: %s", len(peers), len(update.InvalidPeers), update.Balance.String())
+		logger.Printf("Sent update: %d peers connected, %d expired in pool. Pool response: %s", len(peers), len(update.InvalidPeers), balance.String())
 	} else {
-		logger.Printf("Sent update: %d peers connected. Pool response: %s", len(peers), update.Balance.String())
+		logger.Printf("Sent update: %d peers connected. Pool response: %s", len(peers), balance.String())
 	}
 
+	return nil
+}
+
+func (c *Client) addPeers(ctx context.Context, p pool.Pool, num int) error {
+	logger.Printf("Requesting %d more hosts from pool...", num)
+	peerResp, err := p.Peer(ctx, pool.PeerRequest{
+		Num: num,
+	})
+	if err != nil {
+		return err
+	}
+	nodes := peerResp.Peers
+	if len(nodes) == 0 {
+		return pool.NoHostNodesError{}
+	}
+	logger.Printf("Received %d host candidates from pool, connecting...", len(nodes))
+	for _, node := range nodes {
+		if err := c.EthNode.ConnectPeer(ctx, node.URI); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
