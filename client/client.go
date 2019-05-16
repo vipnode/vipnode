@@ -52,6 +52,8 @@ type Client struct {
 
 	stopCh chan struct{}
 	waitCh chan error
+
+	nodeInfo ethnode.UserAgent
 }
 
 // Wait blocks until the client is stopped.
@@ -65,10 +67,12 @@ func (c *Client) Wait() error {
 func (c *Client) Start(p pool.Pool) error {
 	logger.Printf("Connecting to pool...")
 
-	// We override IsFullNode here just because Client does not bother to
+	c.nodeInfo = c.EthNode.UserAgent()
+
+	// FIXME: We override IsFullNode here just because Client does not bother to
 	// expose a reverse RPC service which the Connect RPC expects for hosts to
 	// be able to whitelist. This will be moot when we merge Client+Host.
-	nodeInfo := c.EthNode.UserAgent()
+	nodeInfo := c.nodeInfo
 	nodeInfo.IsFullNode = false
 
 	starCtx := context.Background()
@@ -161,9 +165,10 @@ func (c *Client) updatePeers(ctx context.Context, p pool.Pool) error {
 }
 
 func (c *Client) addPeers(ctx context.Context, p pool.Pool, num int) error {
-	logger.Printf("Requesting %d more hosts from pool...", num)
+	logger.Printf("Requesting %d more %q hosts from pool...", c.nodeInfo.Kind, num)
 	peerResp, err := p.Peer(ctx, pool.PeerRequest{
-		Num: num,
+		Num:  num,
+		Kind: c.nodeInfo.Kind.String(),
 	})
 	if err != nil {
 		return err
