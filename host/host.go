@@ -153,19 +153,19 @@ func (h *Host) Start(p pool.Pool) error {
 // and connect to them. This is useful for increasing full node peering for
 // your node with other nodes under the same pool.
 func (h *Host) ConnectPeers(p pool.Pool, num int) error {
-	// Hosts are full nodes, so we don't care what kind of host peer we get.
-	// Full nodes speak to all full nodes.
-	kind := ""
 	ctx := context.Background()
-	resp, err := p.Client(ctx, pool.ClientRequest{Kind: kind})
+	resp, err := p.Peer(ctx, pool.PeerRequest{
+		Num: num,
+		// Kind is unspecified, since hosts are happy with any kind of full node.
+	})
 	if err != nil {
 		return err
 	}
-	nodes := resp.Hosts
+	nodes := resp.Peers
 	if len(nodes) == 0 {
 		return pool.NoHostNodesError{}
 	}
-	logger.Printf("Received %d host candidates from pool (version %s), connecting...", len(nodes), resp.PoolVersion)
+	logger.Printf("Received %d host candidates from pool, connecting...", len(nodes))
 	for _, node := range nodes {
 		if err := h.node.ConnectPeer(ctx, node.URI); err != nil {
 			return err
