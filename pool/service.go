@@ -380,6 +380,10 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 	remotes := make([]hostService, 0, len(r))
 	p.mu.Lock()
 	for _, node := range r {
+		if node.ID.String() == nodeID {
+			// Skip self
+			continue
+		}
 		remote, ok := p.remoteHosts[node.ID]
 		if ok {
 			remotes = append(remotes, hostService{
