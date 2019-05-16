@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"testing"
 
 	"github.com/vipnode/vipnode/internal/fakenode"
@@ -9,16 +10,16 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	client := Client{
-		EthNode: &fakenode.FakeNode{
-			NodeID: "foo",
-		},
-	}
+	SetLogger(os.Stderr)
+
+	client := New(&fakenode.FakeNode{
+		NodeID: "foo",
+	})
 
 	p := pool.StaticPool{}
 	err := client.Start(&p)
 	if _, ok := err.(pool.NoHostNodesError); !ok {
-		t.Errorf("unexpected no nodes error, got: %q", err)
+		t.Errorf("expected no nodes error, got: %q", err)
 	}
 
 	p.Nodes = append(p.Nodes, store.Node{
