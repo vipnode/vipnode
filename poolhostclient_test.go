@@ -86,7 +86,7 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	want = fakenode.Calls{
 		fakenode.Call("ConnectPeer", hostNodeURI),
-		fakenode.Call("DisconnectPeer", hostNodeURI),
+		fakenode.Call("DisconnectPeer", hostNodeID),
 	}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
 		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
@@ -98,7 +98,7 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	want = fakenode.Calls{
 		fakenode.Call("ConnectPeer", hostNodeURI),
-		fakenode.Call("DisconnectPeer", hostNodeURI),
+		fakenode.Call("DisconnectPeer", hostNodeID),
 		fakenode.Call("ConnectPeer", hostNodeURI),
 	}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
