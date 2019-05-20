@@ -126,10 +126,6 @@ type Pool interface {
 	// Connect subscribes to the active nodes set.
 	Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error)
 
-	// Disconnect stops tracking the connection and billing, will prompt a
-	// disconnect from both ends.
-	Disconnect(ctx context.Context) error
-
 	// Update is a keep-alive for sharing the node's peering info. It returns
 	// a list of peers that are no longer corroborated by the pool, and current
 	// balance for the node (if relevant).
