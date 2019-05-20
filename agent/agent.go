@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
@@ -14,23 +16,16 @@ const defaultNumHosts = 3
 var startTimeout = 10 * time.Second
 var updateTimeout = 10 * time.Second
 
-func New(node ethnode.EthNode) *Agent {
-	return &Agent{
-		EthNode: node,
-		Version: "dev",
-		stopCh:  make(chan struct{}),
-		waitCh:  make(chan error, 1),
-	}
-}
-
+// Agent is a companion process for nodes that manages the node's communication
+// with a Vipnode Pool.
 type Agent struct {
 	ethnode.EthNode
 
-	// NodeURI can be used to set the enode:// connection string that
-	// the pool should advertise to clients. Normally, the pool will
+	// NodeURI can be used to override the enode:// connection string that
+	// the pool should advertise to other peers. Normally, the pool will
 	// automatically deduce this string from the connection IP and nodeID, but
 	// we can provide an override if there is a non-standard port or if the
-	// node runs on a different IP from the vipnode agent.
+	// node runs on a different IP from the vipnode agent. (Optional)
 	NodeURI string
 
 	// Version is the version of the vipnode agent that the host is running.
@@ -38,22 +33,25 @@ type Agent struct {
 
 	// BalanceCallback is called whenever the client receives a balance update
 	// from the pool. It can be used for displaying the current balance to the
-	// client.
+	// client. (Optional)
 	BalanceCallback func(store.Balance)
 
 	// PoolMessageCallback is called whenever the client receives a message
 	// from the pool. This can be a welcome message including rules and
 	// instructions for how to manage the client's balance. It should be
-	// displayed to the client.
+	// displayed to the client. (Optional)
 	PoolMessageCallback func(string)
 
-	// NumHosts is the minimum number of vipnode hosts the
-	// client should maintain connections with.
+	// NumHosts is the minimum number of vipnode hosts the client should
+	// maintain connections with. (Optional)
 	NumHosts int
 
 	// Payout is the address to register to associate pool credits towards.
+	// (Optional)
 	Payout string
 
+	mu       sync.Mutex
+	started  bool
 	stopCh   chan struct{}
 	waitCh   chan error
 	nodeInfo ethnode.UserAgent // cached during Start
@@ -63,6 +61,17 @@ type Agent struct {
 // every store.KeepaliveInterval. It returns after
 // successfully registering with the pool.
 func (a *Agent) Start(p pool.Pool) error {
+	a.mu.Lock()
+	if a.started {
+		a.mu.Unlock()
+		return errors.New("pool already started")
+	}
+	if a.stopCh == nil {
+		a.stopCh = make(chan struct{})
+		a.waitCh = make(chan error, 1)
+	}
+	a.mu.Unlock()
+
 	startCtx, cancel := context.WithTimeout(context.Background(), startTimeout)
 	defer cancel()
 
@@ -72,10 +81,15 @@ func (a *Agent) Start(p pool.Pool) error {
 	}
 	logger.Printf("Connected to local node: %s", enode)
 
+	version := a.Version
+	if version == "" {
+		version = "dev"
+	}
+
 	connectReq := pool.ConnectRequest{
 		Payout:         a.Payout,
 		NodeURI:        a.NodeURI,
-		VipnodeVersion: a.Version,
+		VipnodeVersion: version,
 		NodeInfo:       a.EthNode.UserAgent(),
 	}
 	a.nodeInfo = connectReq.NodeInfo
@@ -126,6 +140,10 @@ func (a *Agent) serveUpdates(p pool.Pool) error {
 				return err
 			}
 		case <-a.stopCh:
+			a.mu.Lock()
+			a.started = false
+			a.mu.Unlock()
+
 			// FIXME: Does it make sense to call a.disconnectPeers(...) here?
 			return nil
 		}
@@ -195,10 +213,7 @@ func (a *Agent) addPeers(ctx context.Context, p pool.Pool, num int) error {
 		return err
 	}
 	nodes := peerResp.Peers
-	if len(nodes) == 0 {
-		return pool.NoHostNodesError{}
-	}
-	logger.Printf("Received %d host candidates from pool, connecting...", len(nodes))
+	logger.Printf("Received %d host candidates from pool.", len(nodes))
 	for _, node := range nodes {
 		if err := a.EthNode.ConnectPeer(ctx, node.URI); err != nil {
 			return err
