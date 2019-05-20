@@ -126,20 +126,27 @@ func (a *Agent) serveUpdates(p pool.Pool) error {
 				return err
 			}
 		case <-a.stopCh:
-			closeCtx := context.Background()
-			// FIXME: Should we only disconnect from vipnode hosts?
-			peers, err := a.EthNode.Peers(closeCtx)
-			if err != nil {
-				return err
-			}
-			for _, node := range peers {
-				if err := a.EthNode.DisconnectPeer(closeCtx, node.ID); err != nil {
-					return err
-				}
-			}
+			// FIXME: Does it make sense to call a.disconnectPeers(...) here?
 			return nil
 		}
 	}
+}
+
+// disconnectPeers tells the node to disconnect from its peers.
+// DEPRECATED: This method is unused. It might be useful at some point though?
+// If not, remove later. Or maybe it should be changed to only disconnect from
+// vipnode-tracked peers?
+func (a *Agent) disconnectPeers(ctx context.Context) error {
+	peers, err := a.EthNode.Peers(ctx)
+	if err != nil {
+		return err
+	}
+	for _, node := range peers {
+		if err := a.EthNode.DisconnectPeer(ctx, node.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
