@@ -10,8 +10,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/client"
-	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/internal/fakecluster"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/keygen"
@@ -35,8 +34,8 @@ func TestPoolHostClient(t *testing.T) {
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
 	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", hostNodeID)
-	h := host.New(hostNode, payout)
-	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+	h := agent.Agent{EthNode: hostNode, Payout: payout}
+	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", &h, "Whitelist"); err != nil {
 		t.Fatalf("failed to register vipnode_ rpc for host: %s", err)
 	}
 	h.NodeURI = hostNodeURI
@@ -62,7 +61,10 @@ func TestPoolHostClient(t *testing.T) {
 	clientNodeID := discv5.PubkeyID(&clientPrivkey.PublicKey).String()
 	clientNode := fakenode.Node(clientNodeID)
 	clientNode.IsFullNode = false
-	c := client.New(clientNode)
+	c := agent.Agent{
+		EthNode:  clientNode,
+		NumHosts: 3,
+	}
 	clientPool := pool.Remote(rpcClient2Pool, clientPrivkey)
 	if err := c.Start(clientPool); err != nil {
 		t.Fatalf("failed to start client: %s", err)
@@ -86,7 +88,6 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	want = fakenode.Calls{
 		fakenode.Call("ConnectPeer", hostNodeURI),
-		fakenode.Call("DisconnectPeer", hostNodeID),
 	}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
 		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
@@ -98,7 +99,6 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	want = fakenode.Calls{
 		fakenode.Call("ConnectPeer", hostNodeURI),
-		fakenode.Call("DisconnectPeer", hostNodeID),
 		fakenode.Call("ConnectPeer", hostNodeURI),
 	}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
@@ -145,8 +145,8 @@ func TestCloseHost(t *testing.T) {
 	hostNodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	hostNode := fakenode.Node(hostNodeID)
 	hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1", hostNodeID)
-	h := host.New(hostNode, payout)
-	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+	h := agent.Agent{EthNode: hostNode, Payout: payout}
+	if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", &h, "Whitelist"); err != nil {
 		t.Fatalf("failed to register vipnode_ rpc for host: %s", err)
 	}
 	h.NodeURI = hostNodeURI
@@ -204,10 +204,10 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		} else if len(peers) > 0 {
 			t.Errorf("host has unexpected peers: %s", peers)
 		}
-		hostPool := pool.Remote(host.Out, host.Key)
 
-		if err := host.ConnectPeers(hostPool, numHosts); err != nil {
-			t.Error(err)
+		// Request peers
+		if err := host.AddPeers(context.Background(), host.RemotePool, 10); err != nil {
+			t.Fatal(err)
 		}
 
 		if peers, err := host.Node.Peers(context.Background()); err != nil {

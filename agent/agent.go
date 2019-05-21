@@ -113,6 +113,12 @@ func (a *Agent) Start(p pool.Pool) error {
 	return nil
 }
 
+// Whitelist a peer for this node.
+func (a *Agent) Whitelist(ctx context.Context, nodeID string) error {
+	logger.Printf("Received whitelist request: %s", nodeID)
+	return a.EthNode.AddTrustedPeer(ctx, nodeID)
+}
+
 // Stop shuts down all the active connections cleanly.
 func (a *Agent) Stop() {
 	a.stopCh <- struct{}{}
@@ -176,7 +182,7 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 	// Do we need more peers?
 	// FIXME: Does it make sense to request more peers before sending a vipnode_update?
 	if needMore := a.NumHosts - len(peers); needMore > 0 {
-		if err := a.addPeers(ctx, p, needMore); err != nil {
+		if err := a.AddPeers(ctx, p, needMore); err != nil {
 			return err
 		}
 	}
@@ -203,7 +209,8 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 	return nil
 }
 
-func (a *Agent) addPeers(ctx context.Context, p pool.Pool, num int) error {
+// AddPeers requests num peers from the pool and connects the node to them.
+func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 	logger.Printf("Requesting %d more %q hosts from pool...", a.EthNode.Kind(), num)
 	peerResp, err := p.Peer(ctx, pool.PeerRequest{
 		Num:  num,
@@ -220,4 +227,9 @@ func (a *Agent) addPeers(ctx context.Context, p pool.Pool, num int) error {
 		}
 	}
 	return nil
+}
+
+// Service is the set of RPC calls exposed by an agent.
+type Service interface {
+	Whitelist(ctx context.Context, nodeID string) error
 }

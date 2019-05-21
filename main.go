@@ -20,9 +20,8 @@ import (
 	"github.com/alexcesaro/log/golog"
 	"github.com/ethereum/go-ethereum/crypto"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/vipnode/vipnode/client"
+	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/host"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
@@ -282,8 +281,7 @@ func main() {
 	if logLevel == log.Debug {
 		// Enable logging from subpackages
 		pool.SetLogger(logWriter)
-		client.SetLogger(logWriter)
-		host.SetLogger(logWriter)
+		agent.SetLogger(logWriter)
 		payment.SetLogger(logWriter)
 		ethnode.SetLogger(logWriter)
 		jsonrpc2.SetLogger(logWriter)
