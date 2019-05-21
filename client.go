@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/client"
+	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 
@@ -36,8 +36,10 @@ func runClient(options Options) error {
 	}
 
 	errChan := make(chan error)
-	c := client.New(remoteNode)
-	c.Version = fmt.Sprintf("vipnode/client/%s", Version)
+	c := agent.Agent{
+		EthNode: remoteNode,
+		Version: fmt.Sprintf("vipnode/client/%s", Version),
+	}
 	c.PoolMessageCallback = func(msg string) {
 		logger.Alertf("Message from pool: %s", msg)
 	}

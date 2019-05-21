@@ -7,7 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/host"
+	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
@@ -37,8 +37,11 @@ func runHost(options Options) error {
 		logger.Warning("No --payout address provided, will not receive pool payments.")
 	}
 
-	h := host.New(remoteNode, options.Host.Payout)
-	h.Version = fmt.Sprintf("vipnode/host/%s", Version)
+	h := agent.Agent{
+		EthNode: remoteNode,
+		Payout:  options.Host.Payout,
+		Version: fmt.Sprintf("vipnode/host/%s", Version),
+	}
 	if options.Host.NodeURI != "" {
 		if err := matchEnode(options.Host.NodeURI, nodeID); err != nil {
 			return err
@@ -86,7 +89,7 @@ func runHost(options Options) error {
 
 	// Register reverse-directional RPC calls available on the host
 	rpcServer := &jsonrpc2.Server{}
-	if err := rpcServer.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
+	if err := rpcServer.RegisterMethod("vipnode_whitelist", &h, "Whitelist"); err != nil {
 		return err
 	}
 	rpcPool := jsonrpc2.Remote{
@@ -109,12 +112,6 @@ func runHost(options Options) error {
 	go func() {
 		errChan <- h.Wait()
 	}()
-
-	if options.Host.JoinPeers > 0 {
-		if err := h.ConnectPeers(remotePool, options.Host.JoinPeers); err != nil {
-			return err
-		}
-	}
 
 	return <-errChan
 
