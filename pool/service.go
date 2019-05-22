@@ -170,9 +170,6 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		return nil, err
 	}
 
-	// FIXME: Is there a bug here when a host is connected to another host?
-	// TODO: Test InvalidPeers
-
 	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
 	if err != nil {
 		if _, ok := err.(balance.LowBalanceError); ok {
