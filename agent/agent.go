@@ -135,14 +135,7 @@ func (a *Agent) serveUpdates(p pool.Pool) error {
 	for {
 		select {
 		case <-ticker:
-			// FIXME: Sametimes a.updatePeers could take a while, does it make
-			// sense to keep ticking every interval regardless? Or should we
-			// make sure there is an offset between calls? What if there's
-			// overlap, do we want a mutex?
 			if err := a.updatePeers(context.Background(), p); err != nil {
-				// FIXME: Does it make sense to continue updating for certain
-				// errors? Eg if no hosts are found, we could keep sending
-				// updates until we find some.
 				return err
 			}
 		case <-a.stopCh:
