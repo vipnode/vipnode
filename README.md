@@ -1,5 +1,9 @@
 # Vipnode
 
+[![GoDoc](https://godoc.org/github.com/vipnode/vipnode?status.svg)](http://godoc.org/github.com/vipnode/vipnode)
+[![Build Status](https://travis-ci.org/vipnode/vipnode.svg?branch=master)](https://travis-ci.org/vipnode/vipnode)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vipnode/vipnode)](https://goreportcard.com/report/github.com/vipnode/vipnode)
+
 Vipnode creates an economic incentive to run full nodes and serve light clients.
 
 * Connect your light client to the Ethereum network instantly, with time-metered fees. 
