@@ -7,14 +7,19 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/pool/store/memory"
 )
+
+var minUpdateInterval = time.Second * 5
+var maxUpdateInterval = store.ExpireInterval
 
 func runAgent(options Options) error {
 	remoteNode, err := findRPC(options.Agent.RPC)
@@ -37,10 +42,27 @@ func runAgent(options Options) error {
 		return err
 	}
 
+	updateInterval, err := time.ParseDuration(options.Agent.UpdateInterval)
+	if err != nil {
+		return ErrExplain{err, `Failed to parse the agent --update-interval value. Try using a value like "1m" or "60s".`}
+	}
+	if updateInterval >= maxUpdateInterval {
+		return ErrExplain{
+			errors.New("update interval too large"),
+			`Updates must be sent frequently enough so that the pool does not write off the node as inactive. Try a shorter --update-interval value, like "60s".`,
+		}
+	} else if updateInterval <= minUpdateInterval {
+		return ErrExplain{
+			errors.New("update interval too small"),
+			`Please don't flood the pool with updates. Try a longer --update-interval value, like "60s".`,
+		}
+	}
+
 	a := &agent.Agent{
-		EthNode: remoteNode,
-		Payout:  options.Agent.Payout,
-		Version: fmt.Sprintf("vipnode/agent/%s", Version),
+		EthNode:        remoteNode,
+		Payout:         options.Agent.Payout,
+		Version:        fmt.Sprintf("vipnode/agent/%s", Version),
+		UpdateInterval: updateInterval,
 	}
 	if options.Agent.NodeURI != "" {
 		if err := matchEnode(options.Agent.NodeURI, nodeID); err != nil {

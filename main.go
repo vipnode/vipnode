@@ -42,31 +42,16 @@ type Options struct {
 	Verbose     []bool `short:"v" long:"verbose" description:"Show verbose logging."`
 	Version     bool   `long:"version" description:"Print version and exit."`
 
-	Client struct {
-		Args struct {
-			VIPNode string `positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
-		} `positional-args:"yes"`
-		RPC     string `long:"rpc" description:"RPC path or URL of the client node."`
-		NodeKey string `long:"nodekey" description:"Path to the client node's private key."`
-	} `command:"client" description:"Connect to a vipnode as a client." hidden:"true"` // Deprecated
-
-	Host struct {
-		Pool    string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
-		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
-		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
-		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
-		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
-	} `command:"host" description:"Host a vipnode." hidden:"true"` // Deprecated
-
 	Agent struct {
 		Args struct {
 			Coordinator string `positional-arg-name:"coordinator" description:"vipnode pool URL or stand-alone vipnode enode string" default:"wss://pool.vipnode.org/"`
 		} `positional-args:"yes"`
-		RPC      string `long:"rpc" description:"RPC path or URL of the host node."`
-		NodeKey  string `long:"nodekey" description:"Path to the host node's private key."`
-		NodeURI  string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
-		Payout   string `long:"payout" description:"Ethereum wallet address to associate pool credits."`
-		MinPeers int    `long:"min-peers" description:"Minimum number of peers to maintain." default:"3"`
+		RPC            string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey        string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI        string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
+		Payout         string `long:"payout" description:"Ethereum wallet address to associate pool credits."`
+		MinPeers       int    `long:"min-peers" description:"Minimum number of peers to maintain." default:"3"`
+		UpdateInterval string `long:"update-interval" description:"Time between updates sent to pool, should be under 120s." default:"60s"`
 	} `command:"agent" description:"Connect as a node to a pool or another vipnode."`
 
 	Pool struct {
@@ -75,7 +60,7 @@ type Options struct {
 		DataDir         string `long:"datadir" description:"Path for storing the persistent database."`
 		TLSHost         string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 		AllowOrigin     string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
-		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a client is allowed to request."`
+		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a node is allowed to request."`
 		Contract        struct {
 			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
 			Addr       string `long:"address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
@@ -85,6 +70,24 @@ type Options struct {
 			Welcome    string `long:"welcome" description:"Welcome message for clients. (Example: \"Welcome, {{.NodeID}}\")"`
 		} `group:"contract" namespace:"contract"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
+
+	// DEPRECATED
+	Client struct {
+		Args struct {
+			VIPNode string `positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
+		} `positional-args:"yes"`
+		RPC     string `long:"rpc" description:"RPC path or URL of the client node."`
+		NodeKey string `long:"nodekey" description:"Path to the client node's private key."`
+	} `command:"client" description:"Connect to a vipnode as a client." hidden:"true"`
+
+	// DEPRECATED
+	Host struct {
+		Pool    string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
+		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
+		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
+	} `command:"host" description:"Host a vipnode." hidden:"true"`
 }
 
 const clientUsage = `Examples:
@@ -156,9 +159,8 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 		if numpeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
 			node.FakePeers = fakenode.FakePeers(numpeers)
 		}
-		if u.Query().Get("fullnode") != "" {
-			node.IsFullNode = true
-		}
+		node.IsFullNode = u.Query().Get("fullnode") != ""
+
 		logger.Warningf("Using a *fake* Ethereum node (only use for testing) with %d peers and nodeID: %q", len(node.FakePeers), pretty.Abbrev(node.NodeID))
 		return node, nil
 	}

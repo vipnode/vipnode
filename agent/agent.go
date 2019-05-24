@@ -50,6 +50,10 @@ type Agent struct {
 	// (Optional)
 	Payout string
 
+	// UpdateInterval is the time between updates sent to the pool. If not set,
+	// then store.KeepaliveInterval is used.
+	UpdateInterval time.Duration
+
 	mu       sync.Mutex
 	started  bool
 	stopCh   chan struct{}
@@ -131,7 +135,12 @@ func (a *Agent) Wait() error {
 }
 
 func (a *Agent) serveUpdates(p pool.Pool) error {
-	ticker := time.Tick(store.KeepaliveInterval)
+	interval := a.UpdateInterval
+	if interval == 0 {
+		interval = store.KeepaliveInterval
+	}
+
+	ticker := time.Tick(interval)
 	for {
 		select {
 		case <-ticker:
