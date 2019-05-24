@@ -30,13 +30,18 @@ func ParseNodeKind(s string) NodeKind {
 	}
 }
 
+// NetworkID represents the Ethereum network chain.
 type NetworkID int
 
 const (
+	UnknownNetwork NetworkID = 0
+
 	Mainnet NetworkID = 1
 	Morden  NetworkID = 2
 	Ropsten NetworkID = 3
 	Rinkeby NetworkID = 4
+	Goerli  NetworkID = 5
+	Kotti   NetworkID = 6
 	Kovan   NetworkID = 42
 )
 
@@ -52,6 +57,10 @@ func (id NetworkID) String() string {
 		return "rinkeby"
 	case Kovan:
 		return "kovan"
+	case Goerli:
+		return "goerli"
+	case Kotti:
+		return "kotti"
 	}
 	return "unknown"
 }
@@ -59,6 +68,27 @@ func (id NetworkID) String() string {
 // Is compares the ID to a network name.
 func (id NetworkID) Is(network string) bool {
 	return id.String() == strings.ToLower(network)
+}
+
+// ParseNetwork takes a network name string and returns a corresponding NetworkID type.
+func ParseNetwork(network string) NetworkID {
+	switch strings.ToLower(network) {
+	case "mainnet":
+		return Mainnet
+	case "morden":
+		return Morden
+	case "ropsten":
+		return Ropsten
+	case "rinkeby":
+		return Rinkeby
+	case "kovan":
+		return Kovan
+	case "goerli":
+		return Goerli
+	case "kotti":
+		return Kotti
+	}
+	return UnknownNetwork
 }
 
 func (n NodeKind) String() string {
