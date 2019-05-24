@@ -100,6 +100,8 @@ type UpdateResponse struct {
 	InvalidPeers []string `json:"invalid_peers"`
 	// ActivePeers are peers that the pool knows about and is tracking usage for.
 	ActivePeers []string `json:"active_peers"`
+	// LatestBlockNumber is the highest block number that the pool knows about.
+	LatestBlockNumber uint64 `json:"latest_block_number"`
 }
 
 // PeerRequest is the request type for Peer RPC calls.

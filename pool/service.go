@@ -47,12 +47,13 @@ type VipnodePool struct {
 	// Version is returned as the PoolVersion in the ClientResponse when a new client connects.
 	Version string
 
-	Store           store.Store
-	BalanceManager  balance.Manager
-	ClientMessager  func(nodeID string) string
-	MaxRequestHosts int               // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
-	RestrictNetwork ethnode.NetworkID // TODO: Wire this up
-	skipWhitelist   bool              // skipWhitelist is used for testing.
+	Store               store.Store
+	BalanceManager      balance.Manager
+	ClientMessager      func(nodeID string) string
+	MaxRequestHosts     int                                     // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
+	RestrictNetwork     ethnode.NetworkID                       // TODO: Wire this up
+	BlockNumberProvider func(ethnode.NetworkID) (uint64, error) // BlockNumberProvider returns the latest block number that is known for the given network.
+	skipWhitelist       bool                                    // skipWhitelist is used for testing.
 
 	mu               sync.Mutex
 	remoteHosts      map[store.NodeID]jsonrpc2.Service
@@ -172,6 +173,12 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	for _, peerNode := range active {
 		resp.ActivePeers = append(resp.ActivePeers, string(peerNode.ID))
+	}
+	if p.BlockNumberProvider != nil {
+		resp.LatestBlockNumber, err = p.BlockNumberProvider(p.RestrictNetwork)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, active)
