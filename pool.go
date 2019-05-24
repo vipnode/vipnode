@@ -88,7 +88,8 @@ func runPool(options Options) error {
 			return err
 		}
 
-		// Confirm we're on the right network
+		// Confirm we're on the right network.
+		// Note: The contract network/node can be independent of the --restrict-network setting
 		gotNetwork, err := ethclient.NetworkID(context.Background())
 		if err != nil {
 			return err
@@ -173,6 +174,14 @@ func runPool(options Options) error {
 		return err
 	}
 
+	var networkID ethnode.NetworkID
+	if options.Pool.RestrictNetwork != "" {
+		networkID = ethnode.ParseNetwork(options.Pool.RestrictNetwork)
+		if networkID == ethnode.UnknownNetwork {
+			return ErrExplain{errors.New("unknown network"), `Failed to parse network ID provided to --restrict-network`}
+		}
+	}
+
 	p := pool.New(storeDriver, balanceManager)
 	p.MaxRequestHosts = options.Pool.MaxRequestHosts
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
@@ -188,6 +197,18 @@ func runPool(options Options) error {
 			logger.Errorf("ClientMessager failed: %s", err)
 		}
 		return buf.String()
+	}
+	p.RestrictNetwork = networkID
+	p.BlockNumberProvider = func(network ethnode.NetworkID) (uint64, error) {
+		// TODO: Does it make sense also fetching this from an external service? Eg: Infura's eth_blockNumber?
+		if network != p.RestrictNetwork {
+			return 0, fmt.Errorf("block number provider does not support network: %s", network)
+		}
+		stats, err := p.Store.Stats()
+		if err != nil {
+			return 0, err
+		}
+		return stats.LatestBlockNumber, nil
 	}
 
 	handler := &server{

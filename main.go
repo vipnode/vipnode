@@ -60,6 +60,7 @@ type Options struct {
 		DataDir         string `long:"datadir" description:"Path for storing the persistent database."`
 		TLSHost         string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 		AllowOrigin     string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
+		RestrictNetwork string `long:"restrict-network" description:"Restrict nodes to a single Ethereum network, such as: mainnet, rinkeby, goerli"`
 		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a node is allowed to request."`
 		Contract        struct {
 			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
