@@ -43,6 +43,10 @@ type Agent struct {
 	// displayed to the client. (Optional)
 	PoolMessageCallback func(string)
 
+	// BlockNumberCallback is called every update with the agent node's block
+	// number and the latest block number that the pool knows about.
+	BlockNumberCallback func(nodeBlockNumber uint64, poolBlockNumber uint64)
+
 	// NumHosts is the minimum number of vipnode hosts the client should
 	// maintain connections with. (Optional)
 	NumHosts int
@@ -190,7 +194,15 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 		}
 	}
 
-	update, err := p.Update(ctx, pool.UpdateRequest{PeerInfo: peers})
+	blockNumber, err := a.EthNode.BlockNumber(ctx)
+	if err != nil {
+		return err
+	}
+
+	update, err := p.Update(ctx, pool.UpdateRequest{
+		PeerInfo:    peers,
+		BlockNumber: blockNumber,
+	})
 	if err != nil {
 		return err
 	}
@@ -201,6 +213,10 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 	}
 
 	logger.Printf("Sent update: %d peers. Pool response: %d active, %d invalid peers, %s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), balance.String())
+
+	if a.BlockNumberCallback != nil {
+		a.BlockNumberCallback(blockNumber, update.LatestBlockNumber)
+	}
 
 	var errors []error
 	for _, peerID := range update.InvalidPeers {

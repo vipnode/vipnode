@@ -20,6 +20,7 @@ import (
 
 var minUpdateInterval = time.Second * 5
 var maxUpdateInterval = store.ExpireInterval
+var maxBlockNumberDrift uint64 = 2
 
 func runAgent(options Options) error {
 	remoteNode, err := findRPC(options.Agent.RPC)
@@ -73,6 +74,14 @@ func runAgent(options Options) error {
 		// This will populate all the fields except the host, which is fine
 		// because the pool will use the connection's ip as the host.
 		a.NodeURI = remoteEnode
+	}
+	a.PoolMessageCallback = func(msg string) {
+		logger.Alertf("Message from pool: %s", msg)
+	}
+	a.BlockNumberCallback = func(blockNumber uint64, latestBlockNumber uint64) {
+		if delta := latestBlockNumber - blockNumber; delta > maxBlockNumberDrift {
+			logger.Warning("Local node is behind the latest known block number by %d blocks.", delta)
+		}
 	}
 
 	sigCh := make(chan os.Signal, 1)
