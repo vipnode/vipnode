@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -198,14 +199,21 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 		balance = *update.Balance
 		a.BalanceCallback(balance)
 	}
-	if len(update.InvalidPeers) > 0 {
-		// Client doesn't really need to do anything if the pool stopped
-		// tracking their host. That means the client is getting a free ride
-		// and it's up to the host to kick the client when the host deems
-		// necessary.
-		logger.Printf("Sent update: %d peers connected, %d expired in pool. Pool response: %s", len(peers), len(update.InvalidPeers), balance.String())
-	} else {
-		logger.Printf("Sent update: %d peers connected. Pool response: %s", len(peers), balance.String())
+
+	logger.Printf("Sent update: %d peers. Pool response: %d active, %d invalid peers, %s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), balance.String())
+
+	var errors []error
+	for _, peerID := range update.InvalidPeers {
+		if err := a.EthNode.RemoveTrustedPeer(ctx, peerID); err != nil {
+			errors = append(errors, err)
+		}
+		if err := a.EthNode.DisconnectPeer(ctx, peerID); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to disconnect from invalid peers: %q", errors)
 	}
 
 	return nil
