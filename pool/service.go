@@ -158,22 +158,26 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
-
-	resp := UpdateResponse{
-		InvalidPeers: make([]string, 0, len(inactive)),
-	}
-	for _, peer := range inactive {
-		resp.InvalidPeers = append(resp.InvalidPeers, string(peer))
-	}
-	validPeers, err := p.Store.NodePeers(store.NodeID(nodeID))
+	active, err := p.Store.NodePeers(store.NodeID(nodeID))
 	if err != nil {
 		return nil, err
 	}
 
-	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
+	resp := UpdateResponse{
+		InvalidPeers: make([]string, 0, len(inactive)),
+		ActivePeers:  make([]string, 0, len(active)),
+	}
+	for _, peerID := range inactive {
+		resp.InvalidPeers = append(resp.InvalidPeers, string(peerID))
+	}
+	for _, peerNode := range active {
+		resp.ActivePeers = append(resp.ActivePeers, string(peerNode.ID))
+	}
+
+	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, active)
 	if err != nil {
 		if _, ok := err.(balance.LowBalanceError); ok {
-			disconnectErr := p.disconnectPeers(ctx, nodeID, validPeers)
+			disconnectErr := p.disconnectPeers(ctx, nodeID, active)
 			if disconnectErr != nil {
 				logger.Printf("Client disconnect due to low balance: %q; disconnect RPC errors: %s", pretty.Abbrev(nodeID), disconnectErr)
 			} else {
@@ -185,9 +189,9 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	resp.Balance = &nodeBalance
 
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
+		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(active), len(inactive), nodeBalance.String())
 	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
+		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(active), len(inactive), nodeBalance.String())
 	}
 
 	return &resp, nil

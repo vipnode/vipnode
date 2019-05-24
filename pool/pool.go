@@ -93,9 +93,13 @@ type UpdateRequest struct {
 
 // UpdateResponse is the response type for Update RPC calls.
 type UpdateResponse struct {
-	Balance      *store.Balance `json:"balance,omitempty"`
-	InvalidPeers []string       `json:"invalid_peers"`
-	// TODO: Add PoolPeers []string // PoolPeers is the set of peers that are members of the pool.
+	// Balance is the balance of the node with the pool.
+	Balance *store.Balance `json:"balance,omitempty"`
+	// InvalidPeers are peers who should be disconnected from, such as when a peer
+	// stops reporting connectivity from their side.
+	InvalidPeers []string `json:"invalid_peers"`
+	// ActivePeers are peers that the pool knows about and is tracking usage for.
+	ActivePeers []string `json:"active_peers"`
 }
 
 // PeerRequest is the request type for Peer RPC calls.
