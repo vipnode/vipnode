@@ -220,7 +220,7 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 		a.BalanceCallback(balance)
 	}
 
-	logger.Printf("Sent update: %d peers. Pool response: %d active, %d invalid peers, %s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), balance.String())
+	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
 
 	if a.BlockNumberCallback != nil {
 		a.BlockNumberCallback(blockNumber, update.LatestBlockNumber)
