@@ -53,14 +53,17 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 		return err
 	}
 
-	// Node key is required for signing requests from the NodeID to avoid forgery.
-	privkey, err := findNodeKey(options.Agent.NodeKey)
-	if err != nil {
-		return ErrExplain{err, "Failed to find node private key. RPC requests are signed by this key to avoid forgery. Use --nodekey to specify the correct path."}
+	if runner.PrivateKey == nil {
+		// Node key is required for signing requests from the NodeID to avoid forgery.
+		privkey, err := findNodeKey(options.Agent.NodeKey)
+		if err != nil {
+			return ErrExplain{err, "Failed to find node private key. RPC requests are signed by this key to avoid forgery. Use --nodekey to specify the correct path."}
+		}
+		runner.PrivateKey = privkey
 	}
-	runner.PrivateKey = privkey
+
 	// Confirm that nodeID matches the private key
-	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+	nodeID := discv5.PubkeyID(&runner.PrivateKey.PublicKey).String()
 	remoteEnode, err := remoteNode.Enode(context.Background())
 	if err != nil {
 		return err

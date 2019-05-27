@@ -3,27 +3,35 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/internal/keygen"
 	"golang.org/x/sync/errgroup"
 )
 
 func TestAgentRunner(t *testing.T) {
-	options := Options{}
-	options.Agent.Args.Coordinator = ":memory:"
-	options.Agent.NodeURI = "enode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1@127.0.0.1:30303?discport=0"
-	options.Agent.RPC = "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=3&fullnode=1"
-	options.Agent.UpdateInterval = "60s"
-
 	var out bytes.Buffer
 	agent.SetLogger(&out)
 	//SetLogger(golog.New(&out, log.Debug))
 
-	runner := agentRunner{}
+	privkey := keygen.HardcodedKeyIdx(t, 0)
+	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
+
+	options := Options{}
+	options.Agent.Args.Coordinator = ":memory:"
+	options.Agent.NodeURI = fmt.Sprintf("enode://%s@127.0.0.1:30303?discport=0", nodeID)
+	options.Agent.RPC = fmt.Sprintf("fakenode://%s?fakepeers=3&fullnode=1", nodeID)
+	options.Agent.UpdateInterval = "60s"
+
+	runner := agentRunner{
+		PrivateKey: privkey,
+	}
 	if err := runner.LoadAgent(options); err != nil {
 		t.Fatal(err)
 	}
