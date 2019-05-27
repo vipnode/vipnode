@@ -223,7 +223,7 @@ func (runner *agentRunner) Run() error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 	go func() {
-		for _ = range sigCh {
+		for range sigCh {
 			logger.Info("Shutting down...")
 			runner.Agent.Stop()
 		}

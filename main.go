@@ -375,7 +375,7 @@ func (err ErrExplain) Error() string {
 	if cause == nil {
 		cause = errors.New("an error occurred")
 	}
-	return fmt.Sprintf("%s\n -> %s", err.Cause, err.Explanation)
+	return fmt.Sprintf("%s\n -> %s", cause, err.Explanation)
 }
 
 // ErrExplainRetry is the same as ErrExplain except it can be retried
