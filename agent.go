@@ -38,12 +38,13 @@ func runAgent(options Options) error {
 
 // agentRunner is a stateful object for loading configuration and running the
 // agent along with other necessary services.
-// This is a normalization helper between remote pools and local pools.
+// Used for testing.
 type agentRunner struct {
-	Agent      *agent.Agent
-	Pool       pool.Pool
-	PrivateKey *ecdsa.PrivateKey
-	Remote     *jsonrpc2.Remote
+	Agent         *agent.Agent
+	PrivateKey    *ecdsa.PrivateKey
+	RemotePool    pool.Pool
+	RemoteService *jsonrpc2.Remote
+	pool          *pool.VipnodePool // Only exists in :memory: mode:w
 }
 
 func (runner *agentRunner) LoadAgent(options Options) error {
@@ -132,11 +133,12 @@ func (runner *agentRunner) LoadPool(options Options) error {
 		logger.Infof("Using an in-memory vipnode pool.")
 		p := pool.New(memory.New(), nil)
 		p.Version = fmt.Sprintf("vipnode/memory-pool/%s", Version)
+		runner.pool = p
 		rpcPool := &jsonrpc2.Local{}
 		if err := rpcPool.Server.Register("vipnode_", p); err != nil {
 			return err
 		}
-		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
+		runner.RemotePool = pool.Remote(rpcPool, runner.PrivateKey)
 		return nil
 	}
 
@@ -151,7 +153,7 @@ func (runner *agentRunner) LoadPool(options Options) error {
 			return err
 		}
 		logger.Infof("Using a static vipnode as vipnode pool: %s", poolURI)
-		runner.Pool = staticPool
+		runner.RemotePool = staticPool
 		return nil
 	}
 
@@ -184,8 +186,8 @@ func (runner *agentRunner) LoadPool(options Options) error {
 			Client: &jsonrpc2.Client{},
 			Codec:  poolCodec,
 		}
-		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
-		runner.Remote = rpcPool
+		runner.RemotePool = pool.Remote(rpcPool, runner.PrivateKey)
+		runner.RemoteService = rpcPool
 	case "http", "https":
 		if runner.Agent.EthNode.UserAgent().IsFullNode {
 			revisedURI := uri
@@ -198,7 +200,7 @@ func (runner *agentRunner) LoadPool(options Options) error {
 		rpcPool := &jsonrpc2.HTTPService{
 			Endpoint: uri.String(),
 		}
-		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
+		runner.RemotePool = pool.Remote(rpcPool, runner.PrivateKey)
 	default:
 		return ErrExplain{
 			errors.New("invalid pool coordinator URI scheme"),
@@ -214,7 +216,7 @@ func (runner *agentRunner) Run() error {
 	if runner.Agent == nil {
 		return errors.New("runner: Agent must be set")
 	}
-	if runner.Pool == nil {
+	if runner.RemotePool == nil {
 		return errors.New("runner: Pool must be set")
 	}
 
@@ -227,15 +229,15 @@ func (runner *agentRunner) Run() error {
 		}
 	}()
 
-	if err := runner.Agent.Start(runner.Pool); err != nil {
+	if err := runner.Agent.Start(runner.RemotePool); err != nil {
 		return err
 	}
-	if runner.Remote == nil {
+	if runner.RemoteService == nil {
 		return runner.Agent.Wait()
 	}
 	errChan := make(chan error)
 	go func() {
-		errChan <- runner.Remote.Serve()
+		errChan <- runner.RemoteService.Serve()
 	}()
 	go func() {
 		errChan <- runner.Agent.Wait()
