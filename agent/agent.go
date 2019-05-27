@@ -59,6 +59,7 @@ type Agent struct {
 	// then store.KeepaliveInterval is used.
 	UpdateInterval time.Duration
 
+	initOnce sync.Once
 	mu       sync.Mutex
 	started  bool
 	stopCh   chan struct{}
@@ -66,18 +67,23 @@ type Agent struct {
 	nodeInfo ethnode.UserAgent // cached during Start
 }
 
+func (a *Agent) init() {
+	a.initOnce.Do(func() {
+		a.stopCh = make(chan struct{})
+		a.waitCh = make(chan error, 1)
+	})
+}
+
 // Start registers the node on the given pool and starts sending peer updates
 // every store.KeepaliveInterval. It returns after
 // successfully registering with the pool.
 func (a *Agent) Start(p pool.Pool) error {
+	a.init()
+
 	a.mu.Lock()
 	if a.started {
 		a.mu.Unlock()
 		return errors.New("pool already started")
-	}
-	if a.stopCh == nil {
-		a.stopCh = make(chan struct{})
-		a.waitCh = make(chan error, 1)
 	}
 	a.mu.Unlock()
 
@@ -130,12 +136,14 @@ func (a *Agent) Whitelist(ctx context.Context, nodeID string) error {
 
 // Stop shuts down all the active connections cleanly.
 func (a *Agent) Stop() {
+	a.init()
 	a.stopCh <- struct{}{}
 }
 
 // Wait blocks until the agent is stopped. It returns any errors that occur
 // during stopping.
 func (a *Agent) Wait() error {
+	a.init()
 	return <-a.waitCh
 }
 
