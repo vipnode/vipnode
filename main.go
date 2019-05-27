@@ -262,7 +262,7 @@ func main() {
 	parser := flags.NewParser(&options, flags.Default)
 	parser.Groups()[0].ShortDescription = "vipnode"
 	parser.SubcommandsOptional = true
-	p, err := parser.Parse()
+	p, err := parser.ParseArgs(os.Args[1:])
 	if err != nil {
 		if p == nil {
 			fmt.Println(err)

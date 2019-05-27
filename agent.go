@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net/url"
@@ -20,9 +21,32 @@ import (
 
 var minUpdateInterval = time.Second * 5
 var maxUpdateInterval = store.ExpireInterval
-var maxBlockNumberDrift uint64 = 2
+var maxBlockNumberDrift uint64 = 3
 
+// runAgent configures and starts a the agent. It blocks until the agent is
+// stopped or fails.
 func runAgent(options Options) error {
+	runner := agentRunner{}
+	if err := runner.LoadAgent(options); err != nil {
+		return err
+	}
+	if err := runner.LoadPool(options); err != nil {
+		return err
+	}
+	return runner.Run()
+}
+
+// agentRunner is a stateful object for loading configuration and running the
+// agent along with other necessary services.
+// This is a normalization helper between remote pools and local pools.
+type agentRunner struct {
+	Agent      *agent.Agent
+	Pool       pool.Pool
+	PrivateKey *ecdsa.PrivateKey
+	Remote     *jsonrpc2.Remote
+}
+
+func (runner *agentRunner) LoadAgent(options Options) error {
 	remoteNode, err := findRPC(options.Agent.RPC)
 	if err != nil {
 		return err
@@ -33,6 +57,7 @@ func runAgent(options Options) error {
 	if err != nil {
 		return ErrExplain{err, "Failed to find node private key. RPC requests are signed by this key to avoid forgery. Use --nodekey to specify the correct path."}
 	}
+	runner.PrivateKey = privkey
 	// Confirm that nodeID matches the private key
 	nodeID := discv5.PubkeyID(&privkey.PublicKey).String()
 	remoteEnode, err := remoteNode.Enode(context.Background())
@@ -65,6 +90,7 @@ func runAgent(options Options) error {
 		Version:        fmt.Sprintf("vipnode/agent/%s", Version),
 		UpdateInterval: updateInterval,
 	}
+	runner.Agent = a
 	if options.Agent.NodeURI != "" {
 		if err := matchEnode(options.Agent.NodeURI, nodeID); err != nil {
 			return err
@@ -78,62 +104,60 @@ func runAgent(options Options) error {
 	a.PoolMessageCallback = func(msg string) {
 		logger.Alertf("Message from pool: %s", msg)
 	}
+
+	drifting := false
 	a.BlockNumberCallback = func(blockNumber uint64, latestBlockNumber uint64) {
-		if delta := latestBlockNumber - blockNumber; delta > maxBlockNumberDrift {
-			logger.Warning("Local node is behind the latest known block number by %d blocks.", delta)
+		delta := latestBlockNumber - blockNumber
+		if delta > maxBlockNumberDrift {
+			if !drifting {
+				logger.Warningf("Local node is behind the latest known block number by %d blocks: %d", delta, latestBlockNumber)
+				drifting = true
+			}
+		} else if drifting {
+			logger.Infof("Local node caught up to within %d of latest known block number: %d", delta, latestBlockNumber)
+			drifting = false
 		}
 	}
+	return nil
+}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	go func() {
-		for _ = range sigCh {
-			logger.Info("Shutting down...")
-			a.Stop()
-		}
-	}()
+func (runner *agentRunner) LoadPool(options Options) error {
+	if runner.Agent == nil {
+		return errors.New("runner: Agent must be set")
+	}
 
 	poolURI := options.Agent.Args.Coordinator
-	uri, err := url.Parse(poolURI)
-	if err != nil {
-		return ErrExplain{err, `Failed to parse the pool coordinator URI. It should look something like: "wss://pool.vipnode.org/"`}
-	}
-
-	// If we want, we can connect to another vipnode agent directly, bypassing the need for a pool.
-	if uri.Scheme == "enode" {
-		staticPool := &pool.StaticPool{}
-		if err := staticPool.AddNode(poolURI); err != nil {
-			return err
-		}
-		logger.Infof("Connecting to a static node (bypassing pool): %s", poolURI)
-		if err := a.Start(staticPool); err != nil {
-			return err
-		}
-		return a.Wait()
-	}
-
 	if poolURI == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.
-		logger.Infof("Starting in-memory vipnode pool.")
+		logger.Infof("Using an in-memory vipnode pool.")
 		p := pool.New(memory.New(), nil)
 		p.Version = fmt.Sprintf("vipnode/memory-pool/%s", Version)
 		rpcPool := &jsonrpc2.Local{}
 		if err := rpcPool.Server.Register("vipnode_", p); err != nil {
 			return err
 		}
-		remotePool := pool.Remote(rpcPool, privkey)
-		if err := a.Start(remotePool); err != nil {
-			return err
-		}
-		return a.Wait()
+		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
+		return nil
 	}
 
-	errChan := make(chan error)
+	uri, err := url.Parse(poolURI)
+	if err != nil {
+		return ErrExplain{err, `Failed to parse the pool coordinator URI. It should look something like: "wss://pool.vipnode.org/"`}
+	}
+
+	if uri.Scheme == "enode" {
+		staticPool := &pool.StaticPool{}
+		if err := staticPool.AddNode(poolURI); err != nil {
+			return err
+		}
+		logger.Infof("Using a static vipnode as vipnode pool: %s", poolURI)
+		runner.Pool = staticPool
+		return nil
+	}
 
 	// We support multiple kinds of transports for the pool RPC API. Websocket
 	// is preferred, but we allow HTTP for low power scenarios like mobile
 	// devices.
-	var rpcPool jsonrpc2.Service
 	scheme := uri.Scheme
 	if scheme == "" {
 		// No scheme provided, use websockets
@@ -142,7 +166,7 @@ func runAgent(options Options) error {
 	switch scheme {
 	case "ws", "wss":
 		// Register reverse-directional RPC calls available on the host
-		var reverseService agent.Service = a
+		var reverseService agent.Service = runner.Agent
 		rpcServer := &jsonrpc2.Server{}
 		if err := rpcServer.RegisterMethod("vipnode_whitelist", reverseService, "Whitelist"); err != nil {
 			return err
@@ -155,17 +179,15 @@ func runAgent(options Options) error {
 			return ErrExplainRetry{ErrExplain{err, "Failed to connect to the pool RPC API."}}
 		}
 
-		remote := &jsonrpc2.Remote{
+		rpcPool := &jsonrpc2.Remote{
 			Server: rpcServer,
 			Client: &jsonrpc2.Client{},
 			Codec:  poolCodec,
 		}
-		go func() {
-			errChan <- remote.Serve()
-		}()
-		rpcPool = remote
+		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
+		runner.Remote = rpcPool
 	case "http", "https":
-		if remoteNode.UserAgent().IsFullNode {
+		if runner.Agent.EthNode.UserAgent().IsFullNode {
 			revisedURI := uri
 			revisedURI.Scheme = "wss"
 			return ErrExplain{
@@ -173,9 +195,10 @@ func runAgent(options Options) error {
 				"Full nodes must connect over the websocket protocol in order to support bidirectional RPC that is required to coordinate host peers. Try using: " + revisedURI.String(),
 			}
 		}
-		rpcPool = &jsonrpc2.HTTPService{
+		rpcPool := &jsonrpc2.HTTPService{
 			Endpoint: uri.String(),
 		}
+		runner.Pool = pool.Remote(rpcPool, runner.PrivateKey)
 	default:
 		return ErrExplain{
 			errors.New("invalid pool coordinator URI scheme"),
@@ -183,17 +206,39 @@ func runAgent(options Options) error {
 		}
 	}
 
-	remotePool := pool.Remote(rpcPool, privkey)
-	if err := a.Start(remotePool); err != nil {
-		if jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams) {
-			err = ErrExplain{err, fmt.Sprintf(`Missing a required RPC method. Make sure your vipnode binary is up to date. (Current version: %s)`, Version)}
-		}
-		return err
+	return nil
+}
+
+// Run will block until the agent and remote pool service finish or fail.
+func (runner *agentRunner) Run() error {
+	if runner.Agent == nil {
+		return errors.New("runner: Agent must be set")
 	}
+	if runner.Pool == nil {
+		return errors.New("runner: Pool must be set")
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
 	go func() {
-		errChan <- a.Wait()
+		for _ = range sigCh {
+			logger.Info("Shutting down...")
+			runner.Agent.Stop()
+		}
 	}()
 
+	if err := runner.Agent.Start(runner.Pool); err != nil {
+		return err
+	}
+	if runner.Remote == nil {
+		return runner.Agent.Wait()
+	}
+	errChan := make(chan error)
+	go func() {
+		errChan <- runner.Remote.Serve()
+	}()
+	go func() {
+		errChan <- runner.Agent.Wait()
+	}()
 	return <-errChan
-
 }
