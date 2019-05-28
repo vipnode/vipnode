@@ -2,12 +2,14 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
 )
@@ -58,6 +60,11 @@ type Agent struct {
 	// UpdateInterval is the time between updates sent to the pool. If not set,
 	// then store.KeepaliveInterval is used.
 	UpdateInterval time.Duration
+
+	// EnableProxyRPC enables the Proxy RPC service to allow the pool to relay
+	// RPC requests to the agent's node. This is used to host a mini-Infura
+	// using vipnode pools.
+	EnableProxyRPC bool
 
 	initOnce sync.Once
 	mu       sync.Mutex
@@ -126,12 +133,6 @@ func (a *Agent) Start(p pool.Pool) error {
 		a.waitCh <- a.serveUpdates(p)
 	}()
 	return nil
-}
-
-// Whitelist a peer for this node.
-func (a *Agent) Whitelist(ctx context.Context, nodeID string) error {
-	logger.Printf("Received whitelist request: %s", nodeID)
-	return a.EthNode.AddTrustedPeer(ctx, nodeID)
 }
 
 // Stop shuts down all the active connections cleanly.
@@ -263,7 +264,65 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 	return nil
 }
 
+// Service implementations:
+
+// Whitelist a peer for this node.
+func (a *Agent) Whitelist(ctx context.Context, nodeID string) error {
+	logger.Printf("Received whitelist request: %s", nodeID)
+	return a.EthNode.AddTrustedPeer(ctx, nodeID)
+}
+
+// Proxy will execute the JSONRPC request on the local node and return the
+// result. It will do some basic checks to avoid malicious requests.
+func (a *Agent) Proxy(ctx context.Context, request json.RawMessage) (json.RawMessage, error) {
+	// TODO: Support batched messages
+	// FIXME: This does a lot of annoying converting between JSON and native
+	// types and back, just to work around the limitations of the geth rpc API.
+	if !a.EnableProxyRPC {
+		return nil, errors.New("vipnode_proxy is not enabled on this agent")
+	}
+
+	rpc := a.EthNode.NodeRPC()
+	if rpc == nil {
+		return nil, errors.New("vipnode_proxy is not available on this agent")
+	}
+
+	var req jsonrpc2.Request
+	if err := json.Unmarshal(request, &req); err != nil {
+		return nil, err
+	}
+
+	var args []interface{}
+	if err := json.Unmarshal(req.Params, &args); err != nil {
+		return nil, err
+	}
+
+	if _, ok := allowedProxyMethods[req.Method]; !ok {
+		return nil, ProxyMethodNotAllowedError{Method: req.Method}
+	}
+
+	var result interface{}
+	if err := rpc.CallContext(ctx, &result, req.Method, req.Method, args); err != nil {
+		return nil, err
+	}
+
+	var resp jsonrpc2.Response
+	if err := resp.UnmarshalResult(result); err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(resp)
+}
+
 // Service is the set of RPC calls exposed by an agent.
 type Service interface {
+	// Whitelist will instruct the local node to trust the given peer nodeID,
+	// in anticipation of the peer connecting after being whitelisted.
 	Whitelist(ctx context.Context, nodeID string) error
+
+	// Proxy will execute the JSONRPC request on the local node and return the result.
+	// It *should* take some care to avoid executing potentially harmful
+	// messages by inspecting the message first, and possibly checking against
+	// a list of permitted methods.
+	Proxy(ctx context.Context, request json.RawMessage) (json.RawMessage, error)
 }
