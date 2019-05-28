@@ -3,11 +3,6 @@ package ethnode
 import (
 	"context"
 	"errors"
-	"strconv"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const errCodeMethodNotFound = -32601
@@ -20,16 +15,7 @@ type codedError interface {
 var _ EthNode = &gethNode{}
 
 type gethNode struct {
-	agent  UserAgent
-	client *rpc.Client
-}
-
-func (n *gethNode) ContractBackend() bind.ContractBackend {
-	return ethclient.NewClient(n.client)
-}
-
-func (n *gethNode) UserAgent() UserAgent {
-	return n.agent
+	baseNode
 }
 
 func (n *gethNode) Kind() NodeKind {
@@ -89,12 +75,4 @@ func (n *gethNode) Enode(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return info.Enode, nil
-}
-
-func (n *gethNode) BlockNumber(ctx context.Context) (uint64, error) {
-	var result string
-	if err := n.client.CallContext(ctx, &result, "eth_blockNumber"); err != nil {
-		return 0, err
-	}
-	return strconv.ParseUint(result, 0, 64)
 }
