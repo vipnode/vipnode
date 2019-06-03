@@ -22,9 +22,11 @@ import (
 var minUpdateInterval = time.Second * 5
 var maxUpdateInterval = store.ExpireInterval
 var maxBlockNumberDrift uint64 = 3
+var defaultPoolURI string = "wss://pool.vipnode.org/"
 
 // runAgent configures and starts a the agent. It blocks until the agent is
-// stopped or fails.
+// stopped or fails. runAgent also takes care of wrapping known arounds with
+// ErrExplain for user-friendliness.
 func runAgent(options Options) error {
 	runner := agentRunner{}
 	if err := runner.LoadAgent(options); err != nil {
@@ -33,7 +35,16 @@ func runAgent(options Options) error {
 	if err := runner.LoadPool(options); err != nil {
 		return err
 	}
-	return runner.Run()
+	err := runner.Run()
+	if timeoutErr, ok := err.(interface{ Timeout() bool }); ok && timeoutErr.Timeout() {
+		return ErrExplainRetry{ErrExplain{err, "Agent timed out while coordinating with the pool. Hopefully this is a transient error."}}
+	}
+	if agentErr, ok := err.(agent.AgentPoolError); !ok {
+		return err
+	} else if jsonErr, ok := agentErr.Cause().(interface{ ErrorCode() int }); ok && jsonErr.ErrorCode() == jsonrpc2.ErrCodeMethodNotFound {
+		return ErrExplain{err, `Pool is missing a required RPC method, make sure your agent version is compatible with the pool version.`}
+	}
+	return err
 }
 
 // agentRunner is a stateful object for loading configuration and running the
@@ -111,7 +122,14 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 
 	drifting := false
 	a.BlockNumberCallback = func(blockNumber uint64, latestBlockNumber uint64) {
-		delta := latestBlockNumber - blockNumber
+		var delta uint64
+		if latestBlockNumber > blockNumber {
+			delta = latestBlockNumber - blockNumber
+		}
+		if delta == 0 {
+			// Either the pool doesn't know of the latest block, or we're in sync.
+			return
+		}
 		if delta > maxBlockNumberDrift {
 			if !drifting {
 				logger.Warningf("Local node is behind the latest known block number by %d blocks: %d", delta, latestBlockNumber)
@@ -131,7 +149,9 @@ func (runner *agentRunner) LoadPool(options Options) error {
 	}
 
 	poolURI := options.Agent.Args.Coordinator
-	if poolURI == ":memory:" {
+	if poolURI == "" {
+		poolURI = defaultPoolURI
+	} else if poolURI == ":memory:" {
 		// Support for in-memory pool. This is primarily for testing.
 		logger.Infof("Using an in-memory vipnode pool.")
 		p := pool.New(memory.New(), nil)
@@ -163,12 +183,14 @@ func (runner *agentRunner) LoadPool(options Options) error {
 	// We support multiple kinds of transports for the pool RPC API. Websocket
 	// is preferred, but we allow HTTP for low power scenarios like mobile
 	// devices.
-	scheme := uri.Scheme
-	if scheme == "" {
-		// No scheme provided, use websockets
-		scheme = "wss"
+	if uri.Scheme == "" {
+		// No scheme provided, use websockets.
+		uri.Scheme = "wss"
 	}
-	switch scheme {
+
+	logger.Infof("Connecting to remote pool: %s", uri.String())
+
+	switch uri.Scheme {
 	case "ws", "wss":
 		// Register reverse-directional RPC calls available on the host
 		var reverseService agent.Service = runner.Agent
@@ -181,7 +203,7 @@ func (runner *agentRunner) LoadPool(options Options) error {
 		poolCodec, err := ws.WebSocketDial(ctx, uri.String())
 		cancel()
 		if err != nil {
-			return ErrExplainRetry{ErrExplain{err, "Failed to connect to the pool RPC API."}}
+			return ErrExplainRetry{ErrExplain{err, fmt.Sprintf("Failed to connect to the pool RPC API: %q", uri.String())}}
 		}
 
 		rpcPool := &jsonrpc2.Remote{
@@ -232,16 +254,19 @@ func (runner *agentRunner) Run() error {
 		}
 	}()
 
+	errChan := make(chan error)
+	if runner.RemoteService != nil {
+		// RemoteService must be serving before we Start the agent, in case the
+		// Pool requires us to whitelist hosts on connect.
+		go func() {
+			errChan <- runner.RemoteService.Serve()
+		}()
+	}
+
 	if err := runner.Agent.Start(runner.RemotePool); err != nil {
 		return err
 	}
-	if runner.RemoteService == nil {
-		return runner.Agent.Wait()
-	}
-	errChan := make(chan error)
-	go func() {
-		errChan <- runner.RemoteService.Serve()
-	}()
+
 	go func() {
 		errChan <- runner.Agent.Wait()
 	}()

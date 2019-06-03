@@ -235,7 +235,7 @@ func subcommand(cmd string, options Options) error {
 		} else if err == io.EOF {
 			logger.Warningf("Connection closed, retrying in %s...", waitTime)
 		} else if errRetry, ok := err.(ErrExplainRetry); ok {
-			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry.Cause)
+			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry)
 		} else if _, ok := err.(net.Error); ok {
 			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, err)
 		} else if err.Error() == (pool.NoHostNodesError{}).Error() {
@@ -319,7 +319,7 @@ func main() {
 		return
 	}
 
-	cmd := "client"
+	cmd := "agent"
 	if parser.Active != nil {
 		cmd = parser.Active.Name
 	}

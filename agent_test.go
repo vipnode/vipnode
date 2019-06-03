@@ -60,7 +60,7 @@ func TestAgentRunner(t *testing.T) {
 	}
 
 	hasLogPrefixes(t, &out, len("[agent] 2019/05/27 13:10:00 "), []string{
-		"Connected to local node:",
+		"Connected to local",
 		"Registered on pool: Version vipnode/memory-pool/dev",
 		"Pool update: peers=3 active=0 invalid=0 block=0",
 	})

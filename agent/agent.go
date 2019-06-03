@@ -17,6 +17,10 @@ const defaultNumHosts = 3
 var startTimeout = 10 * time.Second
 var updateTimeout = 10 * time.Second
 
+// ErrAlreadyStarted is returned when the agent service is started after it has
+// already been started before.
+var ErrAlreadyStarted = errors.New("agent already started")
+
 // Agent is a companion process for nodes that manages the node's communication
 // with a Vipnode Pool.
 type Agent struct {
@@ -83,7 +87,7 @@ func (a *Agent) Start(p pool.Pool) error {
 	a.mu.Lock()
 	if a.started {
 		a.mu.Unlock()
-		return errors.New("pool already started")
+		return ErrAlreadyStarted
 	}
 	a.mu.Unlock()
 
@@ -94,7 +98,8 @@ func (a *Agent) Start(p pool.Pool) error {
 	if err != nil {
 		return err
 	}
-	logger.Printf("Connected to local node: %s", enode)
+	ua := a.EthNode.UserAgent()
+	logger.Printf("Connected to local %s node: %s", ua.KindType(), enode)
 
 	version := a.Version
 	if version == "" {
@@ -105,12 +110,12 @@ func (a *Agent) Start(p pool.Pool) error {
 		Payout:         a.Payout,
 		NodeURI:        a.NodeURI,
 		VipnodeVersion: version,
-		NodeInfo:       a.EthNode.UserAgent(),
+		NodeInfo:       ua,
 	}
 	a.nodeInfo = connectReq.NodeInfo
 	resp, err := p.Connect(startCtx, connectReq)
 	if err != nil {
-		return err
+		return AgentPoolError{err, "Failed during pool connect request"}
 	}
 	logger.Printf("Registered on pool: Version %s", resp.PoolVersion)
 
@@ -212,7 +217,7 @@ func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
 		BlockNumber: blockNumber,
 	})
 	if err != nil {
-		return err
+		return AgentPoolError{err, "Failed during pool update request"}
 	}
 	var balance store.Balance
 	if a.BalanceCallback != nil && update.Balance != nil {
@@ -251,7 +256,7 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 		Kind: a.nodeInfo.Kind.String(),
 	})
 	if err != nil {
-		return err
+		return AgentPoolError{err, "Failed during pool peer request"}
 	}
 	nodes := peerResp.Peers
 	logger.Printf("Received %d host candidates from pool.", len(nodes))
