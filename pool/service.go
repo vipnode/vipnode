@@ -341,7 +341,7 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	if err := p.BalanceManager.OnClient(node); err != nil {
 		return nil, err
 	}
-	logger.Printf("New %q peer: %q", kind, pretty.Abbrev(nodeID))
+	logger.Printf("Connected %s peer: %q", req.NodeInfo.KindType(), pretty.Abbrev(nodeID))
 
 	return response, nil
 }
