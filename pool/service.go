@@ -47,12 +47,13 @@ type VipnodePool struct {
 	// Version is returned as the PoolVersion in the ClientResponse when a new client connects.
 	Version string
 
-	Store           store.Store
-	BalanceManager  balance.Manager
-	ClientMessager  func(nodeID string) string
-	MaxRequestHosts int               // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
-	RestrictNetwork ethnode.NetworkID // TODO: Wire this up
-	skipWhitelist   bool              // skipWhitelist is used for testing.
+	Store               store.Store
+	BalanceManager      balance.Manager
+	ClientMessager      func(nodeID string) string
+	MaxRequestHosts     int                                     // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
+	RestrictNetwork     ethnode.NetworkID                       // TODO: Wire this up
+	BlockNumberProvider func(ethnode.NetworkID) (uint64, error) // BlockNumberProvider returns the latest block number that is known for the given network.
+	skipWhitelist       bool                                    // skipWhitelist is used for testing.
 
 	mu               sync.Mutex
 	remoteHosts      map[store.NodeID]jsonrpc2.Service
@@ -158,22 +159,32 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	if err != nil {
 		return nil, err
 	}
-
-	resp := UpdateResponse{
-		InvalidPeers: make([]string, 0, len(inactive)),
-	}
-	for _, peer := range inactive {
-		resp.InvalidPeers = append(resp.InvalidPeers, string(peer))
-	}
-	validPeers, err := p.Store.NodePeers(store.NodeID(nodeID))
+	active, err := p.Store.NodePeers(store.NodeID(nodeID))
 	if err != nil {
 		return nil, err
 	}
 
-	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, validPeers)
+	resp := UpdateResponse{
+		InvalidPeers: make([]string, 0, len(inactive)),
+		ActivePeers:  make([]string, 0, len(active)),
+	}
+	for _, peerID := range inactive {
+		resp.InvalidPeers = append(resp.InvalidPeers, string(peerID))
+	}
+	for _, peerNode := range active {
+		resp.ActivePeers = append(resp.ActivePeers, string(peerNode.ID))
+	}
+	if p.BlockNumberProvider != nil {
+		resp.LatestBlockNumber, err = p.BlockNumberProvider(p.RestrictNetwork)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	nodeBalance, err := p.BalanceManager.OnUpdate(nodeBeforeUpdate, active)
 	if err != nil {
 		if _, ok := err.(balance.LowBalanceError); ok {
-			disconnectErr := p.disconnectPeers(ctx, nodeID, validPeers)
+			disconnectErr := p.disconnectPeers(ctx, nodeID, active)
 			if disconnectErr != nil {
 				logger.Printf("Client disconnect due to low balance: %q; disconnect RPC errors: %s", pretty.Abbrev(nodeID), disconnectErr)
 			} else {
@@ -184,11 +195,12 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	resp.Balance = &nodeBalance
 
+	nodeKind := node.Kind + "-light"
 	if node.IsHost {
-		logger.Printf("Host update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
-	} else {
-		logger.Printf("Client update %q: %d peers, %d active, %d invalid. %s", pretty.Abbrev(nodeID), peerTypes.Count, len(validPeers), len(inactive), nodeBalance.String())
+		nodeKind = node.Kind + "-full"
 	}
+
+	logger.Printf("Updated %s: peers=%d active=%d invalid=%d block=%d node=%s balance=%s", pretty.Abbrev(nodeID), peerTypes.Count, len(active), len(inactive), req.BlockNumber, nodeKind, nodeBalance.String())
 
 	return &resp, nil
 }
@@ -329,7 +341,7 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	if err := p.BalanceManager.OnClient(node); err != nil {
 		return nil, err
 	}
-	logger.Printf("New %q peer: %q", kind, pretty.Abbrev(nodeID))
+	logger.Printf("Connected %s peer: %q", req.NodeInfo.KindType(), pretty.Abbrev(nodeID))
 
 	return response, nil
 }

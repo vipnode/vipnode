@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -41,22 +42,17 @@ type Options struct {
 	Verbose     []bool `short:"v" long:"verbose" description:"Show verbose logging."`
 	Version     bool   `long:"version" description:"Print version and exit."`
 
-	Client struct {
+	Agent struct {
 		Args struct {
-			VIPNode string `positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
+			Coordinator string `positional-arg-name:"coordinator" description:"vipnode pool URL or stand-alone vipnode enode string" default:"wss://pool.vipnode.org/"`
 		} `positional-args:"yes"`
-		RPC     string `long:"rpc" description:"RPC path or URL of the client node."`
-		NodeKey string `long:"nodekey" description:"Path to the client node's private key."`
-	} `command:"client" description:"Connect to a vipnode as a client."`
-
-	Host struct {
-		Pool      string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
-		RPC       string `long:"rpc" description:"RPC path or URL of the host node."`
-		NodeKey   string `long:"nodekey" description:"Path to the host node's private key."`
-		NodeURI   string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
-		Payout    string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
-		JoinPeers int    `long:"join-peers" description:"Whitelist and connect to N other hosts on the pool." default:"0"`
-	} `command:"host" description:"Host a vipnode."`
+		RPC            string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey        string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI        string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
+		Payout         string `long:"payout" description:"Ethereum wallet address to associate pool credits."`
+		MinPeers       int    `long:"min-peers" description:"Minimum number of peers to maintain." default:"3"`
+		UpdateInterval string `long:"update-interval" description:"Time between updates sent to pool, should be under 120s." default:"60s"`
+	} `command:"agent" description:"Connect as a node to a pool or another vipnode."`
 
 	Pool struct {
 		Bind            string `long:"bind" description:"Address and port to listen on." default:"0.0.0.0:8080"`
@@ -64,7 +60,8 @@ type Options struct {
 		DataDir         string `long:"datadir" description:"Path for storing the persistent database."`
 		TLSHost         string `long:"tlshost" description:"Acquire an ACME TLS cert for this host (forces bind to port :443)."`
 		AllowOrigin     string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
-		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a client is allowed to request."`
+		RestrictNetwork string `long:"restrict-network" description:"Restrict nodes to a single Ethereum network, such as: mainnet, rinkeby, goerli"`
+		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a node is allowed to request."`
 		Contract        struct {
 			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
 			Addr       string `long:"address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
@@ -74,14 +71,32 @@ type Options struct {
 			Welcome    string `long:"welcome" description:"Welcome message for clients. (Example: \"Welcome, {{.NodeID}}\")"`
 		} `group:"contract" namespace:"contract"`
 	} `command:"pool" description:"Start a vipnode pool coordinator."`
+
+	// DEPRECATED
+	Client struct {
+		Args struct {
+			VIPNode string `positional-arg-name:"vipnode" description:"vipnode pool URL or stand-alone vipnode enode string"`
+		} `positional-args:"yes"`
+		RPC     string `long:"rpc" description:"RPC path or URL of the client node."`
+		NodeKey string `long:"nodekey" description:"Path to the client node's private key."`
+	} `command:"client" description:"Connect to a vipnode as a client." hidden:"true"`
+
+	// DEPRECATED
+	Host struct {
+		Pool    string `long:"pool" description:"Pool to participate in." default:"wss://pool.vipnode.org/"`
+		RPC     string `long:"rpc" description:"RPC path or URL of the host node."`
+		NodeKey string `long:"nodekey" description:"Path to the host node's private key."`
+		NodeURI string `long:"enode" description:"Public enode://... URI for clients to connect to. (If node is on a different IP from the vipnode agent)"`
+		Payout  string `long:"payout" description:"Ethereum wallet address to receive pool payments."`
+	} `command:"host" description:"Host a vipnode." hidden:"true"`
 }
 
 const clientUsage = `Examples:
 * Connect to a stand-alone vipnode:
-  $ vipnode client "enode://19b5013d24243a659bda7f1df13933bb05820ab6c3ebf6b5e0854848b97e1f7e308f703466e72486c5bc7fe8ed402eb62f6303418e05d330a5df80738ac974f6@163.172.138.100:30303?discport=30301"
+  $ vipnode agent "enode://19b5013d24243a659bda7f1df13933bb05820ab6c3ebf6b5e0854848b97e1f7e308f703466e72486c5bc7fe8ed402eb62f6303418e05d330a5df80738ac974f6@163.172.138.100:30303?discport=30301"
 
 * Connect to a vipnode pool:
-  $ vipnode client "https://pool.vipnode.org/"
+  $ vipnode agent "wss://pool.vipnode.org/"
 `
 
 func findGethDir() string {
@@ -145,6 +160,8 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 		if numpeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
 			node.FakePeers = fakenode.FakePeers(numpeers)
 		}
+		node.IsFullNode = u.Query().Get("fullnode") != ""
+
 		logger.Warningf("Using a *fake* Ethereum node (only use for testing) with %d peers and nodeID: %q", len(node.FakePeers), pretty.Abbrev(node.NodeID))
 		return node, nil
 	}
@@ -195,9 +212,13 @@ func subcommand(cmd string, options Options) error {
 	for i := 0; ; i++ {
 		since := time.Now()
 		switch cmd {
+		case "agent":
+			err = runAgent(options)
 		case "client":
+			logger.Warning("The `client` subcommand is deprecated, use `agent` instead.")
 			err = runClient(options)
 		case "host":
+			logger.Warning("The `host` subcommand is deprecated, use `agent` instead.")
 			err = runHost(options)
 		}
 
@@ -214,7 +235,7 @@ func subcommand(cmd string, options Options) error {
 		} else if err == io.EOF {
 			logger.Warningf("Connection closed, retrying in %s...", waitTime)
 		} else if errRetry, ok := err.(ErrExplainRetry); ok {
-			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry.Cause)
+			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, errRetry)
 		} else if _, ok := err.(net.Error); ok {
 			logger.Warningf("Failed to connect, retrying in %s: %s", waitTime, err)
 		} else if err.Error() == (pool.NoHostNodesError{}).Error() {
@@ -241,7 +262,7 @@ func main() {
 	parser := flags.NewParser(&options, flags.Default)
 	parser.Groups()[0].ShortDescription = "vipnode"
 	parser.SubcommandsOptional = true
-	p, err := parser.Parse()
+	p, err := parser.ParseArgs(os.Args[1:])
 	if err != nil {
 		if p == nil {
 			fmt.Println(err)
@@ -298,7 +319,7 @@ func main() {
 		return
 	}
 
-	cmd := "client"
+	cmd := "agent"
 	if parser.Active != nil {
 		cmd = parser.Active.Name
 	}
@@ -350,7 +371,11 @@ type ErrExplain struct {
 }
 
 func (err ErrExplain) Error() string {
-	return fmt.Sprintf("%s\n -> %s", err.Cause, err.Explanation)
+	cause := err.Cause
+	if cause == nil {
+		cause = errors.New("an error occurred")
+	}
+	return fmt.Sprintf("%s\n -> %s", cause, err.Explanation)
 }
 
 // ErrExplainRetry is the same as ErrExplain except it can be retried

@@ -13,7 +13,8 @@ var _ Pool = &StaticPool{}
 // StaticPool is a dummy implementation of a pool service that always returns
 // from the same set of host nodes. It does not do any signature checking.
 type StaticPool struct {
-	Nodes []store.Node
+	Nodes             []store.Node
+	LatestBlockNumber uint64
 }
 
 func (s *StaticPool) AddNode(nodeURI string) error {
@@ -48,6 +49,7 @@ func (s *StaticPool) Disconnect(ctx context.Context) error {
 }
 
 func (s *StaticPool) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
+	s.LatestBlockNumber = req.BlockNumber
 	return &UpdateResponse{}, nil
 }
 
