@@ -113,6 +113,14 @@ type UserAgent struct {
 	IsFullNode bool      `json:"is_full_node"` // Is this a full node? (or a light client?)
 }
 
+// KindType returns the Kind of node it is, suffixed with -full or -light.
+func (ua *UserAgent) KindType() string {
+	if ua.IsFullNode {
+		return ua.Kind.String() + "-full"
+	}
+	return ua.Kind.String() + "-light"
+}
+
 // ParseUserAgent takes string values as output from the web3 RPC for
 // web3_clientVersion, eth_protocolVersion, and net_version. It returns a
 // parsed user agent metadata.
