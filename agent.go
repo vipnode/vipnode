@@ -77,6 +77,10 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 	nodeID := discv5.PubkeyID(&runner.PrivateKey.PublicKey).String()
 	remoteEnode, err := remoteNode.Enode(context.Background())
 	if err != nil {
+		if err.Error() == "Network is disabled or not yet up." {
+			// Parity error when warming up, or when --mode=offline
+			return ErrExplainRetry{ErrExplain{err, "Node is not ready yet. Make sure the node is set to online mode."}}
+		}
 		return err
 	}
 	if err := matchEnode(remoteEnode, nodeID); err != nil {
