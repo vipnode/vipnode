@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -32,6 +34,8 @@ import (
 )
 
 const defaultWelcomeMsg = "\x1b[31m 👑 Welcome to the demo vipnode pool! 👑 \x1b[0m You can manage your account balance here: https://vipnode.org/pool/?enode={{.NodeID}}"
+
+const healthTimeout = time.Second * 5
 
 // findDataDir returns a valid data dir, will create it if it doesn't
 // exist.
@@ -252,6 +256,17 @@ func runPool(options Options) error {
 	}
 	if err := handler.Register("pool_", dashboard); err != nil {
 		return err
+	}
+
+	// PoolStatus-based healthcheck for our HTTP handler
+	handler.healthCheck = func(w io.Writer) error {
+		ctx, cancel := context.WithTimeout(context.Background(), healthTimeout)
+		status, err := dashboard.Status(ctx)
+		defer cancel()
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(w).Encode(status)
 	}
 
 	if options.Pool.TLSHost != "" {

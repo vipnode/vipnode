@@ -18,9 +18,19 @@ type server struct {
 	debugLog     bool
 	header       http.Header
 	onDisconnect func(remote jsonrpc2.Service) error
+	healthCheck  func(w io.Writer) error
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/health" {
+		if s.healthCheck == nil {
+			http.Error(w, "detailed health check disabled", http.StatusOK)
+		} else if err := s.healthCheck(w); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
 	switch r.Method {
 	case http.MethodPost:
 		// Assume RPC over HTTP
