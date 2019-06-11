@@ -2,6 +2,7 @@ package ethnode
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -134,8 +135,16 @@ func DetectClient(client *rpc.Client) (*UserAgent, error) {
 
 // PeerInfo stores the node ID and client metadata about a peer.
 type PeerInfo struct {
-	ID   string `json:"id"`   // Unique node identifier (also the encryption pubkey)
-	Name string `json:"name"` // Name of the node, including client type, version, OS, custom data
+	ID        string                     `json:"id"`        // Unique node identifier (also the encryption pubkey)
+	Name      string                     `json:"name"`      // Name of the node, including client type, version, OS, custom data
+	Caps      []string                   `json:"caps"`      // Capabilities the node is advertising.
+	Protocols map[string]json.RawMessage `json:"protocols"` // Sub-protocol specific metadata fields
+
+	// FIXME: Do we want to include node-local network address state? Or is it unnecessary security leakage?
+	Network struct {
+		LocalAddress  string `json:"localAddress"`  // Local endpoint of the TCP data connection
+		RemoteAddress string `json:"remoteAddress"` // Remote endpoint of the TCP data connection
+	} `json:"network,omitempty"`
 }
 
 // EthNode is the normalized interface between different kinds of nodes.
