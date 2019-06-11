@@ -4,7 +4,7 @@
 
 PKG := $(shell go list | head -n1)
 VERSION := $(shell git describe --tags --dirty --always 2> /dev/null || echo "dev")
-LDFLAGS = "-X main.Version=$(VERSION)"
+LDFLAGS = "-X main.Version=$(VERSION) -w -s"
 SOURCES = $(shell find . -type f -name '*.go')
 
 BINARY = $(notdir $(PWD))
@@ -62,3 +62,6 @@ release:
 	GOOS=windows GOARCH=386 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
 	# We use xgo to cross-compile and it does not support freebsd unfortunately: https://github.com/karalabe/xgo/issues/91
 	#GOOS=freebsd GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
+
+docker:
+	docker build . -t "vipnode"
