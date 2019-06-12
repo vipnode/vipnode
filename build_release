@@ -45,7 +45,7 @@ build() {
     fi
     mkdir -p "$outdir"
 
-    xgo -ldflags "$LDFLAGS" -dest "$outdir" -targets "$GOOS/$GOARCH" "$package"
+    xgo -ldflags "$LDFLAGS" -dest "$outdir" -targets "$GOOS/$GOARCH" .
 
     # Stage asset bundle
     if [[ "$assets" ]]; then
