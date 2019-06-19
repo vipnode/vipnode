@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/jsonrpc2/ws"
@@ -22,7 +24,7 @@ type server struct {
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/health" {
+	if strings.HasSuffix(r.URL.Path, "/health") {
 		if s.healthCheck == nil {
 			http.Error(w, "detailed health check disabled", http.StatusOK)
 		} else if err := s.healthCheck(w); err != nil {
@@ -41,14 +43,11 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.HTTPServer.ServeHTTP(w, r)
 	case http.MethodGet:
-		if r.Header.Get("Connection") != "Upgrade" {
-			http.Error(w, "incorrect vipnode api handshake", http.StatusBadRequest)
-			return
-		}
 		// Assume WebSocket upgrade request
 		codec, err := s.ws.Upgrade(r, w, nil)
 		if err != nil {
 			logger.Debugf("websocket upgrade error from %s: %s", r.RemoteAddr, err)
+			http.Error(w, fmt.Sprintf("incorrect vipnode websocket api handshake: %s", err), http.StatusBadRequest)
 			return
 		}
 		if s.debugLog {
