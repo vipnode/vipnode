@@ -9,7 +9,7 @@ type pantheonNode struct {
 }
 
 func (n *pantheonNode) Kind() NodeKind {
-	return Geth
+	return Pantheon
 }
 
 func (n *pantheonNode) ConnectPeer(ctx context.Context, nodeURI string) error {
