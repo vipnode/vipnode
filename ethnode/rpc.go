@@ -17,6 +17,7 @@ const (
 	Unknown NodeKind = iota // We'll treat unknown as Geth, just in case.
 	Geth
 	Parity
+	Pantheon
 )
 
 func ParseNodeKind(s string) NodeKind {
@@ -25,6 +26,8 @@ func ParseNodeKind(s string) NodeKind {
 		return Geth
 	case "parity":
 		return Parity
+	case "pantheon":
+		return Pantheon
 	default:
 		return Unknown
 	}
@@ -137,6 +140,8 @@ func ParseUserAgent(clientVersion, protocolVersion, netVersion string) (*UserAge
 	}
 	if strings.HasPrefix(agent.Version, "Geth/") {
 		agent.Kind = Geth
+	} else if strings.HasPrefix(agent.Version, "pantheon/") {
+		agent.Kind = Pantheon
 	} else if strings.HasPrefix(agent.Version, "Parity-Ethereum/") || strings.HasPrefix(agent.Version, "Parity/") {
 		agent.Kind = Parity
 	}
@@ -236,6 +241,10 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	switch agent.Kind {
 	case Parity:
 		return &parityNode{
+			baseNode: node,
+		}, nil
+	case Pantheon:
+		return &pantheonNode{
 			baseNode: node,
 		}, nil
 	default:
