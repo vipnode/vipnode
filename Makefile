@@ -40,7 +40,7 @@ stagingpool: $(BINARY)
 	$(RUN) -vv pool --bind "$(FAKEBIND)" --allow-origin "http://localhost:3000" --contract.address="rinkeby://0x0244998de1c9f072aa560b5c0e5221ed7be0b1ec" --contract.rpc="wss://rinkeby.infura.io/ws" --contract.keystore="${KEYSTORE_PATH}"
 
 fakepool: $(BINARY)
-	$(RUN) -vv pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000"
+	$(RUN) -vv pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000" --contract.welcome="Welcome to the Fakepool"
 
 fakehost: $(BINARY)
 	$(RUN) -vv agent "ws://$(FAKEBIND)" --update-interval=10s --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1"
