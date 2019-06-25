@@ -89,11 +89,13 @@ func (p *VipnodePool) NumRemotes() int {
 func (p *VipnodePool) verify(sig string, method string, nodeID string, nonce int64, args ...interface{}) error {
 	// TODO: Switch nonce to strictly timestamp within X time
 	// TODO: Switch NodeID to pubkey?
-	if err := p.Store.CheckAndSaveNonce(nodeID, nonce); err != nil {
+	if err := request.Verify(sig, method, nodeID, nonce, args...); err != nil {
 		return VerifyFailedError{Cause: err, Method: method}
 	}
 
-	if err := request.Verify(sig, method, nodeID, nonce, args...); err != nil {
+	// We check and save the nonce only after the verify passed, this allows us
+	// to check twice for backwards compatibility.
+	if err := p.Store.CheckAndSaveNonce(nodeID, nonce); err != nil {
 		return VerifyFailedError{Cause: err, Method: method}
 	}
 	return nil
@@ -136,7 +138,10 @@ func (p *VipnodePool) disconnectPeers(ctx context.Context, nodeID string, peers 
 func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, nonce int64, req UpdateRequest) (*UpdateResponse, error) {
 	// TODO: Send sync status?
 	if err := p.verify(sig, "vipnode_update", nodeID, nonce, req); err != nil {
-		return nil, err
+		// Try again with old version (DEPRECATED)
+		if errOld := p.verify(sig, "vipnode_update", nodeID, nonce, oldUpdateRequest{req.Peers, req.BlockNumber}); errOld != nil {
+			return nil, err
+		}
 	}
 
 	node, err := p.Store.GetNode(store.NodeID(nodeID))

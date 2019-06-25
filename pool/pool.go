@@ -84,6 +84,13 @@ type ClientResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// oldUpdateRequest is used for comparing signatures with old versions
+// DEPRECATED
+type oldUpdateRequest struct {
+	Peers       []string `json:"peers"`
+	BlockNumber uint64   `json:"block_number"`
+}
+
 // UpdateRequest is the request type for Update RPC calls.
 type UpdateRequest struct {
 	Peers       []string           `json:"peers,omitempty"` // DEPRECATED
