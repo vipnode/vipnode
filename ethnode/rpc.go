@@ -17,6 +17,7 @@ const (
 	Unknown NodeKind = iota // We'll treat unknown as Geth, just in case.
 	Geth
 	Parity
+	Pantheon
 )
 
 func ParseNodeKind(s string) NodeKind {
@@ -25,6 +26,8 @@ func ParseNodeKind(s string) NodeKind {
 		return Geth
 	case "parity":
 		return Parity
+	case "pantheon":
+		return Pantheon
 	default:
 		return Unknown
 	}
@@ -137,6 +140,8 @@ func ParseUserAgent(clientVersion, protocolVersion, netVersion string) (*UserAge
 	}
 	if strings.HasPrefix(agent.Version, "Geth/") {
 		agent.Kind = Geth
+	} else if strings.HasPrefix(agent.Version, "pantheon/") {
+		agent.Kind = Pantheon
 	} else if strings.HasPrefix(agent.Version, "Parity-Ethereum/") || strings.HasPrefix(agent.Version, "Parity/") {
 		agent.Kind = Parity
 	}
@@ -198,6 +203,7 @@ type PeerInfo struct {
 
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
+	NodeRPC() *rpc.Client
 	ContractBackend() bind.ContractBackend
 
 	// Kind returns the kind of node this is.
@@ -228,18 +234,24 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	node := baseNode{
+		agent:  *agent,
+		client: client,
+	}
 	switch agent.Kind {
 	case Parity:
 		return &parityNode{
-			agent:  *agent,
-			client: client,
+			baseNode: node,
+		}, nil
+	case Pantheon:
+		return &pantheonNode{
+			baseNode: node,
 		}, nil
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
 		node := &gethNode{
-			agent:  *agent,
-			client: client,
+			baseNode: node,
 		}
 		ctx := context.TODO()
 		if err := node.CheckCompatible(ctx); err != nil {

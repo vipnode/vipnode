@@ -5,11 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var _ EthNode = &parityNode{}
@@ -71,16 +66,7 @@ type parityPeers struct {
 }
 
 type parityNode struct {
-	agent  UserAgent
-	client *rpc.Client
-}
-
-func (n *parityNode) ContractBackend() bind.ContractBackend {
-	return ethclient.NewClient(n.client)
-}
-
-func (n *parityNode) UserAgent() UserAgent {
-	return n.agent
+	baseNode
 }
 
 func (n *parityNode) Kind() NodeKind {
@@ -124,14 +110,6 @@ func (n *parityNode) Enode(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return result, nil
-}
-
-func (n *parityNode) BlockNumber(ctx context.Context) (uint64, error) {
-	var result string
-	if err := n.client.CallContext(ctx, &result, "eth_blockNumber"); err != nil {
-		return 0, err
-	}
-	return strconv.ParseUint(result, 0, 64)
 }
 
 // filterActivePeers filters out any peers that have not completed the
