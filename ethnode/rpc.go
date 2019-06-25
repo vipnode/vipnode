@@ -100,6 +100,8 @@ func (n NodeKind) String() string {
 		return "geth"
 	case Parity:
 		return "parity"
+	case Pantheon:
+		return "pantheon"
 	default:
 		return "unknown"
 	}
