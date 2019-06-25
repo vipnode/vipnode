@@ -64,4 +64,10 @@ release:
 	#GOOS=freebsd GOARCH=amd64 LDFLAGS=$(LDFLAGS) ./build_release "$(PKG)" README.md LICENSE
 
 docker:
-	docker build . -t "vipnode"
+	docker build . -t "shazow/vipnode:latest"
+
+docker-release:
+	git diff-index --quiet HEAD # Make sure the CWD is clean
+	git describe --exact-match --tags HEAD # Make sure the current release is tagged
+	docker build . -t "shazow/vipnode:release"
+	docker push "shazow/vipnode:release"
