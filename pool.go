@@ -33,8 +33,6 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const defaultWelcomeMsg = "\x1b[31m 👑 Welcome to the demo vipnode pool! 👑 \x1b[0m You can manage your account balance here: https://vipnode.org/pool/?enode={{.NodeID}}"
-
 const healthTimeout = time.Second * 5
 
 // findDataDir returns a valid data dir, will create it if it doesn't
@@ -168,14 +166,12 @@ func runPool(options Options) error {
 	}
 
 	// Setup welcome message template
-	welcomeMsg := defaultWelcomeMsg
-	if options.Pool.Contract.Welcome != "" {
-		welcomeMsg = options.Pool.Contract.Welcome
-	}
-
-	welcomeTmpl, err := template.New("vipnode_welcome").Parse(welcomeMsg)
-	if err != nil {
-		return err
+	var welcomeTmpl *template.Template
+	if welcomeMsg := options.Pool.Contract.Welcome; welcomeMsg != "" {
+		welcomeTmpl, err = template.New("vipnode_welcome").Parse(welcomeMsg)
+		if err != nil {
+			return err
+		}
 	}
 
 	var networkID ethnode.NetworkID
@@ -189,19 +185,23 @@ func runPool(options Options) error {
 	p := pool.New(storeDriver, balanceManager)
 	p.MaxRequestHosts = options.Pool.MaxRequestHosts
 	p.Version = fmt.Sprintf("vipnode/pool/%s", Version)
-	p.ClientMessager = func(nodeID string) string {
-		var buf bytes.Buffer
-		err := welcomeTmpl.Execute(&buf, struct {
-			NodeID string
-		}{
-			NodeID: nodeID,
-		})
-		if err != nil {
-			// TODO: Should this be recoverable? What conditions would cause this?
-			logger.Errorf("ClientMessager failed: %s", err)
+
+	if welcomeTmpl != nil {
+		p.ClientMessager = func(nodeID string) string {
+			var buf bytes.Buffer
+			err := welcomeTmpl.Execute(&buf, struct {
+				NodeID string
+			}{
+				NodeID: nodeID,
+			})
+			if err != nil {
+				// TODO: Should this be recoverable? What conditions would cause this?
+				logger.Errorf("ClientMessager failed: %s", err)
+			}
+			return buf.String()
 		}
-		return buf.String()
 	}
+
 	p.RestrictNetwork = networkID
 	p.BlockNumberProvider = func(network ethnode.NetworkID) (uint64, error) {
 		// TODO: Does it make sense also fetching this from an external service? Eg: Infura's eth_blockNumber?
