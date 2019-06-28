@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
@@ -16,6 +17,7 @@ import (
 	"github.com/vipnode/vipnode/internal/keygen"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/status"
 	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
@@ -195,6 +197,7 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		t.Errorf("wrong stats: %+v", stats)
 	}
 
+	var blockNumber uint64
 	numHosts := len(hostKeys)
 	{
 		// Connect a host to all the peers (numHosts = peers + 1, because it includes self)
@@ -227,6 +230,10 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		if got, want := numCalls, numHosts-1; got != want {
 			t.Errorf("wrong number of ConnectPeer calls: got %d; want %d", got, want)
 		}
+
+		if blockNumber, err = host.BlockNumber(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	{
@@ -239,6 +246,34 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		}
 		// We can't check the Peers of the host here because it's a FakeNode so
 		// it does not actually initiate a connection on Connect.
+	}
+
+	if err := cluster.Update(); err != nil {
+		t.Fatal(err)
+	}
+
+	poolStatus := status.PoolStatus{Store: cluster.Pool.Store}
+	s, err := poolStatus.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.ActiveHosts) != len(cluster.Hosts) {
+		t.Errorf("PoolStatus: wrong number of hosts: %d", len(s.ActiveHosts))
+	}
+
+	var firstHost status.Host
+	for _, h := range s.ActiveHosts {
+		if strings.HasPrefix(cluster.Hosts[0].Node.NodeID, h.ShortID) {
+			firstHost = h
+			break
+		}
+	}
+	if firstHost.ShortID == "" {
+		t.Errorf("PoolStatus: missing first host")
+	} else if got, want := firstHost.BlockNumber, blockNumber; got != want {
+		t.Errorf("PoolStatus: wrong block number for first host: got %d; want %d", got, want)
+	} else if got, want := firstHost.NumPeers, len(cluster.Hosts)-1; got != want {
+		t.Errorf("PoolStatus: wrong number of peers for first host: got %d; want %d", got, want)
 	}
 
 	err = cluster.Close()
