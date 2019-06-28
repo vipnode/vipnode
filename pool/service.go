@@ -150,17 +150,10 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	}
 	nodeBeforeUpdate := *node
 
-	peerTypes := segmentPeers(req.PeerInfo)
-	if peerTypes.Count == 0 {
-		// DEPRECATED: Remove this backport for req.Peers once deprecation is complete.
-		peerTypes.Clients = req.Peers
-		peerTypes.Count = len(req.Peers)
-	}
+	peerIDs := ethnode.Peers(req.PeerInfo).IDs()
+	count := len(req.PeerInfo)
 
-	// FIXME: We only consider peers who are light clients, and effectively
-	// ignore host peers. It may be useful to take hosts into account in the
-	// future too.
-	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peerTypes.Clients, req.BlockNumber)
+	inactive, err := p.Store.UpdateNodePeers(store.NodeID(nodeID), peerIDs, req.BlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +198,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		nodeKind = node.Kind + "-full"
 	}
 
-	logger.Printf("Updated %s: peers=%d active=%d invalid=%d block=%d node=%s balance=%s", pretty.Abbrev(nodeID), peerTypes.Count, len(active), len(inactive), req.BlockNumber, nodeKind, nodeBalance.String())
+	logger.Printf("Updated %s: peers=%d active=%d invalid=%d block=%d node=%s balance=%s", pretty.Abbrev(nodeID), count, len(active), len(inactive), req.BlockNumber, nodeKind, nodeBalance.String())
 
 	return &resp, nil
 }
@@ -459,29 +452,4 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 // Ping returns "pong", used for testing.
 func (p *VipnodePool) Ping(ctx context.Context) string {
 	return "pong"
-}
-
-// peerTypes stores the subset of peer IDs by type, derived from the capabilities.
-type peerTypes struct {
-	Count   int
-	Hosts   []string
-	Clients []string
-}
-
-func segmentPeers(peers []ethnode.PeerInfo) peerTypes {
-	r := peerTypes{}
-	for _, p := range peers {
-		r.Count++
-
-		if _, ok := p.Protocols["eth"]; ok {
-			// Hosts have eth/62 or eth/63 capability (comes up as "eth" protocol)
-			r.Hosts = append(r.Hosts, p.ID)
-		} else if len(p.Protocols) > 0 {
-			// Anything else is probably "les" or "pip"
-			r.Clients = append(r.Clients, p.ID)
-		}
-		// Empty p.Protocols means the peer has not completed the handshake yet,
-		// so we can ignore them.
-	}
-	return r
 }
