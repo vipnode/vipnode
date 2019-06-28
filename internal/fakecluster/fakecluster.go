@@ -1,6 +1,7 @@
 package fakecluster
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"io"
@@ -98,6 +99,21 @@ func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster
 		})
 	}
 	return cluster, nil
+}
+
+// Update forces an update call to the pool from all the agents
+func (c *Cluster) Update() error {
+	agents := []clusterAgent{}
+	agents = append(agents, c.Hosts...)
+	agents = append(agents, c.Clients...)
+
+	for _, a := range agents {
+		if err := a.UpdatePeers(context.Background(), a.RemotePool); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Close shuts down all the open pipes.
