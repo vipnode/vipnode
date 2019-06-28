@@ -12,7 +12,6 @@ import (
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
 type clusterAgent struct {
@@ -34,14 +33,14 @@ type Cluster struct {
 }
 
 // New returns a pre-connected pool of hosts and clients.
-func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster, error) {
+func New(p *pool.VipnodePool, hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster, error) {
 	cluster := &Cluster{
+		Pool:    p,
 		Hosts:   []clusterAgent{},
 		Clients: []clusterAgent{},
 		pipes:   []io.Closer{},
 	}
 
-	cluster.Pool = pool.New(memory.New(), nil)
 	payout := ""
 	for _, hostKey := range hostKeys {
 		rpcPool2Host, rpcHost2Pool := jsonrpc2.ServePipe()
@@ -52,12 +51,14 @@ func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster
 
 		hostNodeID := discv5.PubkeyID(&hostKey.PublicKey).String()
 		hostNode := fakenode.Node(hostNodeID)
-		hostNodeURI := fmt.Sprintf("enode://%s@127.0.0.1:30303", hostNodeID)
-		h := &agent.Agent{EthNode: hostNode, Payout: payout}
+		h := &agent.Agent{
+			EthNode: hostNode,
+			NodeURI: fmt.Sprintf("enode://%s@127.0.0.1:30303", hostNodeID),
+			Payout:  payout,
+		}
 		if err := rpcHost2Pool.Server.RegisterMethod("vipnode_whitelist", h, "Whitelist"); err != nil {
 			return nil, err
 		}
-		h.NodeURI = hostNodeURI
 		hostPool := pool.Remote(rpcHost2Pool, hostKey)
 
 		if err := h.Start(hostPool); err != nil {
@@ -81,6 +82,7 @@ func New(hostKeys []*ecdsa.PrivateKey, clientKeys []*ecdsa.PrivateKey) (*Cluster
 
 		clientNodeID := discv5.PubkeyID(&clientKey.PublicKey).String()
 		clientNode := fakenode.Node(clientNodeID)
+		clientNode.IsFullNode = false
 		c := &agent.Agent{
 			EthNode:  clientNode,
 			NumHosts: 3,
