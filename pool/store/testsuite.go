@@ -147,15 +147,15 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		defer s.Close()
 
 		node := nodes[0]
+		var blockNumber uint64 = 42
 
 		// Unregistered
 		if _, err := s.NodePeers(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
-		if _, err := s.UpdateNodePeers(node.ID, []string{"def"}, 0); err != ErrUnregisteredNode {
+		if _, err := s.UpdateNodePeers(node.ID, []string{"def"}, blockNumber); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
 		}
-
 		// Init node
 		if err := s.SetNode(node); err != nil {
 			t.Errorf("unexpected error: %s", err)
@@ -170,10 +170,17 @@ func TestSuite(t *testing.T, newStore func() Store) {
 
 		// peer1 is not a known node, so it will be ignored
 		peers := []string{nodes[1].ID.String()}
-		if inactive, err := s.UpdateNodePeers(node.ID, peers, 0); err != nil {
+		if inactive, err := s.UpdateNodePeers(node.ID, peers, blockNumber); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
 			t.Errorf("unexpected peers: %v", inactive)
+		}
+
+		// Check BlockNumber being set during update.
+		if n, err := s.GetNode(node.ID); err != nil {
+			t.Errorf("unexpected GetNode error: %s", err)
+		} else if n.BlockNumber != blockNumber {
+			t.Errorf("wrong block number: got %d; want %d", n.BlockNumber, blockNumber)
 		}
 
 		// Inactives only qualify after ExpireInterval
@@ -185,7 +192,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		if inactive, err := s.UpdateNodePeers(node.ID, newPeers, 0); err != nil {
+		if inactive, err := s.UpdateNodePeers(node.ID, newPeers, blockNumber); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
 			t.Errorf("unexpected peers: %v", inactive)
@@ -235,6 +242,8 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(hosts) != 1 {
 			t.Errorf("wrong number of hosts: %d", len(hosts))
+		} else if hosts[0].BlockNumber < 100 {
+			t.Errorf("wrong block number: %d", hosts[0].BlockNumber)
 		}
 
 		gotStats, err := s.Stats()

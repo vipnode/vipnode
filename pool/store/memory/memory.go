@@ -273,6 +273,7 @@ func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 	}
 	now := time.Now()
 	node.LastSeen = now
+	node.BlockNumber = blockNumber
 	numUpdated := 0
 	for _, peer := range peers {
 		// Only update peers we already know about
