@@ -203,6 +203,26 @@ type PeerInfo struct {
 	} `json:"network"`
 }
 
+func (p *PeerInfo) IsFullNode() bool {
+	if p.Protocols == nil {
+		return false
+	}
+	_, ok := p.Protocols["eth"]
+	return ok
+}
+
+// Peers is a list of PeerInfo
+type Peers []PeerInfo
+
+// IDs returns a list of string IDs of the peers.
+func (peers Peers) IDs() []string {
+	r := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		r = append(r, peer.ID)
+	}
+	return r
+}
+
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
 	NodeRPC() *rpc.Client
