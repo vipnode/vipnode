@@ -36,7 +36,7 @@ func TestAgent(t *testing.T) {
 	})
 
 	// Force update
-	if err := agent.updatePeers(context.Background(), p); err != nil {
+	if err := agent.UpdatePeers(context.Background(), p); err != nil {
 		t.Fatal(err)
 	}
 
