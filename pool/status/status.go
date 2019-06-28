@@ -136,6 +136,7 @@ func (s *PoolStatus) getStatus() (*StatusResponse, error) {
 
 // Status returns the status of the pool.
 func (s *PoolStatus) Status(ctx context.Context) (*StatusResponse, error) {
+	// Read lock to check the cache
 	s.mu.RLock()
 	cachedResp := s.cachedResp
 	s.mu.RUnlock()
@@ -145,6 +146,7 @@ func (s *PoolStatus) Status(ctx context.Context) (*StatusResponse, error) {
 		return cachedResp, nil
 	}
 
+	// Write lock to refresh the cache
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
