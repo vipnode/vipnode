@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -22,6 +23,17 @@ type Calls []call
 
 func Call(method string, args ...interface{}) call {
 	return call{method, args}
+}
+
+// Has checks if the call list has this call
+func (calls Calls) Has(method string, args ...interface{}) bool {
+	want := call{method, args}
+	for _, have := range calls {
+		if reflect.DeepEqual(want, have) {
+			return true
+		}
+	}
+	return false
 }
 
 func Node(nodeID string) *FakeNode {
