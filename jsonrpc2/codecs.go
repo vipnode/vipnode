@@ -52,12 +52,17 @@ var _ Codec = &jsonCodec{}
 // IOCodec returns a Codec that wraps JSON encoding and decoding over IO.
 func IOCodec(rwc io.ReadWriteCloser) *jsonCodec {
 	return &jsonCodec{
-		rwc: rwc,
+		encoder: json.NewEncoder(rwc),
+		decoder: json.NewDecoder(rwc),
+		closer:  rwc,
 	}
 }
 
 type jsonCodec struct {
-	rwc        io.ReadWriteCloser
+	encoder *json.Encoder
+	decoder *json.Decoder
+	closer  io.Closer
+
 	remoteAddr string
 
 	mu          sync.Mutex
@@ -69,11 +74,11 @@ func (codec *jsonCodec) RemoteAddr() string {
 }
 
 func (codec *jsonCodec) WriteMessage(msg *Message) error {
-	return json.NewEncoder(codec.rwc).Encode(msg)
+	return codec.encoder.Encode(msg)
 }
 
 func (codec *jsonCodec) WriteBatch(batch []Message) error {
-	return json.NewEncoder(codec.rwc).Encode(batch)
+	return codec.encoder.Encode(batch)
 }
 
 // ReadMessage supports consuming batched messages. When ReadMessage is
@@ -100,7 +105,7 @@ func (codec *jsonCodec) ReadMessage() (*Message, error) {
 	// in one pass without pre-loading everything into memory and doing two
 	// passes.
 	var raw json.RawMessage
-	if err := json.NewDecoder(codec.rwc).Decode(&raw); err != nil {
+	if err := codec.decoder.Decode(&raw); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +163,7 @@ func (codec *jsonCodec) ReadMessage() (*Message, error) {
 }
 
 func (codec *jsonCodec) Close() error {
-	return codec.rwc.Close()
+	return codec.closer.Close()
 }
 
 // DebugCodec logs each incoming and outgoing message with a given label prefix

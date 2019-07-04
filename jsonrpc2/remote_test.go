@@ -34,9 +34,8 @@ func TestRemoteManual(t *testing.T) {
 	if req2, err = r2.ReadMessage(); err != nil {
 		t.Error(err)
 	}
-	if !marshalEqual(req, req2) {
-		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
-	}
+
+	assertEqualJSON(t, req2, req, "message does not match")
 	if err := g.Wait(); err != nil {
 		t.Error(err)
 	}

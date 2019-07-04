@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
 )
 
 type FruitService struct{}
@@ -66,10 +67,21 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 	return b, nil
 }
 
-func marshalEqual(a, b interface{}) bool {
-	aa, _ := json.Marshal(a)
-	bb, _ := json.Marshal(b)
-	return bytes.Compare(aa, bb) == 0
+func assertEqualJSON(t *testing.T, a, b interface{}, format string, args ...interface{}) {
+	t.Helper()
+
+	aa, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bb, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(aa, bb) != 0 {
+		prefix := fmt.Sprintf(format, args...)
+		t.Errorf(prefix+"\n   got: %q\n  want: %q", aa, bb)
+	}
 }
 
 type BatchByID []Message

@@ -44,7 +44,9 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codec := &jsonCodec{
-		rwc:        rwc{body, w, r.Body},
+		encoder:    json.NewEncoder(w),
+		decoder:    json.NewDecoder(body),
+		closer:     r.Body,
 		remoteAddr: r.RemoteAddr,
 	}
 
