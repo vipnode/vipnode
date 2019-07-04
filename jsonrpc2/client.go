@@ -26,7 +26,6 @@ func (c *Client) Request(method string, params ...interface{}) (*Message, error)
 		Request: &Request{
 			Method: method,
 		},
-		Version: Version,
 	}
 	var err error
 	if msg.ID, err = json.Marshal(c.NextID()); err != nil {

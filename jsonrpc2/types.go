@@ -24,8 +24,9 @@ const (
 type Message struct {
 	*Request
 	*Response
+
 	ID      json.RawMessage `json:"id,omitempty"`
-	Version string          `json:"jsonrpc"` // TODO: Replace this with a null-type that encodes to 2.0, like https://go-review.googlesource.com/c/tools/+/136675/1/internal/jsonrpc2/jsonrpc2.go#221
+	Version string          `json:"jsonrpc"`
 }
 
 func (m Message) String() string {
@@ -44,6 +45,13 @@ type Request struct {
 	Params json.RawMessage `json:"params,omitempty"`
 
 	replier Replier
+}
+
+// Reply sends a Response message with the corresponding
+// Request's ID and message type (whether batched or not) to the codec that
+// origintaed the request.
+func (req *Request) Reply(resp *Response) error {
+	return req.replier.Reply(resp)
 }
 
 // Response is an RPC call response.

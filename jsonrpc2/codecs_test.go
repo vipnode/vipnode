@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -20,8 +19,7 @@ func TestCodec(t *testing.T) {
 	var buf bytes.Buffer
 	codec := IOCodec(nopCloser{&buf})
 	msg := &Message{
-		ID:      []byte("42"),
-		Version: "2.0",
+		ID: []byte("42"),
 	}
 	err := codec.WriteMessage(msg)
 	if err != nil {
@@ -83,8 +81,6 @@ func TestBatch(t *testing.T) {
 			},
 		},
 	}
-
-	logger.SetOutput(os.Stderr)
 
 	for i, tc := range tests {
 		buf := bytes.NewBufferString(tc.In)

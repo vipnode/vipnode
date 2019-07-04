@@ -67,20 +67,20 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 	return b, nil
 }
 
-func assertEqualJSON(t *testing.T, a, b interface{}, format string, args ...interface{}) {
+func assertEqualJSON(t *testing.T, got, want interface{}, format string, args ...interface{}) {
 	t.Helper()
 
-	aa, err := json.Marshal(a)
+	aa, err := json.Marshal(got)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bb, err := json.Marshal(b)
+	bb, err := json.Marshal(want)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bytes.Compare(aa, bb) != 0 {
 		prefix := fmt.Sprintf(format, args...)
-		t.Errorf(prefix+"\n   got: %q\n  want: %q", aa, bb)
+		t.Errorf(prefix+"\n   got: %s\n  want: %s", aa, bb)
 	}
 }
 

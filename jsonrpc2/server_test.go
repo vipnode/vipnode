@@ -14,8 +14,7 @@ func TestServer(t *testing.T) {
 	}
 
 	resp := s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("1")),
-		Version: Version,
+		ID: json.RawMessage([]byte("1")),
 		Request: &Request{
 			Method: "foo_apple",
 		},
@@ -29,8 +28,7 @@ func TestServer(t *testing.T) {
 	}
 
 	resp = s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("2")),
-		Version: Version,
+		ID: json.RawMessage([]byte("2")),
 		Request: &Request{
 			Method: "foo_banana",
 		},
@@ -44,8 +42,7 @@ func TestServer(t *testing.T) {
 	}
 
 	resp = s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("3")),
-		Version: Version,
+		ID: json.RawMessage([]byte("3")),
 		Request: &Request{
 			Method: "foo_cherry",
 		},
