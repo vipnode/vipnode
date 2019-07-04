@@ -34,7 +34,7 @@ func TestRemoteManual(t *testing.T) {
 	if req2, err = r2.ReadMessage(); err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(req, req2) {
+	if !marshalEqual(req, req2) {
 		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
 	}
 	if err := g.Wait(); err != nil {

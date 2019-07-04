@@ -1,7 +1,9 @@
 package jsonrpc2
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -62,4 +64,24 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 		return 0, err
 	}
 	return b, nil
+}
+
+func marshalEqual(a, b interface{}) bool {
+	aa, _ := json.Marshal(a)
+	bb, _ := json.Marshal(b)
+	return bytes.Compare(aa, bb) == 0
+}
+
+type BatchByID []Message
+
+func (b BatchByID) Len() int {
+	return len(b)
+}
+
+func (b BatchByID) Less(i, j int) bool {
+	return bytes.Compare(b[i].ID, b[j].ID) < 0
+}
+
+func (b BatchByID) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// Version of the JSONRPC protocol that we're speaking. This is included with
+// every RPC message.
 const Version = "2.0"
 
 type ErrorCode int
@@ -18,6 +20,7 @@ const (
 	ErrCodeServer             = -32000
 )
 
+// Message is a single RPC message, can be a request or a response.
 type Message struct {
 	*Request
 	*Response
@@ -35,11 +38,15 @@ func (m Message) String() string {
 	return string(b)
 }
 
+// Request is an RPC call request.
 type Request struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params,omitempty"`
+
+	replier Replier
 }
 
+// Response is an RPC call response.
 type Response struct {
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  *ErrResponse    `json:"error,omitempty"`
