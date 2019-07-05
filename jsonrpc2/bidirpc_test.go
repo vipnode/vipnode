@@ -44,11 +44,7 @@ func TestBidirectionalService(t *testing.T) {
 		t.Errorf("server/client request mismatch: %q != %q", reqServer, reqClient)
 	}
 
-	resp := barServer.Handle(context.Background(), &reqServer)
-	if string(resp.ID) != string(reqClient.ID) {
-		t.Errorf("server/client request ID mismatch: %s", resp)
-	}
-
+	resp := barServer.Handle(context.Background(), reqServer.Request)
 	go json.NewEncoder(barPipe).Encode(resp)
 
 	var respClient Response

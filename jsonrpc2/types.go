@@ -29,6 +29,13 @@ type Message struct {
 	Version string          `json:"jsonrpc,omitempty"`
 }
 
+// IsNotification returns whether this message is a notification (has no ID,
+// thus not expecting a response).
+// https://www.jsonrpc.org/specification#notification
+func (m Message) IsNotification() bool {
+	return len(m.ID) == 0 || string(m.ID) == "null"
+}
+
 func (m Message) String() string {
 	// This method is here to satisfy vet
 	b, err := json.Marshal(m)

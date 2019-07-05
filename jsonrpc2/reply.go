@@ -10,6 +10,8 @@ import (
 // (messages without an ID).
 var ErrReplyNotAvailable = errors.New("reply not available")
 
+// FIXME: Should this be named Responder.Respond(Response)?
+
 // Replier has enough context to respond to a message, this
 // usually includes a codec, message ID, and message type
 // (such as batched or not).

@@ -58,6 +58,8 @@ func CtxService(ctx context.Context) (Service, error) {
 // Service represents a remote service that can be called.
 type Service interface {
 	Call(ctx context.Context, result interface{}, method string, params ...interface{}) error
+
+	// TODO: Add Notify?
 }
 
 var _ Service = &Remote{}
@@ -112,8 +114,13 @@ func (r *Remote) getPendingChan(key string) chan Message {
 
 func (r *Remote) handleRequest(msg *Message) error {
 	ctx := context.WithValue(context.Background(), ctxService, r)
-	resp := r.Server.Handle(ctx, msg)
-	return r.Codec.WriteMessage(resp)
+	resp := r.Server.Handle(ctx, msg.Request)
+	if msg.IsNotification() {
+		// No ID, must be a Notification, so response is ignored
+		// https://www.jsonrpc.org/specification#notification
+		return nil
+	}
+	return msg.Request.Reply(resp)
 }
 
 func (r *Remote) Serve() error {

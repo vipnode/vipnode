@@ -40,9 +40,9 @@ func TestRemoteManual(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := r2.Server.Handle(context.Background(), req)
+	resp := r2.Server.Handle(context.Background(), req.Request)
 	var got string
-	if err := json.Unmarshal(resp.Response.Result, &got); err != nil {
+	if err := json.Unmarshal(resp.Result, &got); err != nil {
 		t.Error(err)
 	}
 	if want := "pong"; got != want {

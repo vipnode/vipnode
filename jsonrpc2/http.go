@@ -62,9 +62,11 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("content-type", httpContentType)
-	resp := h.Server.Handle(r.Context(), msg)
-	err = codec.WriteMessage(resp)
-	if err != nil {
+	resp := h.Server.Handle(r.Context(), msg.Request)
+	if msg.IsNotification() {
+		return
+	}
+	if err := msg.Request.Reply(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
