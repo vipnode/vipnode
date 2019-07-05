@@ -123,19 +123,30 @@ func (r *Remote) handleRequest(msg *Message) error {
 	return msg.Request.Reply(resp)
 }
 
+func (r *Remote) serveOne(blocking bool) error {
+	msg, err := r.Codec.ReadMessage()
+	if err != nil {
+		return err
+	}
+	if msg.Request != nil {
+		if blocking {
+			r.handleRequest(msg)
+		} else {
+			go r.handleRequest(msg)
+		}
+	} else if !msg.IsNotification() {
+		r.getPendingChan(string(msg.ID)) <- *msg
+	} else {
+		logger.Printf("Remote.Serve(): Dropping invalid message: %s", msg)
+	}
+	return nil
+}
+
+// Serve starts consuming messages from the codec until it fails.
 func (r *Remote) Serve() error {
 	for {
-		msg, err := r.Codec.ReadMessage()
-		if err != nil {
+		if err := r.serveOne(false); err != nil {
 			return err
-		}
-		if msg.Request != nil {
-			// FIXME: Anything we can do with error handling here?
-			go r.handleRequest(msg)
-		} else if len(msg.ID) > 0 {
-			r.getPendingChan(string(msg.ID)) <- *msg
-		} else {
-			logger.Printf("Remote.Serve(): Dropping invalid message: %s", msg)
 		}
 	}
 }

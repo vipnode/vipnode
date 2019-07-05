@@ -163,7 +163,10 @@ func (codec *jsonCodec) ReadMessage() (*Message, error) {
 }
 
 func (codec *jsonCodec) Close() error {
-	return codec.closer.Close()
+	if codec.closer != nil {
+		return codec.closer.Close()
+	}
+	return nil
 }
 
 // DebugCodec logs each incoming and outgoing message with a given label prefix

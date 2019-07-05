@@ -1,8 +1,10 @@
 package jsonrpc2
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -153,4 +155,35 @@ func TestRemoteServeInvalid(t *testing.T) {
 	if err := pongerClient.WriteMessage(emptyMsg); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestRemoteBatch(t *testing.T) {
+	var buf1, buf2 bytes.Buffer
+
+	fruits := &FruitService{}
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&buf2),
+		decoder: json.NewDecoder(&buf1),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+	if err := remote.Server.Register("", fruits); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Fprint(&buf1, `[{"id":1,"method":"apple"},{"id":2,"method":"banana"},{"id":3,"method":"cherry"}]`+"\n")
+	for remote.serveOne(true) == nil {
+		// Consume all messages (until EOF)
+	}
+
+	var got []Message
+	json.NewDecoder(&buf2).Decode(&got)
+	sort.Sort(BatchByID(got))
+
+	var want []Message = []Message{
+		Message{ID: json.RawMessage("1"), Version: Version, Response: &Response{Result: json.RawMessage(`"Apple"`)}},
+		Message{ID: json.RawMessage("2"), Version: Version, Response: &Response{Result: json.RawMessage(`null`)}},
+		Message{ID: json.RawMessage("3"), Version: Version, Response: &Response{Result: json.RawMessage(`"Cherry"`)}},
+	}
+
+	assertEqualJSON(t, got, want, "batch result")
 }
