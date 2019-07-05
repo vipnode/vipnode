@@ -26,7 +26,7 @@ type Message struct {
 	*Response
 
 	ID      json.RawMessage `json:"id,omitempty"`
-	Version string          `json:"jsonrpc"`
+	Version string          `json:"jsonrpc,omitempty"`
 }
 
 func (m Message) String() string {
@@ -44,6 +44,7 @@ type Request struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params,omitempty"`
 
+	// FIXME: Set Reply on the Message instead of the Request/Response?
 	replier Replier
 }
 
@@ -51,6 +52,9 @@ type Request struct {
 // Request's ID and message type (whether batched or not) to the codec that
 // origintaed the request.
 func (req *Request) Reply(resp *Response) error {
+	if req.replier == nil {
+		return ErrReplyNotAvailable
+	}
 	return req.replier.Reply(resp)
 }
 

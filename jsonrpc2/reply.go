@@ -2,7 +2,13 @@ package jsonrpc2
 
 import (
 	"encoding/json"
+	"errors"
 )
+
+// ErrReplyNotAvailable is returned when a Reply is attempted but the message
+// does not have a replier associated with it. For example, notifications
+// (messages without an ID).
+var ErrReplyNotAvailable = errors.New("reply not available")
 
 // Replier has enough context to respond to a message, this
 // usually includes a codec, message ID, and message type
