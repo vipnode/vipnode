@@ -22,16 +22,33 @@ func (c *Client) NextID() int {
 }
 
 func (c *Client) Request(method string, params ...interface{}) (*Message, error) {
+	return newRequest(c.NextID(), method, params...)
+}
+
+// newNotification is a helper for creating encoded Request Messages without IDs.
+func newNotification(method string, params ...interface{}) (*Message, error) {
 	msg := &Message{
+		Version: Version,
 		Request: &Request{
 			Method: method,
 		},
 	}
-	var err error
-	if msg.ID, err = json.Marshal(c.NextID()); err != nil {
+	if len(params) > 0 {
+		var err error
+		if msg.Request.Params, err = json.Marshal(params); err != nil {
+			return nil, err
+		}
+	}
+	return msg, nil
+}
+
+// newRequest is a helper for creating encoded Request Messages with an ID.
+func newRequest(id interface{}, method string, params ...interface{}) (*Message, error) {
+	msg, err := newNotification(method, params...)
+	if err != nil {
 		return nil, err
 	}
-	if msg.Request.Params, err = json.Marshal(params); err != nil {
+	if msg.ID, err = json.Marshal(id); err != nil {
 		return nil, err
 	}
 	return msg, nil

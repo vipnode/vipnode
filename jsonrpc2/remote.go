@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-// TODO: Handle batch?
-
 // ServePipe sets up symmetric server/clients over a net.Pipe() and starts
 // both in goroutines. Useful for testing. Services still need to be registered.
 // FIXME: This is a testing helper, ideally we want to get rid of it. It leaks
@@ -57,9 +55,12 @@ func CtxService(ctx context.Context) (Service, error) {
 
 // Service represents a remote service that can be called.
 type Service interface {
+	// Call sends a request message with an auto-incrementing ID, then block
+	// until the response is received and unmarshalled into result.
 	Call(ctx context.Context, result interface{}, method string, params ...interface{}) error
-
-	// TODO: Add Notify?
+	// Notify sends a notification message without an ID, returning as soon as
+	// the send is completed. Results are ignored.
+	Notify(ctx context.Context, method string, params ...interface{}) error
 }
 
 var _ Service = &Remote{}
@@ -183,4 +184,13 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 		return err
 	}
 	return resp.UnmarshalResult(result)
+}
+
+// Notify sends an RPC notification without a message ID, ignoring any results.
+func (r *Remote) Notify(ctx context.Context, method string, params ...interface{}) error {
+	msg, err := newNotification(method, params)
+	if err != nil {
+		return err
+	}
+	return r.Codec.WriteMessage(msg)
 }
