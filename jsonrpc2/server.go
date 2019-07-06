@@ -99,6 +99,8 @@ func (s *Server) RegisterMethod(rpcName string, receiver interface{}, methodName
 	return nil
 }
 
+// TODO: Add RegisterFunction?
+
 // Handle executes a request message against the server registry.
 func (s *Server) Handle(ctx context.Context, req *Request) *Response {
 	r := &Response{

@@ -24,7 +24,7 @@ func (loc *Local) Call(ctx context.Context, result interface{}, method string, p
 }
 
 func (loc *Local) Notify(ctx context.Context, method string, params ...interface{}) error {
-	msg, err := newNotification(method, params)
+	msg, err := newNotification(method, params...)
 	if err != nil {
 		return err
 	}

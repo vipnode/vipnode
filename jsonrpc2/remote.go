@@ -188,7 +188,7 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 
 // Notify sends an RPC notification without a message ID, ignoring any results.
 func (r *Remote) Notify(ctx context.Context, method string, params ...interface{}) error {
-	msg, err := newNotification(method, params)
+	msg, err := newNotification(method, params...)
 	if err != nil {
 		return err
 	}

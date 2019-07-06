@@ -158,25 +158,26 @@ func TestRemoteServeInvalid(t *testing.T) {
 }
 
 func TestRemoteBatch(t *testing.T) {
-	var buf1, buf2 bytes.Buffer
+	var inBuf, outBuf bytes.Buffer
 
 	fruits := &FruitService{}
 	c := &jsonCodec{
-		encoder: json.NewEncoder(&buf2),
-		decoder: json.NewDecoder(&buf1),
+		encoder: json.NewEncoder(&outBuf),
+		decoder: json.NewDecoder(&inBuf),
 	}
 	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
 	if err := remote.Server.Register("", fruits); err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Fprint(&buf1, `[{"id":1,"method":"apple"},{"id":2,"method":"banana"},{"id":3,"method":"cherry"}]`+"\n")
+	// Batch call of 3 requests and 1 notification
+	fmt.Fprint(&inBuf, `[{"id":1,"method":"apple"},{"id":2,"method":"banana"},{"id":3,"method":"cherry"},{"method":"durian"}]`+"\n")
 	for remote.serveOne(true) == nil {
 		// Consume all messages (until EOF)
 	}
 
 	var got []Message
-	json.NewDecoder(&buf2).Decode(&got)
+	json.NewDecoder(&outBuf).Decode(&got)
 	sort.Sort(BatchByID(got))
 
 	var want []Message = []Message{
@@ -186,4 +187,31 @@ func TestRemoteBatch(t *testing.T) {
 	}
 
 	assertEqualJSON(t, got, want, "batch result")
+}
+
+func TestRemoteNotify(t *testing.T) {
+	var buf bytes.Buffer
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&buf),
+		decoder: json.NewDecoder(&buf),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+	remote.Notify(context.Background(), "counter_add", 42)
+
+	got, want := buf.String(), `{"method":"counter_add","params":[42],"jsonrpc":"2.0"}`+"\n"
+	if got != want {
+		t.Errorf("got: %q; want: %q", got, want)
+	}
+	buf.WriteString(`[{"method":"counter_add","params":[10]},{"method":"counter_add","params":[20]}]`)
+
+	counter := Counter(0)
+	if err := remote.Server.Register("counter_", &counter); err != nil {
+		t.Fatal(err)
+	}
+	for remote.serveOne(true) == nil {
+		// Consume all
+	}
+	if counter.Get() != 72 {
+		t.Errorf("wrong counter value: %v", counter)
+	}
 }

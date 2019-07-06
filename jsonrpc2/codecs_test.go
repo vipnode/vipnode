@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"reflect"
 	"sort"
 	"testing"
 )
@@ -20,19 +19,26 @@ func TestCodec(t *testing.T) {
 	codec := IOCodec(nopCloser{&buf})
 	msg := &Message{
 		ID: []byte("42"),
+		Request: &Request{
+			Method: "foo",
+		},
 	}
 	err := codec.WriteMessage(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	got, want := buf.String(), `{"method":"foo","id":42}`+"\n"
+	if got != want {
+		t.Errorf("got: %q; want %q", got, want)
+	}
+
 	msg2, err := codec.ReadMessage()
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(msg, msg2) {
-		t.Errorf("got: %q; want %q", msg2, msg)
-	}
+	assertEqualJSON(t, msg, msg2, "write/read compare")
 }
 
 func TestBatch(t *testing.T) {

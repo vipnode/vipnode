@@ -67,6 +67,17 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 	return b, nil
 }
 
+type Counter int
+
+func (c *Counter) Add(n int) int {
+	*c += Counter(n)
+	return int(*c)
+}
+
+func (c *Counter) Get() int {
+	return int(*c)
+}
+
 func assertEqualJSON(t *testing.T, got, want interface{}, format string, args ...interface{}) {
 	t.Helper()
 

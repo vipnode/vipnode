@@ -128,7 +128,7 @@ func (service *HTTPService) Call(ctx context.Context, result interface{}, method
 }
 
 func (service *HTTPService) Notify(ctx context.Context, method string, params ...interface{}) error {
-	msg, err := newNotification(method, params)
+	msg, err := newNotification(method, params...)
 	if err != nil {
 		return err
 	}
