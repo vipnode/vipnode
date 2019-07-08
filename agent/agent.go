@@ -123,7 +123,7 @@ func (a *Agent) Start(p pool.Pool) error {
 		a.PoolMessageCallback(resp.Message)
 	}
 
-	if err := a.updatePeers(startCtx, p); err != nil {
+	if err := a.UpdatePeers(startCtx, p); err != nil {
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (a *Agent) serveUpdates(p pool.Pool) error {
 	for {
 		select {
 		case <-ticker:
-			if err := a.updatePeers(context.Background(), p); err != nil {
+			if err := a.UpdatePeers(context.Background(), p); err != nil {
 				return err
 			}
 		case <-a.stopCh:
@@ -193,7 +193,10 @@ func (a *Agent) disconnectPeers(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) updatePeers(ctx context.Context, p pool.Pool) error {
+// UpdatePeers sends a vipnode_update to the given pool. It will request more
+// peers if necessary. Normally this is done automatically via Agent.Start()
+// every configured interval.
+func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 	peers, err := a.EthNode.Peers(ctx)
 	if err != nil {
 		return err

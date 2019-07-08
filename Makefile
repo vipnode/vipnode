@@ -12,7 +12,8 @@ RUN = ./$(BINARY)
 
 # Configs
 FAKEBIND = 127.0.0.1:8080
-FAKEPEERS = 0
+FAKEPEERS = 5
+FAKEBLOCK = 42
 
 all: $(BINARY)
 
@@ -43,7 +44,7 @@ fakepool: $(BINARY)
 	$(RUN) -vv pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000" --contract.welcome="Welcome to the Fakepool"
 
 fakehost: $(BINARY)
-	$(RUN) -vv agent "ws://$(FAKEBIND)" --update-interval=10s --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1"
+	$(RUN) -vv agent "ws://$(FAKEBIND)" --update-interval=10s --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1&fakeblock=$(FAKEBLOCK)"
 
 fakehostpool: $(BINARY)
 	$(RUN) -vv agent ":memory:" --update-interval=10s --enode="enode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1@127.0.0.1:30303?discport=0" --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1"

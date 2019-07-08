@@ -5,17 +5,24 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/vipnode/vipnode/agent"
 	"github.com/vipnode/vipnode/internal/fakecluster"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/internal/pretty"
 	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/pool/balance"
+	"github.com/vipnode/vipnode/pool/status"
+	"github.com/vipnode/vipnode/pool/store"
 	"github.com/vipnode/vipnode/pool/store/memory"
 )
 
@@ -169,20 +176,32 @@ func TestPoolHostConnectPeers(t *testing.T) {
 	hostKeys := []*ecdsa.PrivateKey{}
 	clientKeys := []*ecdsa.PrivateKey{}
 
-	for i := 0; i < 4; i++ {
+	// We limit to 3 hosts for now, because clients autoconnect to 3 hosts and
+	// it's easier to check 100% connectivity deterministically (otherwise
+	// hosts are chosen randomly)
+	i := 0
+	for ; i < 3; i++ {
 		hostKeys = append(hostKeys, keygen.HardcodedKeyIdx(t, i))
 	}
 
-	cluster, err := fakecluster.New(hostKeys, clientKeys)
+	for ; i < 5; i++ {
+		clientKeys = append(clientKeys, keygen.HardcodedKeyIdx(t, i))
+	}
+
+	poolStore := memory.New()
+	balanceManager := balance.PayPerInterval(poolStore, time.Nanosecond*1, big.NewInt(10))
+	p := pool.New(poolStore, balanceManager)
+
+	cluster, err := fakecluster.New(p, hostKeys, clientKeys)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got, want := len(cluster.Hosts), 4; got != want {
+	if got, want := len(cluster.Hosts), len(hostKeys); got != want {
 		t.Errorf("wrong number of hosts: got %d; want %d", got, want)
 	}
 
-	if got, want := cluster.Pool.NumRemotes(), 4; got != want {
+	if got, want := cluster.Pool.NumRemotes(), len(hostKeys); got != want {
 		t.Errorf("wrong number of remotes: got %d; want %d", got, want)
 	}
 
@@ -191,10 +210,11 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		t.Error(err)
 	}
 
-	if stats.NumActiveHosts != 4 {
+	if stats.NumActiveHosts != len(hostKeys) {
 		t.Errorf("wrong stats: %+v", stats)
 	}
 
+	var blockNumber uint64
 	numHosts := len(hostKeys)
 	{
 		// Connect a host to all the peers (numHosts = peers + 1, because it includes self)
@@ -219,7 +239,6 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		numCalls := 0
 		for _, call := range host.Node.Calls {
 			if call.Method != "ConnectPeer" {
-				t.Errorf("unexpected call to host: %s", call)
 				continue
 			}
 			numCalls++
@@ -227,18 +246,92 @@ func TestPoolHostConnectPeers(t *testing.T) {
 		if got, want := numCalls, numHosts-1; got != want {
 			t.Errorf("wrong number of ConnectPeer calls: got %d; want %d", got, want)
 		}
+
+		if blockNumber, err = host.BlockNumber(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	{
 		// Check a peer
 		host := cluster.Hosts[1]
 		peer := cluster.Hosts[0]
-		want := fakenode.Calls{fakenode.Call("AddTrustedPeer", peer.Node.NodeID)}
-		if got := host.Node.Calls; !reflect.DeepEqual(got, want) {
-			t.Errorf("peer host calls do not match:\n  got: %s;\n want: %s", got, want)
+		if !host.Node.Calls.Has("AddTrustedPeer", peer.Node.NodeID) {
+			t.Errorf("peer host calls missing AddTrustedPeer for %s, got:\n%s", peer.Node.NodeID, host.Node.Calls)
 		}
 		// We can't check the Peers of the host here because it's a FakeNode so
 		// it does not actually initiate a connection on Connect.
+	}
+
+	// Run a couple of updates to make sure everyone who wants to connect has
+	// connected.
+	if err := cluster.Update(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cluster.Update(); err != nil {
+		t.Fatal(err)
+	}
+
+	poolStatus := status.PoolStatus{Store: cluster.Pool.Store}
+	s, err := poolStatus.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.ActiveHosts) != len(cluster.Hosts) {
+		t.Errorf("PoolStatus: wrong number of hosts: %d", len(s.ActiveHosts))
+	}
+
+	var firstHost status.Host
+	for _, h := range s.ActiveHosts {
+		if strings.HasPrefix(cluster.Hosts[0].Node.NodeID, h.ShortID) {
+			firstHost = h
+			break
+		}
+	}
+	if firstHost.ShortID == "" {
+		t.Errorf("PoolStatus: missing first host")
+	} else if got, want := firstHost.BlockNumber, blockNumber; got != want {
+		t.Errorf("PoolStatus: wrong block number for first host: got %d; want %d", got, want)
+	} else if got, want := firstHost.NumPeers, len(cluster.Hosts)-1; got != want {
+		t.Errorf("PoolStatus: wrong number of peers for first host: got %d; want %d", got, want)
+	}
+
+	{
+		// Check balances
+		total := new(big.Int)
+		for _, a := range cluster.Hosts {
+			nodeID := a.Node.NodeID
+			b, err := poolStore.GetNodeBalance(store.NodeID(nodeID))
+			if err != nil {
+				t.Fatal(err)
+			} else if b.Credit.Cmp(new(big.Int)) <= 0 {
+				// Hosts should have a positive balance
+				t.Errorf("wrong balance for host %s: %d", pretty.Abbrev(nodeID), &b.Credit)
+			}
+			t.Logf("balance for host %s: %d", pretty.Abbrev(nodeID), &b.Credit)
+			total = total.Add(total, &b.Credit)
+		}
+
+		if total.Cmp(new(big.Int)) <= 0 {
+			t.Errorf("Balance check: Total hosts balance should be positive: %d", total)
+		}
+
+		for _, a := range cluster.Clients {
+			nodeID := a.Node.NodeID
+			b, err := poolStore.GetNodeBalance(store.NodeID(nodeID))
+			if err != nil {
+				t.Fatal(err)
+			} else if b.Credit.Cmp(new(big.Int)) >= 0 {
+				// Clients should have a negative balance
+				t.Errorf("wrong balance for client %s: %d", pretty.Abbrev(nodeID), &b.Credit)
+			}
+			t.Logf("balance for client %s: %d", pretty.Abbrev(nodeID), &b.Credit)
+			total = total.Add(total, &b.Credit)
+		}
+
+		if total.Cmp(new(big.Int)) != 0 {
+			t.Errorf("Balance check: Total balance should be zero: %d", total)
+		}
 	}
 
 	err = cluster.Close()

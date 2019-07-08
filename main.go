@@ -157,8 +157,11 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 			nodeID = u.Hostname()
 		}
 		node := fakenode.Node(nodeID)
-		if numpeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
-			node.FakePeers = fakenode.FakePeers(numpeers)
+		if numPeers, err := strconv.Atoi(u.Query().Get("fakepeers")); err == nil {
+			node.FakePeers = fakenode.FakePeers(numPeers)
+		}
+		if numBlock, err := strconv.Atoi(u.Query().Get("fakeblock")); err == nil {
+			node.FakeBlockNumber = uint64(numBlock)
 		}
 		node.IsFullNode = u.Query().Get("fullnode") != ""
 
