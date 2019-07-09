@@ -9,6 +9,8 @@ import (
 	"github.com/vipnode/vipnode/internal/pretty"
 )
 
+var errEmptyBatch = errors.New("empty batch")
+
 // TODO: Do SetWriteDeadline(duration) on writes?
 type rwc struct {
 	io.Reader
@@ -135,7 +137,7 @@ func (codec *jsonCodec) ReadMessage() (*Message, error) {
 	if len(batch) == 0 {
 		// FIXME: Should we be forgiving of this? Just return an empty message,
 		// or keep blocking until we get one?
-		return nil, errors.New("empty message batch")
+		return nil, errEmptyBatch
 	}
 
 	batchWriter := &batchedWriter{

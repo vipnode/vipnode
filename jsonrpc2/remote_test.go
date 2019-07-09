@@ -189,6 +189,24 @@ func TestRemoteBatch(t *testing.T) {
 	assertEqualJSON(t, got, want, "batch result")
 }
 
+func TestRemoteEmptyBatch(t *testing.T) {
+	var inBuf, outBuf bytes.Buffer
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&outBuf),
+		decoder: json.NewDecoder(&inBuf),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+
+	// Send empty batch
+	fmt.Fprint(&inBuf, "[]\n")
+	if err := remote.serveOne(true); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := outBuf.String(), `{"error":{"code":-32600,"message":"invalid request: Empty batch"},"jsonrpc":"2.0"}`+"\n"; got != want {
+		t.Errorf("unexpected message on empty batch:\n  got: %s\n want: %s", got, want)
+	}
+}
+
 func TestRemoteNotify(t *testing.T) {
 	var buf bytes.Buffer
 	c := &jsonCodec{

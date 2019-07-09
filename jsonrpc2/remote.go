@@ -126,9 +126,20 @@ func (r *Remote) handleRequest(msg *Message) error {
 
 func (r *Remote) serveOne(blocking bool) error {
 	msg, err := r.Codec.ReadMessage()
-	if err != nil {
+	if err == errEmptyBatch {
+		return r.Codec.WriteMessage(&Message{
+			Version: Version,
+			Response: &Response{
+				Error: &ErrResponse{
+					Code:    ErrCodeInvalidRequest,
+					Message: "invalid request: Empty batch",
+				},
+			},
+		})
+	} else if err != nil {
 		return err
 	}
+
 	if msg.Request != nil {
 		if blocking {
 			r.handleRequest(msg)
