@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -39,6 +41,7 @@ var rpcTimeout = time.Second * 5
 type Options struct {
 	Config      string `long:"config" description:"Load configuration from file. (Use --print-config for an example)"`
 	PrintConfig bool   `long:"print-config" description:"Print the current configuration to stdout."`
+	Pprof       string `long:"pprof" description:"Bind pprof http server for profiling. (Example: localhost:6060)"`
 	Verbose     []bool `short:"v" long:"verbose" description:"Show verbose logging."`
 	Version     bool   `long:"version" description:"Print version and exit."`
 
@@ -320,6 +323,15 @@ func main() {
 		ini := flags.NewIniParser(parser)
 		ini.Write(os.Stdout, flags.IniIncludeDefaults|flags.IniIncludeComments)
 		return
+	}
+
+	if options.Pprof != "" {
+		go func() {
+			logger.Debugf("Starting pprof server: http://%s/debug/pprof", options.Pprof)
+			if err := http.ListenAndServe(options.Pprof, nil); err != nil {
+				logger.Errorf("Failed to serve pprof: %s", err)
+			}
+		}()
 	}
 
 	cmd := "agent"
