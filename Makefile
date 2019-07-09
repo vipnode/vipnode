@@ -8,7 +8,7 @@ LDFLAGS = "-X main.Version=$(VERSION) -w -s"
 SOURCES = $(shell find . -type f -name '*.go')
 
 BINARY = $(notdir $(PWD))
-RUN = ./$(BINARY)
+RUN = ./$(BINARY) -vv --pprof="localhost:6060"
 
 # Configs
 FAKEBIND = 127.0.0.1:8080
@@ -32,25 +32,25 @@ run: $(BINARY)
 	$(RUN) --help
 
 debug: $(BINARY)
-	$(RUN) -vv
+	$(RUN)
 
 test:
 	go test -vet "all" -timeout 5s -race ./...
 
 stagingpool: $(BINARY)
-	$(RUN) -vv pool --bind "$(FAKEBIND)" --allow-origin "http://localhost:3000" --contract.address="rinkeby://0x0244998de1c9f072aa560b5c0e5221ed7be0b1ec" --contract.rpc="wss://rinkeby.infura.io/ws" --contract.keystore="${KEYSTORE_PATH}"
+	$(RUN) pool --bind "$(FAKEBIND)" --allow-origin "http://localhost:3000" --contract.address="rinkeby://0x0244998de1c9f072aa560b5c0e5221ed7be0b1ec" --contract.rpc="wss://rinkeby.infura.io/ws" --contract.keystore="${KEYSTORE_PATH}"
 
 fakepool: $(BINARY)
-	$(RUN) -vv pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000" --contract.welcome="Welcome to the Fakepool"
+	$(RUN) pool --bind "$(FAKEBIND)" --store="memory" --allow-origin "http://localhost:3000" --contract.welcome="Welcome to the Fakepool"
 
 fakehost: $(BINARY)
-	$(RUN) -vv agent "ws://$(FAKEBIND)" --update-interval=10s --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1&fakeblock=$(FAKEBLOCK)"
+	$(RUN) agent "ws://$(FAKEBIND)" --update-interval=10s --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1&fakeblock=$(FAKEBLOCK)"
 
 fakehostpool: $(BINARY)
-	$(RUN) -vv agent ":memory:" --update-interval=10s --enode="enode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1@127.0.0.1:30303?discport=0" --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1"
+	$(RUN) agent ":memory:" --update-interval=10s --enode="enode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1@127.0.0.1:30303?discport=0" --rpc "fakenode://f21f0692b06019ae3f40d78d8b309487fc75f75b76df71d76196c3514272adf30aca4b2451181eb22208757cd4363923e17723d2f2ddf7b0175ecb87dada7ca1?fakepeers=$(FAKEPEERS)&fullnode=1"
 
 fakeclient: $(BINARY)
-	$(RUN) -vv agent "http://$(FAKEBIND)" --update-interval=10s --nodekey=./nodekey --rpc "fakenode://85fbed4332ed4329ca2283f26606618815ae83a870c523bb99b0b2e9dfe5af3b4699c2830ecdeb67519d62362db44aa5a8cafee523e3ab8c76aeef1016f424a4?fakepeers=$(FAKEPEERS)"
+	$(RUN) agent "http://$(FAKEBIND)" --update-interval=10s --nodekey=./nodekey --rpc "fakenode://85fbed4332ed4329ca2283f26606618815ae83a870c523bb99b0b2e9dfe5af3b4699c2830ecdeb67519d62362db44aa5a8cafee523e3ab8c76aeef1016f424a4?fakepeers=$(FAKEPEERS)"
 
 poolstatus:
 	@curl -s "http://$(FAKEBIND)" -H 'Origin: http://localhost:3030/status' --data-binary '{"id":1,"method":"pool_status"}'
