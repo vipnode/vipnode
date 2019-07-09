@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 )
 
@@ -13,12 +12,8 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 
-	resp := s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("1")),
-		Version: Version,
-		Request: &Request{
-			Method: "foo_apple",
-		},
+	resp := s.Handle(context.Background(), &Request{
+		Method: "foo_apple",
 	})
 	if resp.Error != nil {
 		t.Errorf("unexpected error: %q", resp)
@@ -28,28 +23,16 @@ func TestServer(t *testing.T) {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 
-	resp = s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("2")),
-		Version: Version,
-		Request: &Request{
-			Method: "foo_banana",
-		},
-	})
+	resp = s.Handle(context.Background(), &Request{Method: "foo_banana"})
 	if resp.Error != nil {
 		t.Errorf("unexpected error: %q", resp)
 	}
 
-	if string(resp.Response.Result) != "null" {
+	if string(resp.Result) != "null" {
 		t.Errorf("unexpected result: %q", resp.Result)
 	}
 
-	resp = s.Handle(context.Background(), &Message{
-		ID:      json.RawMessage([]byte("3")),
-		Version: Version,
-		Request: &Request{
-			Method: "foo_cherry",
-		},
-	})
+	resp = s.Handle(context.Background(), &Request{Method: "foo_cherry"})
 	if resp.Error == nil {
 		t.Errorf("expected error, got: %q", resp)
 	}

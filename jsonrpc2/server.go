@@ -16,7 +16,7 @@ var ErrNoPublicMethods = errors.New("no public methods")
 // response message.
 type Handler interface {
 	// Handle takes a request message and returns a response message.
-	Handle(ctx context.Context, request *Message) (response *Message)
+	Handle(ctx context.Context, request *Request) (response *Response)
 
 	// FIXME: Register* really shouldn't be part of this signature, right?
 	Register(prefix string, receiver interface{}, onlyMethods ...string) error
@@ -99,16 +99,15 @@ func (s *Server) RegisterMethod(rpcName string, receiver interface{}, methodName
 	return nil
 }
 
+// TODO: Add RegisterFunction?
+
 // Handle executes a request message against the server registry.
-func (s *Server) Handle(ctx context.Context, req *Message) *Message {
-	r := &Message{
-		Response: &Response{
-			Result: nullResult,
-		},
-		ID:      req.ID,
-		Version: Version,
+func (s *Server) Handle(ctx context.Context, req *Request) *Response {
+	r := &Response{
+		Result: nullResult,
 	}
-	if req.Request == nil {
+
+	if req == nil {
 		r.Error = &ErrResponse{
 			Code:    ErrCodeInvalidRequest,
 			Message: "server received misformed request",
@@ -117,11 +116,11 @@ func (s *Server) Handle(ctx context.Context, req *Message) *Message {
 	}
 
 	s.mu.Lock()
-	m, ok := s.registry[req.Request.Method]
+	m, ok := s.registry[req.Method]
 	s.mu.Unlock()
 
 	if !ok {
-		r.Response.Error = &ErrResponse{
+		r.Error = &ErrResponse{
 			Code:    ErrCodeMethodNotFound,
 			Message: fmt.Sprintf("method not found: %s", req.Method),
 		}

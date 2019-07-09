@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
+// Version of the JSONRPC protocol that we're speaking. This is included with
+// every RPC message.
 const Version = "2.0"
-
-type ErrorCode int
 
 const (
 	ErrCodeParse          int = -32700
@@ -18,11 +18,20 @@ const (
 	ErrCodeServer             = -32000
 )
 
+// Message is a single RPC message, can be a request or a response.
 type Message struct {
 	*Request
 	*Response
+
 	ID      json.RawMessage `json:"id,omitempty"`
-	Version string          `json:"jsonrpc"` // TODO: Replace this with a null-type that encodes to 2.0, like https://go-review.googlesource.com/c/tools/+/136675/1/internal/jsonrpc2/jsonrpc2.go#221
+	Version string          `json:"jsonrpc,omitempty"`
+}
+
+// IsNotification returns whether this message is a notification (has no ID,
+// thus not expecting a response).
+// https://www.jsonrpc.org/specification#notification
+func (m Message) IsNotification() bool {
+	return len(m.ID) == 0 || string(m.ID) == "null"
 }
 
 func (m Message) String() string {
@@ -35,11 +44,26 @@ func (m Message) String() string {
 	return string(b)
 }
 
+// Request is an RPC call request.
 type Request struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params,omitempty"`
+
+	// FIXME: Set Reply on the Message instead of the Request/Response?
+	replier Replier
 }
 
+// Reply sends a Response message with the corresponding
+// Request's ID and message type (whether batched or not) to the codec that
+// origintaed the request.
+func (req *Request) Reply(resp *Response) error {
+	if req.replier == nil {
+		return ErrReplyNotAvailable
+	}
+	return req.replier.Reply(resp)
+}
+
+// Response is an RPC call response.
 type Response struct {
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  *ErrResponse    `json:"error,omitempty"`

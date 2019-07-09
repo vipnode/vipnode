@@ -44,7 +44,9 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codec := &jsonCodec{
-		rwc:        rwc{body, w, r.Body},
+		encoder:    json.NewEncoder(w),
+		decoder:    json.NewDecoder(body),
+		closer:     r.Body,
 		remoteAddr: r.RemoteAddr,
 	}
 
@@ -60,9 +62,11 @@ func (h *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("content-type", httpContentType)
-	resp := h.Server.Handle(r.Context(), msg)
-	err = codec.WriteMessage(resp)
-	if err != nil {
+	resp := h.Server.Handle(r.Context(), msg.Request)
+	if msg.IsNotification() {
+		return
+	}
+	if err := msg.Request.Reply(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -85,23 +89,12 @@ func (service *HTTPService) Call(ctx context.Context, result interface{}, method
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(msg)
+
+	resp, err := service.sendMsg(ctx, msg)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, service.Endpoint, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", httpContentType)
-	req.Header.Set("Accept", httpContentType)
-	req = req.WithContext(ctx)
-
-	resp, err := service.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return HTTPRequestError{
@@ -132,6 +125,45 @@ func (service *HTTPService) Call(ctx context.Context, result interface{}, method
 		}
 	}
 	return respMsg.Response.UnmarshalResult(result)
+}
+
+func (service *HTTPService) Notify(ctx context.Context, method string, params ...interface{}) error {
+	msg, err := newNotification(method, params...)
+	if err != nil {
+		return err
+	}
+
+	resp, err := service.sendMsg(ctx, msg)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return HTTPRequestError{
+			Response: resp,
+			Reason:   fmt.Sprintf("bad status code: %d", resp.StatusCode),
+		}
+	}
+	// Ignore the body (don't care about the result)
+	return nil
+}
+
+func (service *HTTPService) sendMsg(ctx context.Context, msg *Message) (*http.Response, error) {
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, service.Endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", httpContentType)
+	req.Header.Set("Accept", httpContentType)
+	req = req.WithContext(ctx)
+
+	return service.HTTPClient.Do(req)
 }
 
 // HTTPRequestError is used when RPC over HTTP encounters an error during transport.

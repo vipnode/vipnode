@@ -1,8 +1,10 @@
 package jsonrpc2
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -34,16 +36,15 @@ func TestRemoteManual(t *testing.T) {
 	if req2, err = r2.ReadMessage(); err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(req, req2) {
-		t.Errorf("message does not match:\n  got: %s\n  want: %s", req2, req)
-	}
+
+	assertEqualJSON(t, req2, req, "message does not match")
 	if err := g.Wait(); err != nil {
 		t.Error(err)
 	}
 
-	resp := r2.Server.Handle(context.Background(), req)
+	resp := r2.Server.Handle(context.Background(), req.Request)
 	var got string
-	if err := json.Unmarshal(resp.Response.Result, &got); err != nil {
+	if err := json.Unmarshal(resp.Result, &got); err != nil {
 		t.Error(err)
 	}
 	if want := "pong"; got != want {
@@ -153,5 +154,82 @@ func TestRemoteServeInvalid(t *testing.T) {
 	emptyMsg := &Message{}
 	if err := pongerClient.WriteMessage(emptyMsg); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestRemoteBatch(t *testing.T) {
+	var inBuf, outBuf bytes.Buffer
+
+	fruits := &FruitService{}
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&outBuf),
+		decoder: json.NewDecoder(&inBuf),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+	if err := remote.Server.Register("", fruits); err != nil {
+		t.Fatal(err)
+	}
+
+	// Batch call of 3 requests and 1 notification
+	fmt.Fprint(&inBuf, `[{"id":1,"method":"apple"},{"id":2,"method":"banana"},{"id":3,"method":"cherry"},{"method":"durian"}]`+"\n")
+	for remote.serveOne(true) == nil {
+		// Consume all messages (until EOF)
+	}
+
+	var got []Message
+	json.NewDecoder(&outBuf).Decode(&got)
+	sort.Sort(BatchByID(got))
+
+	var want []Message = []Message{
+		Message{ID: json.RawMessage("1"), Version: Version, Response: &Response{Result: json.RawMessage(`"Apple"`)}},
+		Message{ID: json.RawMessage("2"), Version: Version, Response: &Response{Result: json.RawMessage(`null`)}},
+		Message{ID: json.RawMessage("3"), Version: Version, Response: &Response{Result: json.RawMessage(`"Cherry"`)}},
+	}
+
+	assertEqualJSON(t, got, want, "batch result")
+}
+
+func TestRemoteEmptyBatch(t *testing.T) {
+	var inBuf, outBuf bytes.Buffer
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&outBuf),
+		decoder: json.NewDecoder(&inBuf),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+
+	// Send empty batch
+	fmt.Fprint(&inBuf, "[]\n")
+	if err := remote.serveOne(true); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := outBuf.String(), `{"error":{"code":-32600,"message":"invalid request: Empty batch"},"jsonrpc":"2.0"}`+"\n"; got != want {
+		t.Errorf("unexpected message on empty batch:\n  got: %s\n want: %s", got, want)
+	}
+}
+
+func TestRemoteNotify(t *testing.T) {
+	var buf bytes.Buffer
+	c := &jsonCodec{
+		encoder: json.NewEncoder(&buf),
+		decoder: json.NewDecoder(&buf),
+	}
+	remote := Remote{Codec: c, Server: &Server{}, Client: &Client{}}
+	remote.Notify(context.Background(), "counter_add", 42)
+
+	got, want := buf.String(), `{"method":"counter_add","params":[42],"jsonrpc":"2.0"}`+"\n"
+	if got != want {
+		t.Errorf("got: %q; want: %q", got, want)
+	}
+	buf.WriteString(`[{"method":"counter_add","params":[10]},{"method":"counter_add","params":[20]}]`)
+
+	counter := Counter(0)
+	if err := remote.Server.Register("counter_", &counter); err != nil {
+		t.Fatal(err)
+	}
+	for remote.serveOne(true) == nil {
+		// Consume all
+	}
+	if counter.Get() != 72 {
+		t.Errorf("wrong counter value: %v", counter)
 	}
 }

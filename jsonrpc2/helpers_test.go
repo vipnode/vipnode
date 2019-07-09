@@ -1,9 +1,12 @@
 package jsonrpc2
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
 )
 
 type FruitService struct{}
@@ -62,4 +65,46 @@ func (f *Fib) Fibonacci(ctx context.Context, a int, b int, steps int) (int, erro
 		return 0, err
 	}
 	return b, nil
+}
+
+type Counter int
+
+func (c *Counter) Add(n int) int {
+	*c += Counter(n)
+	return int(*c)
+}
+
+func (c *Counter) Get() int {
+	return int(*c)
+}
+
+func assertEqualJSON(t *testing.T, got, want interface{}, format string, args ...interface{}) {
+	t.Helper()
+
+	aa, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bb, err := json.Marshal(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(aa, bb) != 0 {
+		prefix := fmt.Sprintf(format, args...)
+		t.Errorf(prefix+"\n   got: %s\n  want: %s", aa, bb)
+	}
+}
+
+type BatchByID []Message
+
+func (b BatchByID) Len() int {
+	return len(b)
+}
+
+func (b BatchByID) Less(i, j int) bool {
+	return bytes.Compare(b[i].ID, b[j].ID) < 0
+}
+
+func (b BatchByID) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }

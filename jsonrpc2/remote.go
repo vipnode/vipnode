@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-// TODO: Handle batch?
-
 // ServePipe sets up symmetric server/clients over a net.Pipe() and starts
 // both in goroutines. Useful for testing. Services still need to be registered.
 // FIXME: This is a testing helper, ideally we want to get rid of it. It leaks
@@ -57,7 +55,12 @@ func CtxService(ctx context.Context) (Service, error) {
 
 // Service represents a remote service that can be called.
 type Service interface {
+	// Call sends a request message with an auto-incrementing ID, then block
+	// until the response is received and unmarshalled into result.
 	Call(ctx context.Context, result interface{}, method string, params ...interface{}) error
+	// Notify sends a notification message without an ID, returning as soon as
+	// the send is completed. Results are ignored.
+	Notify(ctx context.Context, method string, params ...interface{}) error
 }
 
 var _ Service = &Remote{}
@@ -112,23 +115,50 @@ func (r *Remote) getPendingChan(key string) chan Message {
 
 func (r *Remote) handleRequest(msg *Message) error {
 	ctx := context.WithValue(context.Background(), ctxService, r)
-	resp := r.Server.Handle(ctx, msg)
-	return r.Codec.WriteMessage(resp)
+	resp := r.Server.Handle(ctx, msg.Request)
+	if msg.IsNotification() {
+		// No ID, must be a Notification, so response is ignored
+		// https://www.jsonrpc.org/specification#notification
+		return nil
+	}
+	return msg.Request.Reply(resp)
 }
 
+func (r *Remote) serveOne(blocking bool) error {
+	msg, err := r.Codec.ReadMessage()
+	if err == errEmptyBatch {
+		return r.Codec.WriteMessage(&Message{
+			Version: Version,
+			Response: &Response{
+				Error: &ErrResponse{
+					Code:    ErrCodeInvalidRequest,
+					Message: "invalid request: Empty batch",
+				},
+			},
+		})
+	} else if err != nil {
+		return err
+	}
+
+	if msg.Request != nil {
+		if blocking {
+			r.handleRequest(msg)
+		} else {
+			go r.handleRequest(msg)
+		}
+	} else if !msg.IsNotification() {
+		r.getPendingChan(string(msg.ID)) <- *msg
+	} else {
+		logger.Printf("Remote.Serve(): Dropping invalid message: %s", msg)
+	}
+	return nil
+}
+
+// Serve starts consuming messages from the codec until it fails.
 func (r *Remote) Serve() error {
 	for {
-		msg, err := r.Codec.ReadMessage()
-		if err != nil {
+		if err := r.serveOne(false); err != nil {
 			return err
-		}
-		if msg.Request != nil {
-			// FIXME: Anything we can do with error handling here?
-			go r.handleRequest(msg)
-		} else if len(msg.ID) > 0 {
-			r.getPendingChan(string(msg.ID)) <- *msg
-		} else {
-			logger.Printf("Remote.Serve(): Dropping invalid message: %s", msg)
 		}
 	}
 }
@@ -165,4 +195,13 @@ func (r *Remote) Call(ctx context.Context, result interface{}, method string, pa
 		return err
 	}
 	return resp.UnmarshalResult(result)
+}
+
+// Notify sends an RPC notification without a message ID, ignoring any results.
+func (r *Remote) Notify(ctx context.Context, method string, params ...interface{}) error {
+	msg, err := newNotification(method, params...)
+	if err != nil {
+		return err
+	}
+	return r.Codec.WriteMessage(msg)
 }
