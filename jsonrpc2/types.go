@@ -9,8 +9,6 @@ import (
 // every RPC message.
 const Version = "2.0"
 
-type ErrorCode int
-
 const (
 	ErrCodeParse          int = -32700
 	ErrCodeInvalidRequest     = -32600
