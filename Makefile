@@ -12,7 +12,7 @@ RUN = ./$(BINARY) -vv --pprof="localhost:6060"
 
 # Configs
 FAKEBIND = 127.0.0.1:8080
-FAKEPEERS = 5
+FAKEPEERS = 2
 FAKEBLOCK = 42
 
 all: $(BINARY)

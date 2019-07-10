@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/jsonrpc2"
 	"github.com/vipnode/vipnode/pool"
 	"github.com/vipnode/vipnode/pool/store"
 )
@@ -20,6 +22,10 @@ var updateTimeout = 10 * time.Second
 // ErrAlreadyStarted is returned when the agent service is started after it has
 // already been started before.
 var ErrAlreadyStarted = errors.New("agent already started")
+
+// ErrNoPeers is returned when more peers are requested but none were returned
+// from the pool.
+var ErrNoPeers = errors.New("no peers available")
 
 // Agent is a companion process for nodes that manages the node's communication
 // with a Vipnode Pool.
@@ -202,14 +208,6 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 		return err
 	}
 
-	// Do we need more peers?
-	// FIXME: Does it make sense to request more peers before sending a vipnode_update?
-	if needMore := a.NumHosts - len(peers); needMore > 0 {
-		if err := a.AddPeers(ctx, p, needMore); err != nil {
-			return err
-		}
-	}
-
 	blockNumber, err := a.EthNode.BlockNumber(ctx)
 	if err != nil {
 		return err
@@ -229,6 +227,15 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 	}
 
 	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
+
+	// Do we need more peers?
+	if needMore := a.NumHosts - len(update.ActivePeers); needMore > 0 {
+		if err := a.AddPeers(ctx, p, needMore); err == ErrNoPeers {
+			// We can live without more peers for now, will try again next time
+		} else if err != nil {
+			return err
+		}
+	}
 
 	if a.BlockNumberCallback != nil {
 		a.BlockNumberCallback(blockNumber, update.LatestBlockNumber)
@@ -253,16 +260,24 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 
 // AddPeers requests num peers from the pool and connects the node to them.
 func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
-	logger.Printf("Requesting %d more %q hosts from pool...", a.EthNode.Kind(), num)
+	kind := "" // Any kind of node by default
+	if !a.nodeInfo.IsFullNode {
+		// Non-full-nodes need nodes of the same kind to peer with (light nodes)
+		kind = a.nodeInfo.Kind.String()
+	}
+
+	logger.Printf("Requesting more kind=%q peers from pool: %d", kind, num)
 	peerResp, err := p.Peer(ctx, pool.PeerRequest{
 		Num:  num,
-		Kind: a.nodeInfo.Kind.String(),
+		Kind: kind,
 	})
-	if err != nil {
+	if err != nil && jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeInternal) && strings.HasPrefix(err.Error(), "no available") {
+		return ErrNoPeers
+	} else if err != nil {
 		return AgentPoolError{err, "Failed during pool peer request"}
 	}
 	nodes := peerResp.Peers
-	logger.Printf("Received %d host candidates from pool.", len(nodes))
+	logger.Printf("Received %d peer candidates from pool.", len(nodes))
 	for _, node := range nodes {
 		if err := a.EthNode.ConnectPeer(ctx, node.URI); err != nil {
 			return err

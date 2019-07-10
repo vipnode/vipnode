@@ -108,6 +108,7 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 		Payout:         options.Agent.Payout,
 		Version:        fmt.Sprintf("vipnode/agent/%s", Version),
 		UpdateInterval: updateInterval,
+		NumHosts:       options.Agent.MinPeers,
 	}
 	runner.Agent = a
 	if options.Agent.NodeURI != "" {
