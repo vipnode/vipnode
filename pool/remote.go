@@ -34,6 +34,7 @@ func (p *RemotePool) getNonce() int64 {
 	return time.Now().UnixNano()
 }
 
+// DEPRECATED
 func (p *RemotePool) Host(ctx context.Context, req HostRequest) (*HostResponse, error) {
 	signedReq := request.NodeRequest{
 		Method:    "vipnode_host",
@@ -53,6 +54,7 @@ func (p *RemotePool) Host(ctx context.Context, req HostRequest) (*HostResponse, 
 	return &resp, nil
 }
 
+// DEPRECATED
 func (p *RemotePool) Client(ctx context.Context, req ClientRequest) (*ClientResponse, error) {
 	signedReq := request.NodeRequest{
 		Method:    "vipnode_client",

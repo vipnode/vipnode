@@ -339,7 +339,12 @@ func (p *VipnodePool) connect(ctx context.Context, nodeID string, req ConnectReq
 	if err := p.BalanceManager.OnClient(node); err != nil {
 		return nil, err
 	}
-	logger.Printf("Connected %s peer: %q", req.NodeInfo.KindType(), pretty.Abbrev(nodeID))
+
+	enode := node.URI
+	if enode == "" {
+		enode = "enode://" + nodeID + "@"
+	}
+	logger.Printf("Connected %s peer: %q", req.NodeInfo.KindType(), enode)
 
 	return response, nil
 }
