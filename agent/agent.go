@@ -208,16 +208,6 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 		return err
 	}
 
-	// Do we need more peers?
-	// FIXME: Does it make sense to request more peers before sending a vipnode_update?
-	if needMore := a.NumHosts - len(peers); needMore > 0 {
-		if err := a.AddPeers(ctx, p, needMore); err == ErrNoPeers {
-			// We can live without more peers for now, will try again next time
-		} else if err != nil {
-			return err
-		}
-	}
-
 	blockNumber, err := a.EthNode.BlockNumber(ctx)
 	if err != nil {
 		return err
@@ -237,6 +227,15 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 	}
 
 	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
+
+	// Do we need more peers?
+	if needMore := a.NumHosts - len(update.ActivePeers); needMore > 0 {
+		if err := a.AddPeers(ctx, p, needMore); err == ErrNoPeers {
+			// We can live without more peers for now, will try again next time
+		} else if err != nil {
+			return err
+		}
+	}
 
 	if a.BlockNumberCallback != nil {
 		a.BlockNumberCallback(blockNumber, update.LatestBlockNumber)
