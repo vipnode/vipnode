@@ -260,8 +260,13 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 
 // AddPeers requests num peers from the pool and connects the node to them.
 func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
-	kind := a.nodeInfo.Kind.String()
-	logger.Printf("Requesting more %q peers from pool: %d", kind, num)
+	kind := "" // Any kind of node by default
+	if !a.nodeInfo.IsFullNode {
+		// Non-full-nodes need nodes of the same kind to peer with (light nodes)
+		kind = a.nodeInfo.Kind.String()
+	}
+
+	logger.Printf("Requesting more kind=%q peers from pool: %d", kind, num)
 	peerResp, err := p.Peer(ctx, pool.PeerRequest{
 		Num:  num,
 		Kind: kind,
@@ -272,7 +277,7 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 		return AgentPoolError{err, "Failed during pool peer request"}
 	}
 	nodes := peerResp.Peers
-	logger.Printf("Received %d host candidates from pool.", len(nodes))
+	logger.Printf("Received %d peer candidates from pool.", len(nodes))
 	for _, node := range nodes {
 		if err := a.EthNode.ConnectPeer(ctx, node.URI); err != nil {
 			return err
