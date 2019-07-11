@@ -14,24 +14,29 @@ func TestGethParsePeerInfo(t *testing.T) {
 		NodeIDs []string
 	}{
 		{
-			input: []byte(`[{
-				"caps": ["eth/62", "eth/63"],
-				"enode": "enode://2c23f8da76a7ecb6e8b220a9165788c0229f7c05ce63102802f72770ac4240ece94596204564702eede6c0ad902b366dcbf0209b246ec64aed3cf1300d77ecf7@18.179.8.13:41100",
-				"id": "f8ad8f79e5fcb50c98d68db5f5c1c1ff0e6867cab733e1c8890101d5306704b4",
-				"name": "Geth/v1.8.23-stable-c9427004/linux-amd64/go1.10.4",
-				"network": {
-				  "inbound": true,
-				  "localAddress": "10.0.74.242:30303",
-				  "remoteAddress": "18.179.8.13:41100",
-				  "static": false,
-				  "trusted": false
-				},
-				"protocols": {
-				  "eth": {}
+			input: []byte(`[
+				{
+					"caps": ["eth/62", "eth/63"],
+					"enode": "enode://2c23f8da76a7ecb6e8b220a9165788c0229f7c05ce63102802f72770ac4240ece94596204564702eede6c0ad902b366dcbf0209b246ec64aed3cf1300d77ecf7@18.179.8.13:41100",
+					"id": "f8ad8f79e5fcb50c98d68db5f5c1c1ff0e6867cab733e1c8890101d5306704b4",
+					"name": "Geth/v1.8.23-stable-c9427004/linux-amd64/go1.10.4",
+					"network": {
+					  "inbound": true,
+					  "localAddress": "10.0.74.242:30303",
+					  "remoteAddress": "18.179.8.13:41100",
+					  "static": false,
+					  "trusted": false
+					},
+					"protocols": {
+					  "eth": {}
+					}
+				}, {
+					"id": "foo"
+				}, {
+					"id": "foo",
+					"enode": "enode://7134088f7cd3a546e593af7a1cad4e6a6db4ef40bc6240e9f6decad72a1424d9d5d6296a1eca411eedd8113dc609ce05ec0bb3ad23f2ec791c093cfc02f9f398@[::]:30303"
 				}
-			}, {
-				"id": "foo"
-			}]`),
+			]`),
 			want: []PeerInfo{
 				{
 					ID:    "f8ad8f79e5fcb50c98d68db5f5c1c1ff0e6867cab733e1c8890101d5306704b4",
@@ -49,8 +54,16 @@ func TestGethParsePeerInfo(t *testing.T) {
 				{
 					ID: "foo",
 				},
+				{
+					ID:    "foo",
+					Enode: "enode://7134088f7cd3a546e593af7a1cad4e6a6db4ef40bc6240e9f6decad72a1424d9d5d6296a1eca411eedd8113dc609ce05ec0bb3ad23f2ec791c093cfc02f9f398@[::]:30303",
+				},
 			},
-			NodeIDs: []string{"2c23f8da76a7ecb6e8b220a9165788c0229f7c05ce63102802f72770ac4240ece94596204564702eede6c0ad902b366dcbf0209b246ec64aed3cf1300d77ecf7", "foo"},
+			NodeIDs: []string{
+				"2c23f8da76a7ecb6e8b220a9165788c0229f7c05ce63102802f72770ac4240ece94596204564702eede6c0ad902b366dcbf0209b246ec64aed3cf1300d77ecf7",
+				"foo",
+				"7134088f7cd3a546e593af7a1cad4e6a6db4ef40bc6240e9f6decad72a1424d9d5d6296a1eca411eedd8113dc609ce05ec0bb3ad23f2ec791c093cfc02f9f398",
+			},
 		},
 	}
 
