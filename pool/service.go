@@ -378,7 +378,23 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 		return hosts, nil
 	}
 
-	r, err := p.Store.ActiveHosts(kind, numRequestHosts)
+	// Get existing peers that we can skip
+	selfNodeID := store.NodeID(nodeID)
+	peers, err := p.Store.NodePeers(selfNodeID)
+	if err != nil {
+		return nil, err
+	}
+	skipPeers := make(map[store.NodeID]struct{}, len(peers)+1)
+	skipPeers[selfNodeID] = struct{}{}
+	for _, peer := range peers {
+		skipPeers[peer.ID] = struct{}{}
+	}
+
+	// Note that ActiveHosts returns hosts that have been active in the last
+	// minute. They may not be connected anymore, so we're likely to get fewer
+	// valid peers than number we want. That's okay, the agent can ask again
+	// next cycle for more.
+	r, err := p.Store.ActiveHosts(kind, numRequestHosts+len(skipPeers))
 	if err != nil {
 		return nil, err
 	}
@@ -388,21 +404,24 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 		return r, nil
 	}
 
-	errors := []error{}
 	remotes := make([]hostService, 0, len(r))
 	p.mu.Lock()
 	for _, node := range r {
-		if node.ID.String() == nodeID {
-			// Skip self
+		if _, skip := skipPeers[node.ID]; skip {
+			// Skip peers we're already connected to, and ourself
 			continue
 		}
+
 		remote, ok := p.remoteHosts[node.ID]
 		if ok {
 			remotes = append(remotes, hostService{
 				node, remote,
 			})
 		} else {
-			errors = append(errors, fmt.Errorf("missing remote service for candidate host: %q", node.ID))
+			// TODO: Good time to mark the host as inactive? Or would that mess
+			// with assumptions about some grace period of activity we
+			// currently have? (Would also require a new store API)
+			logger.Printf("ActiveHost candidate does not have a connected remote, skipping: %s", node.ID)
 		}
 	}
 	p.mu.Unlock()
@@ -424,6 +443,7 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 		}(remote.Service, remote.Node)
 	}
 
+	errors := []error{}
 	for i := len(remotes); i > 0; i-- {
 		select {
 		case node := <-acceptChan:
@@ -437,9 +457,9 @@ func (p *VipnodePool) requestHosts(ctx context.Context, nodeID string, numReques
 
 	if len(errors) > 0 {
 		err = RemoteHostErrors{"vipnode_whitelist", errors}
-		logger.Printf("Request %q hosts: %q (%d hosts found, %d accepted); failures: %s", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted), err)
+		logger.Printf("Request kind=%q hosts: %q (%d hosts found, %d accepted); failures: %s", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted), err)
 	} else {
-		logger.Printf("Request %q hosts: %q (%d hosts found, %d accepted)", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted))
+		logger.Printf("Request kind=%q hosts: %q (%d hosts found, %d accepted)", kind, pretty.Abbrev(nodeID), len(remotes), len(accepted))
 	}
 
 	if len(accepted) >= 1 {

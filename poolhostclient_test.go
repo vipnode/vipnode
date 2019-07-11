@@ -106,14 +106,12 @@ func TestPoolHostClient(t *testing.T) {
 	}
 	want = fakenode.Calls{
 		fakenode.Call("ConnectPeer", hostNodeURI),
-		fakenode.Call("ConnectPeer", hostNodeURI),
 	}
 	if got := clientNode.Calls; !reflect.DeepEqual(got, want) {
 		t.Errorf("clientNode.Calls:\n  got %q;\n want %q", got, want)
 	}
 
 	want = fakenode.Calls{
-		fakenode.Call("AddTrustedPeer", clientNodeID),
 		fakenode.Call("AddTrustedPeer", clientNodeID),
 	}
 	if got := hostNode.Calls; !reflect.DeepEqual(got, want) {
