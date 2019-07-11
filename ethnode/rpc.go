@@ -191,16 +191,24 @@ func DetectClient(client *rpc.Client) (*UserAgent, error) {
 
 // PeerInfo stores the node ID and client metadata about a peer.
 type PeerInfo struct {
-	ID        string                     `json:"id"`        // Unique node identifier (also the encryption pubkey)
-	Name      string                     `json:"name"`      // Name of the node, including client type, version, OS, custom data
-	Caps      []string                   `json:"caps"`      // Capabilities the node is advertising.
-	Protocols map[string]json.RawMessage `json:"protocols"` // Sub-protocol specific metadata fields
+	ID        string                     `json:"id"`              // Unique node identifier (also the encryption pubkey if `enode` is not included)
+	Name      string                     `json:"name"`            // Name of the node, including client type, version, OS, custom data
+	Caps      []string                   `json:"caps"`            // Capabilities the node is advertising.
+	Protocols map[string]json.RawMessage `json:"protocols"`       // Sub-protocol specific metadata fields
+	Enode     string                     `json:"enode,omitempty"` // Enode connection string (includes the enode ID). If available, then the ID is not the pubkey but a hash of it.
 
 	// FIXME: Do we want to include node-local network address state? Or is it unnecessary security leakage?
 	Network struct {
 		LocalAddress  string `json:"localAddress"`  // Local endpoint of the TCP data connection
 		RemoteAddress string `json:"remoteAddress"` // Remote endpoint of the TCP data connection
 	} `json:"network"`
+}
+
+func (p *PeerInfo) EnodeID() string {
+	if len(p.Enode) <= 8+128 { // "enode://{128 ascii chars}@..."
+		return p.ID
+	}
+	return p.Enode[8 : 8+128]
 }
 
 func (p *PeerInfo) IsFullNode() bool {
@@ -218,7 +226,7 @@ type Peers []PeerInfo
 func (peers Peers) IDs() []string {
 	r := make([]string, 0, len(peers))
 	for _, peer := range peers {
-		r = append(r, peer.ID)
+		r = append(r, peer.EnodeID())
 	}
 	return r
 }
