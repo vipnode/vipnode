@@ -121,6 +121,14 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 		// because the pool will use the connection's ip as the host.
 		a.NodeURI = remoteEnode
 	}
+	if options.Agent.NodeHost != "" {
+		nodeURI, err := url.Parse(a.NodeURI)
+		if err != nil {
+			return fmt.Errorf("failed to parse NodeURI during NodeHost override: %s", err)
+		}
+		nodeURI.Host = options.Agent.NodeHost
+		a.NodeURI = nodeURI.String()
+	}
 	a.PoolMessageCallback = func(msg string) {
 		logger.Alertf("Message from pool: %s", msg)
 	}
