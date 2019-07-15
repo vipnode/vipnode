@@ -2,7 +2,6 @@ package ethnode
 
 import (
 	"context"
-	"errors"
 	"strings"
 )
 
@@ -32,19 +31,6 @@ type gethNode struct {
 
 func (n *gethNode) Kind() NodeKind {
 	return Geth
-}
-
-func (n *gethNode) CheckCompatible(ctx context.Context) error {
-	// TODO: Make sure we have the necessary APIs available, maybe version check?
-	var result interface{}
-	err := n.client.CallContext(ctx, &result, "admin_addTrustedPeer", "")
-	if err == nil {
-		return errors.New("failed to detect compatibility")
-	}
-	if err, ok := err.(codedError); ok && err.ErrorCode() == errCodeMethodNotFound {
-		return err
-	}
-	return nil
 }
 
 func (n *gethNode) ConnectPeer(ctx context.Context, nodeURI string) error {

@@ -264,29 +264,35 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	node := baseNode{
+	var node EthNode
+	base := baseNode{
 		agent:  *agent,
 		client: client,
 	}
 	switch agent.Kind {
 	case Parity:
-		return &parityNode{
-			baseNode: node,
-		}, nil
+		node = &parityNode{
+			baseNode: base,
+		}
 	case Pantheon:
-		return &pantheonNode{
-			baseNode: node,
-		}, nil
+		node = &pantheonNode{
+			baseNode: base,
+		}
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
-		node := &gethNode{
-			baseNode: node,
+		node = &gethNode{
+			baseNode: base,
 		}
-		ctx := context.TODO()
-		if err := node.CheckCompatible(ctx); err != nil {
+	}
+
+	if compatNode, ok := node.(interface{ CheckCompatible(context.Context) error }); ok {
+		// Do compatibility checks, if the implementation requires it
+		ctx := context.Background()
+		if err := compatNode.CheckCompatible(ctx); err != nil {
 			return nil, err
 		}
-		return node, nil
 	}
+
+	return node, nil
 }
