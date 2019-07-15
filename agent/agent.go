@@ -271,8 +271,17 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 		Num:  num,
 		Kind: kind,
 	})
-	if err != nil && jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeInternal) && strings.HasPrefix(err.Error(), "no available") {
-		return ErrNoPeers
+	if err != nil && jsonrpc2.IsErrorCode(err, jsonrpc2.ErrCodeInternal) {
+		if strings.HasPrefix(err.Error(), "no available") {
+			return ErrNoPeers
+		} else {
+			// This can happen if there are some incompatible agents on the
+			// pool (e.g. outdated broken vipnode version)
+			logger.Printf("AddPeers RPC failed (possibly due to outdated agents on the pool): %s", err)
+			// We can't recover on this end. This should also yield errors on
+			// the broken agents' side so hopefully they'll update soon.
+			return ErrNoPeers
+		}
 	} else if err != nil {
 		return AgentPoolError{err, "Failed during pool peer request"}
 	}
