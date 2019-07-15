@@ -277,7 +277,7 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 		} else {
 			// This can happen if there are some incompatible agents on the
 			// pool (e.g. outdated broken vipnode version)
-			logger.Printf("AddPeers RPC failed: %s", err)
+			logger.Printf("AddPeers RPC failed (possibly due to outdated agents on the pool): %s", err)
 			// We can't recover on this end. This should also yield errors on
 			// the broken agents' side so hopefully they'll update soon.
 			return ErrNoPeers
