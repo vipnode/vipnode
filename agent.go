@@ -109,6 +109,7 @@ func (runner *agentRunner) LoadAgent(options Options) error {
 		Version:        fmt.Sprintf("vipnode/agent/%s", Version),
 		UpdateInterval: updateInterval,
 		NumHosts:       options.Agent.MinPeers,
+		StrictPeers:    options.Agent.StrictPeers,
 	}
 	runner.Agent = a
 	if options.Agent.NodeURI != "" {
