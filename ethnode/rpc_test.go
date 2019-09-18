@@ -29,3 +29,28 @@ func TestParseUserAgent(t *testing.T) {
 		}
 	}
 }
+
+func TestEnodeEqual(t *testing.T) {
+	testcases := []struct {
+		A, B string
+		Want bool
+	}{
+		{"enode://foo@bar", "enode://foo@bar", true},
+		{"enode://foo@bar", "enode://foo@bar", true},
+		{"enode://foo@bar:30303", "enode://foo@[::]:30303", true},
+		{"enode://foo@[::]:30303", "enode://foo@[::]:30303", true},
+		{"enode://foo@[::]:30303", "enode://foo@1.1.1.1:30303", true},
+		{"enode://foo@[::]:30303", "enode://foo@1.1.1.1:40404", false},
+		{"enode://foo@[::]:30303", "enode://foo@", false},
+		{"enode://foo@1.1.1.1:30303", "enode://foo@", false},
+		{"enode://foo@1.1.1.1:30303", "enode://foo@2.2.2.2:30303", false},
+		{"enode://foo@1.1.1.1:30303", "enode://foo@1.1.1.1:40404", false},
+	}
+
+	for i, tc := range testcases {
+		got, want := EnodeEqual(tc.A, tc.B), tc.Want
+		if got != want {
+			t.Errorf("[case %d] %q ?= %q is %t", i, tc.A, tc.B, got)
+		}
+	}
+}

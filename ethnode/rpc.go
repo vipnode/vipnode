@@ -3,6 +3,7 @@ package ethnode
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -204,11 +205,17 @@ type PeerInfo struct {
 	} `json:"network"`
 }
 
+// EnodeID returns the encoded Ethereum Node ID (public key of the node)
 func (p *PeerInfo) EnodeID() string {
 	if len(p.Enode) <= 8+128 { // "enode://{128 ascii chars}@..."
 		return p.ID
 	}
 	return p.Enode[8 : 8+128]
+}
+
+// EnodeURI returns the full enode connection string: "enode://{128 ascii chars}@{remote address}:{port}"
+func (p *PeerInfo) EnodeURI() string {
+	return "enode://" + p.EnodeID() + "@" + p.Network.RemoteAddress
 }
 
 func (p *PeerInfo) IsFullNode() bool {
@@ -295,4 +302,29 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	}
 
 	return node, nil
+}
+
+// EnodeEqual returns whether two enode:// strings are equivalent after
+// normalization, comparing only the enodeID and remote address.
+// Failure to parse returns false. Remote address "[::]" acts as a wildcard.
+func EnodeEqual(a, b string) bool {
+	uriA, err := url.Parse(a)
+	if err != nil || uriA.User == nil {
+		return false
+	}
+	uriB, err := url.Parse(b)
+	if err != nil || uriB.User == nil {
+		return false
+	}
+
+	if uriA.User.Username() != uriB.User.Username() {
+		return false
+	}
+	if uriA.Hostname() == "::" || uriB.Hostname() == "::" {
+		if uriA.Port() != uriB.Port() {
+			return false
+		}
+		return true
+	}
+	return uriA.Host == uriB.Host
 }
