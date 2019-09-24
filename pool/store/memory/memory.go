@@ -284,8 +284,8 @@ func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 			// Skip bad peers
 			continue
 		}
-		if _, ok := s.nodes[peerID]; ok {
-			node.peers[peerID] = now
+		if peer, ok := s.nodes[peerID]; ok {
+			node.peers[peerID] = peer.LastSeen
 		}
 	}
 
