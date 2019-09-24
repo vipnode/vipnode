@@ -264,17 +264,17 @@ func (s *memoryStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp
 // of nodes we know about. This is used as a keepalive, and to keep track of
 // which client is connected to which host.
-func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) ([]store.NodeID, error) {
+func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) (inactive []store.NodeID, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, ok := s.nodes[nodeID]
 	if !ok {
-		return nil, store.ErrUnregisteredNode
+		err = store.ErrUnregisteredNode
+		return
 	}
 	now := time.Now()
 	node.LastSeen = now
 	node.BlockNumber = blockNumber
-	numUpdated := 0
 	for _, peer := range peers {
 		// Only update peers we already know about
 		// FIXME: If symmetric peers disappear at the same time, then reappear, will it be a problem if they never become inactive? (Okay if the balance manager caps the update interval?)
@@ -286,18 +286,12 @@ func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 		}
 		if _, ok := s.nodes[peerID]; ok {
 			node.peers[peerID] = now
-			numUpdated += 1
 		}
 	}
 
-	if numUpdated == len(node.peers) {
-		s.nodes[nodeID] = node
-		return nil, nil
-	}
-	inactive := []store.NodeID{}
 	inactiveDeadline := now.Add(-store.ExpireInterval)
 	for nodeID, timestamp := range node.peers {
-		if timestamp.Before(inactiveDeadline) {
+		if timestamp.After(inactiveDeadline) {
 			continue
 		}
 		delete(node.peers, nodeID)
@@ -305,7 +299,7 @@ func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 	}
 
 	s.nodes[nodeID] = node
-	return inactive, nil
+	return
 }
 
 // Stats returns aggregate statistics about the store state.
