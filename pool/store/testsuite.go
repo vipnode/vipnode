@@ -192,6 +192,10 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
+		nodes[2].LastSeen = time.Now()
+		_ = s.SetNode(nodes[2])
+		nodes[3].LastSeen = time.Now()
+		_ = s.SetNode(nodes[3])
 		if inactive, err := s.UpdateNodePeers(node.ID, newPeers, blockNumber); err != nil {
 			t.Errorf("unexpected error: %s", err)
 		} else if len(inactive) != 0 {
