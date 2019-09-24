@@ -238,6 +238,15 @@ func (peers Peers) IDs() []string {
 	return r
 }
 
+// URIs returns a list of connection EnodeURIs for the peers.
+func (peers Peers) URIs() []string {
+	r := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		r = append(r, peer.EnodeURI())
+	}
+	return r
+}
+
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
 	NodeRPC() *rpc.Client
