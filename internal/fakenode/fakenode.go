@@ -87,17 +87,26 @@ func (n *FakeNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 	if err != nil {
 		return err
 	}
-	n.FakePeers = append(n.FakePeers, ethnode.PeerInfo{
+	p := ethnode.PeerInfo{
 		ID:   uri.User.Username(),
 		Caps: []string{"fake/1", "eth/62", "eth/63", "les/2"},
 		Protocols: map[string]json.RawMessage{
 			"fake": json.RawMessage("{}"),
 		},
-	})
+	}
+	p.Network.RemoteAddress = uri.Host
+	n.FakePeers = append(n.FakePeers, p)
 	return nil
 }
 func (n *FakeNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 	n.Calls = append(n.Calls, Call("DisconnectPeer", nodeID))
+	for i, p := range n.FakePeers {
+		if p.EnodeID() == nodeID {
+			// Found, remove
+			n.FakePeers = append(n.FakePeers[:i], n.FakePeers[i+1:]...)
+		}
+	}
+	// Not found, nothing to do
 	return nil
 }
 func (n *FakeNode) Peers(ctx context.Context) ([]ethnode.PeerInfo, error) {
@@ -110,9 +119,11 @@ func (n *FakeNode) BlockNumber(ctx context.Context) (uint64, error) {
 func FakePeers(num int) []ethnode.PeerInfo {
 	peers := make([]ethnode.PeerInfo, 0, num)
 	for i := 0; i < num; i++ {
-		peers = append(peers, ethnode.PeerInfo{
+		p := ethnode.PeerInfo{
 			ID: fmt.Sprintf("%0128x", i),
-		})
+		}
+		p.Network.RemoteAddress = fmt.Sprintf("127.0.1.%d:30303", i)
+		peers = append(peers, p)
 	}
 	return peers
 }
