@@ -3,7 +3,6 @@ package ethnode
 import (
 	"context"
 	"encoding/json"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -311,29 +310,4 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	}
 
 	return node, nil
-}
-
-// EnodeEqual returns whether two enode:// strings are equivalent after
-// normalization, comparing only the enodeID and remote address.
-// Failure to parse returns false. Remote address "[::]" acts as a wildcard.
-func EnodeEqual(a, b string) bool {
-	uriA, err := url.Parse(a)
-	if err != nil || uriA.User == nil {
-		return false
-	}
-	uriB, err := url.Parse(b)
-	if err != nil || uriB.User == nil {
-		return false
-	}
-
-	if uriA.User.Username() != uriB.User.Username() {
-		return false
-	}
-	if uriA.Hostname() == "::" || uriB.Hostname() == "::" {
-		if uriA.Port() != uriB.Port() {
-			return false
-		}
-		return true
-	}
-	return uriA.Host == uriB.Host
 }
