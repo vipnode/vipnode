@@ -237,18 +237,21 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
 
 	if a.StrictPeers {
-		lookup := make(map[string]string, len(update.ActivePeers))
-		for _, p := range update.ActivePeers {
-			lookup[enodeURItoID(p)] = p
+		lookup := make(map[string]struct{}, len(update.ActivePeers))
+		for _, peerID := range update.ActivePeers {
+			lookup[peerID] = struct{}{}
 		}
 
 		// Mark any non-active peers as invalid. These should be a superset of
 		// the original update.InvalidPeers, so we truncate it first.
 		update.InvalidPeers = update.InvalidPeers[:0]
 		for _, p := range peers {
-			if activeURI, ok := lookup[p.EnodeID()]; ok && ethnode.EnodeEqual(activeURI, p.EnodeURI()) {
-				// Local peer matching active peer on pool
-				continue
+			if _, ok := lookup[p.EnodeID()]; ok {
+				// FIXME: If we can get the ActivePeers' intended URI, we can
+				// compare the remote host address as well. Right now we just
+				// compare the EnodeID.
+
+				continue // Local peer matching active peer on pool
 			}
 			update.InvalidPeers = append(update.InvalidPeers, p.EnodeID())
 		}
@@ -329,12 +332,4 @@ func (a *Agent) AddPeers(ctx context.Context, p pool.Pool, num int) error {
 // Service is the set of RPC calls exposed by an agent.
 type Service interface {
 	Whitelist(ctx context.Context, nodeID string) error
-}
-
-// enodeURItoID takes an enode:// URI string and returns the NodeID component.
-func enodeURItoID(uri string) string {
-	if len(uri) <= 8+128 {
-		return uri
-	}
-	return uri[8 : 8+128]
 }
