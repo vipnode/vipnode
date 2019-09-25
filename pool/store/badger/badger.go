@@ -422,7 +422,7 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 
 		inactiveDeadline := now.Add(-store.ExpireInterval)
 		for nodeID, timestamp := range nodePeers {
-			if timestamp.Before(inactiveDeadline) {
+			if timestamp.After(inactiveDeadline) {
 				continue
 			}
 			delete(nodePeers, nodeID)
