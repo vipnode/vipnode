@@ -382,6 +382,12 @@ func (s *badgerStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
 	return r, err
 }
 
+// UpdateNodePeers updates the Node's peers and the node's LastSeen timestamp.
+// This is used as a keepalive, and to keep track of which client is connected
+// to which host.
+// Node's LastSeen should only be updated when it calls UpdateNodePeers.
+// Node's LastSeen should be counted whether it's inactive only when it's
+// included as a peer by another node in an UpdateNodePeers call.
 func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) (inactive []store.NodeID, err error) {
 	nodeKey := []byte(fmt.Sprintf("vip:node:%s", nodeID))
 	peersKey := []byte(fmt.Sprintf("vip:peers:%s", nodeID))
@@ -403,30 +409,38 @@ func (s *badgerStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 		}
 
 		// Update peers
+		// Note: Just because this node has seen some peer, it doesn't mean that
+		// the node is active (ie. nodePeers are not active nodes necessarily).
+		// We must compare the node's own LastSeen to determine if it's active.
+
 		if err := getItem(txn, peersKey, &nodePeers); err != nil && err != badger.ErrKeyNotFound {
 			return err
 		}
 
-		numUpdated := 0
-		for _, peerID := range peers {
-			// Only update peers we already know about
-			if hasKey(txn, []byte(fmt.Sprintf("vip:node:%s", peerID))) {
-				nodePeers[store.NodeID(peerID)] = now
-				numUpdated += 1
-			}
-		}
-
-		if numUpdated == len(nodePeers) {
-			return setItem(txn, peersKey, &nodePeers)
-		}
-
 		inactiveDeadline := now.Add(-store.ExpireInterval)
-		for nodeID, timestamp := range nodePeers {
+		for _, peerID := range peers {
+			peerID := store.NodeID(peerID)
+			var peerNode store.Node
+			if err := getItem(txn, []byte(fmt.Sprintf("vip:node:%s", peerID)), &peerNode); err == badger.ErrKeyNotFound {
+				// We don't know about this node, ignore
+				continue
+			} else if err != nil {
+				return err
+			}
+
+			// Save the node's LastSeen in the nodePeers so we can compare the
+			// entire set after.
+			nodePeers[peerID] = peerNode.LastSeen
+		}
+
+		for peerID, timestamp := range nodePeers {
 			if timestamp.After(inactiveDeadline) {
+				// Peer is active
 				continue
 			}
-			delete(nodePeers, nodeID)
-			inactive = append(inactive, nodeID)
+
+			delete(nodePeers, peerID)
+			inactive = append(inactive, peerID)
 		}
 		return setItem(txn, peersKey, &nodePeers)
 	})
