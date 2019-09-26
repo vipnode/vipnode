@@ -136,7 +136,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		nodes := makeNodes(0, 5)
+		nodes := makeNodes(0, 10)
 		node := nodes[0]
 		var blockNumber uint64 = 42
 
@@ -167,7 +167,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			if inactive, err := s.UpdateNodePeers(node.ID, peers, blockNumber); err != nil {
 				t.Errorf("unexpected error: %s", err)
 			} else if len(inactive) != 0 {
-				t.Errorf("unexpected peers: %v", inactive)
+				t.Errorf("unexpected inactive peers:\n    peers: %s\n inactive: %s", peers, inactive)
 			}
 		}
 
@@ -181,13 +181,13 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 
 		// Check active vs inactive peers
-		active := nodes[1:3]
+		active := nodes[1:5]
 		if err := addActiveNodes(s, active...); err != nil {
 			t.Errorf("unexpected error adding active nodes: %s", err)
 		}
 
 		// One inactive node
-		inactive := nodes[3:4]
+		inactive := nodes[5:6]
 		if err := s.SetNode(inactive[0]); err != nil {
 			t.Errorf("unexpected error adding inactive node: %s", err)
 		}
