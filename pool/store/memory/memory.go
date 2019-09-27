@@ -264,6 +264,9 @@ func (s *memoryStore) NodePeers(nodeID store.NodeID) ([]store.Node, error) {
 // UpdateNodePeers updates the Node.peers lookup with the current timestamp
 // of nodes we know about. This is used as a keepalive, and to keep track of
 // which client is connected to which host.
+// Node's LastSeen should only be updated when it calls UpdateNodePeers.
+// Node's LastSeen should be counted whether it's inactive only when it's
+// included as a peer by another node in an UpdateNodePeers call.
 func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, blockNumber uint64) (inactive []store.NodeID, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -275,10 +278,10 @@ func (s *memoryStore) UpdateNodePeers(nodeID store.NodeID, peers []string, block
 	now := time.Now()
 	node.LastSeen = now
 	node.BlockNumber = blockNumber
+
 	for _, peer := range peers {
 		// Only update peers we already know about
 		// FIXME: If symmetric peers disappear at the same time, then reappear, will it be a problem if they never become inactive? (Okay if the balance manager caps the update interval?)
-		// FIXME: Should the timestamp update happen on the peerNode also? Or is it okay to leave it for the symmetric update call?
 		peerID, err := store.ParseNodeID(peer)
 		if err != nil {
 			// Skip bad peers

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"sort"
@@ -10,17 +11,6 @@ import (
 
 // TestSuite runs a suite of tests against a store implementation.
 func TestSuite(t *testing.T, newStore func() Store) {
-	nodes := []Node{}
-	{
-		ids := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
-		for _, id := range ids {
-			parsedID, err := ParseNodeID(id)
-			if err != nil {
-				t.Fatal(err)
-			}
-			nodes = append(nodes, Node{ID: parsedID})
-		}
-	}
 	accounts := []Account{
 		Account("abcd"),
 		Account("efgh"),
@@ -60,7 +50,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := nodes[0]
+		node := makeNode(0)
 		emptynode := Node{}
 		if _, err := s.GetNode(node.ID); err != ErrUnregisteredNode {
 			t.Errorf("expected unregistered error, got: %s", err)
@@ -82,8 +72,8 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := nodes[0]
-		othernode := nodes[1]
+		node := makeNode(0)
+		othernode := makeNode(1)
 
 		// Unregistered
 		if err := s.AddNodeBalance(node.ID, big.NewInt(42)); err != ErrUnregisteredNode {
@@ -146,6 +136,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
+		nodes := makeNodes(0, 10)
 		node := nodes[0]
 		var blockNumber uint64 = 42
 
@@ -168,47 +159,64 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("unexpected peers: %v", peers)
 		}
 
+		before := time.Now()
+
 		// peer1 is not a known node, so it will be ignored
-		peers := []string{nodes[1].ID.String()}
-		if inactive, err := s.UpdateNodePeers(node.ID, peers, blockNumber); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		} else if len(inactive) != 0 {
-			t.Errorf("unexpected peers: %v", inactive)
+		{
+			peers := nodes[1:2].IDs()
+			if inactive, err := s.UpdateNodePeers(node.ID, peers, blockNumber); err != nil {
+				t.Errorf("unexpected error: %s", err)
+			} else if len(inactive) != 0 {
+				t.Errorf("unexpected inactive peers:\n    peers: %s\n inactive: %s", peers, inactive)
+			}
 		}
 
-		// Check BlockNumber being set during update.
+		// Check BlockNumber and LastSet being set during update.
 		if n, err := s.GetNode(node.ID); err != nil {
 			t.Errorf("unexpected GetNode error: %s", err)
 		} else if n.BlockNumber != blockNumber {
 			t.Errorf("wrong block number: got %d; want %d", n.BlockNumber, blockNumber)
+		} else if n.LastSeen.Before(before) {
+			t.Errorf("node's last seen is not updated: %s", n.LastSeen)
 		}
 
-		// Inactives only qualify after ExpireInterval
-		newPeers := []string{nodes[2].ID.String(), nodes[3].ID.String()}
-		if err := s.SetNode(nodes[2]); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
-		if err := s.SetNode(nodes[3]); err != nil {
-			t.Errorf("unexpected error: %s", err)
+		// Check active vs inactive peers
+		active := nodes[1:5]
+		if err := addActiveNodes(s, active...); err != nil {
+			t.Errorf("unexpected error adding active nodes: %s", err)
 		}
 
-		nodes[2].LastSeen = time.Now()
-		_ = s.SetNode(nodes[2])
-		nodes[3].LastSeen = time.Now()
-		_ = s.SetNode(nodes[3])
-		if inactive, err := s.UpdateNodePeers(node.ID, newPeers, blockNumber); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		} else if len(inactive) != 0 {
-			t.Errorf("unexpected peers: %v", inactive)
+		// One inactive node
+		inactive := nodes[5:6]
+		if err := s.SetNode(inactive[0]); err != nil {
+			t.Errorf("unexpected error adding inactive node: %s", err)
 		}
-		if peers, err := s.NodePeers(node.ID); err != nil {
-			t.Errorf("unexpected error: %s", err)
-		} else if peerIDs := nodeIDs(peers); !reflect.DeepEqual(peerIDs, newPeers) {
-			t.Errorf("got: %+v; want: %+v", peerIDs, newPeers)
+
+		// Confirm that inactive node is actually inactive
+		if n, err := s.GetNode(inactive[0].ID); err != nil {
+			t.Errorf("unexpected GetNode error: %s", err)
+		} else if before.Add(-ExpireInterval).Before(n.LastSeen) {
+			t.Errorf("inactive node's LastSeen is too recent: %s", n.LastSeen)
+		}
+
+		{
+			// Submit both active and inactive peers
+			peers := append(active.IDs(), inactive.IDs()...)
+			if gotInactive, err := s.UpdateNodePeers(node.ID, peers, blockNumber); err != nil {
+				t.Errorf("unexpected error: %s", err)
+			} else if got, want := NodeIDs(gotInactive).Strings(), inactive.IDs(); !reflect.DeepEqual(got, want) {
+				t.Errorf("wrong inactive peers: %d\n got: %s\nwant: %s", len(got), got, want)
+			}
+			if peers, err := s.NodePeers(node.ID); err != nil {
+				t.Errorf("unexpected error: %s", err)
+			} else if peerIDs := Nodes(peers).IDs(); !reflect.DeepEqual(peerIDs, active.IDs()) {
+				t.Errorf("wrong active peers:\n got: %s\nwant: %s", peerIDs, active.IDs())
+			}
 		}
 	})
 
 	t.Run("Node", func(t *testing.T) {
+		nodes := makeNodes(0, 10)
 		s := newStore()
 		defer s.Close()
 
@@ -235,7 +243,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		}
 		if hosts, err := s.ActiveHosts("", 10); err != nil {
 			t.Errorf("unexpected error: %s", err)
-		} else if got, want := nodeIDs(hosts), []string{
+		} else if got, want := Nodes(hosts).IDs(), []string{
 			nodes[6].ID.String(),
 			nodes[8].ID.String(),
 		}; !reflect.DeepEqual(got, want) {
@@ -271,6 +279,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
+		nodes := makeNodes(0, 10)
 		node := nodes[0]
 		if err := s.SetNode(node); err != nil {
 			t.Errorf("unexpected error: %s", err)
@@ -316,7 +325,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 		s := newStore()
 		defer s.Close()
 
-		node := nodes[0]
+		node := makeNode(0)
 		if err := s.SetNode(node); err != nil {
 			t.Error(err)
 		}
@@ -330,7 +339,7 @@ func TestSuite(t *testing.T, newStore func() Store) {
 			t.Errorf("invalid balance credit: %d", &b.Credit)
 		}
 
-		node2 := nodes[1]
+		node2 := makeNode(1)
 		if err := s.SetNode(node2); err != nil {
 			t.Error(err)
 		}
@@ -368,11 +377,51 @@ func TestSuite(t *testing.T, newStore func() Store) {
 	})
 }
 
-func nodeIDs(nodes []Node) []string {
+type Nodes []Node
+
+func (nodes Nodes) IDs() []string {
 	r := make([]string, 0, len(nodes))
 	for _, n := range nodes {
-		r = append(r, string(n.ID.String()))
+		r = append(r, n.ID.String())
 	}
 	sort.Strings(r)
 	return r
+}
+
+type NodeIDs []NodeID
+
+func (nodes NodeIDs) Strings() []string {
+	r := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		r = append(r, n.String())
+	}
+	sort.Strings(r)
+	return r
+}
+
+func makeNode(offset int) Node {
+	return Node{
+		ID: NodeID(fmt.Sprintf("%0128x", offset)),
+	}
+}
+
+func makeNodes(offset int, num int) Nodes {
+	r := make([]Node, 0, num)
+	for i := offset; i < num+offset; i++ {
+		r = append(r, makeNode(i))
+	}
+	return r
+}
+
+func addActiveNodes(s Store, nodes ...Node) error {
+	for _, n := range nodes {
+		if err := s.SetNode(n); err != nil {
+			return err
+		}
+
+		if _, err := s.UpdateNodePeers(n.ID, nil, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
