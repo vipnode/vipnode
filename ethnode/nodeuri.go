@@ -22,14 +22,6 @@ func ParseNodeURI(enode string) (*NodeURI, error) {
 		return nil, errors.New("invalid enode scheme: " + u.Scheme)
 	}
 
-	// Future versions of Ethereum might support DNS-resolved hostnames instead
-	// of IPs, so we avoid stripping out hosts.
-	if hostname := u.Hostname(); hostname == "localhost" {
-		u.Host = ""
-	} else if ip := net.ParseIP(hostname); ip.IsUnspecified() || ip.IsLoopback() {
-		u.Host = ""
-	}
-
 	r := NodeURI(*u)
 	return &r, nil
 }
@@ -59,5 +51,14 @@ func (u *NodeURI) RemoteAddress() string {
 	if u.User == nil {
 		return ""
 	}
+
+	// Future versions of Ethereum might support DNS-resolved hostnames instead
+	// of IPs, so we avoid stripping out hosts.
+	if hostname := (*url.URL)(u).Hostname(); hostname == "localhost" {
+		return ""
+	} else if ip := net.ParseIP(hostname); ip.IsUnspecified() || ip.IsLoopback() {
+		return ""
+	}
+
 	return u.Host
 }
