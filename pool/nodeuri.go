@@ -9,6 +9,7 @@ import (
 )
 
 // normalizeNodeURI takes an enode:// URI string and some defaults to replace any missing components.
+// FIXME: Replace with ethnode.ParseNodeURI
 func normalizeNodeURI(nodeURI, nodeID, defaultHost, defaultPort string) (string, error) {
 	host, port := defaultHost, defaultPort
 

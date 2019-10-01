@@ -170,7 +170,7 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 		resp.InvalidPeers = append(resp.InvalidPeers, string(peerID))
 	}
 	for _, peerNode := range active {
-		resp.ActivePeers = append(resp.ActivePeers, string(peerNode.ID))
+		resp.ActivePeers = append(resp.ActivePeers, peerNode.URI)
 	}
 	if p.BlockNumberProvider != nil {
 		resp.LatestBlockNumber, err = p.BlockNumberProvider(p.RestrictNetwork)
