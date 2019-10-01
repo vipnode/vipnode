@@ -69,6 +69,14 @@ type Agent struct {
 	// then store.KeepaliveInterval is used.
 	UpdateInterval time.Duration
 
+	// StrictPeers will disconnect any peers that don't match the active peer
+	// set that is returned by the pool during updates. This includes peers
+	// whose IP address does not match what the pool returned.
+	// StrictPeers is used for maintaining a specific peering set and
+	// overriding any other peering side effects like the node's built-in
+	// discovery.
+	StrictPeers bool
+
 	initOnce sync.Once
 	mu       sync.Mutex
 	started  bool
@@ -228,6 +236,42 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 
 	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
 
+	if a.StrictPeers {
+		lookup := make(map[string]struct{}, len(update.ActivePeers))
+		for _, peerID := range update.ActivePeers {
+			lookup[peerID] = struct{}{}
+		}
+
+		// Mark any non-active peers as invalid. These should be a superset of
+		// the original update.InvalidPeers, so we truncate it first.
+		update.InvalidPeers = update.InvalidPeers[:0]
+		for _, p := range peers {
+			if _, ok := lookup[p.EnodeID()]; ok {
+				// FIXME: If we can get the ActivePeers' intended URI, we can
+				// compare the remote host address as well. Right now we just
+				// compare the EnodeID.
+
+				continue // Local peer matching active peer on pool
+			}
+			update.InvalidPeers = append(update.InvalidPeers, p.EnodeID())
+		}
+
+		if len(update.InvalidPeers) > 0 {
+			logger.Printf("Disconnecting from mismatched StrictPeers: %d", len(update.InvalidPeers))
+		}
+	}
+
+	// Disconnect from invalid peers
+	var errors []error
+	for _, peerID := range update.InvalidPeers {
+		if err := a.EthNode.RemoveTrustedPeer(ctx, peerID); err != nil {
+			errors = append(errors, err)
+		}
+		if err := a.EthNode.DisconnectPeer(ctx, peerID); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
 	// Do we need more peers?
 	if needMore := a.NumHosts - len(update.ActivePeers); needMore > 0 {
 		if err := a.AddPeers(ctx, p, needMore); err == ErrNoPeers {
@@ -239,16 +283,6 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 
 	if a.BlockNumberCallback != nil {
 		a.BlockNumberCallback(blockNumber, update.LatestBlockNumber)
-	}
-
-	var errors []error
-	for _, peerID := range update.InvalidPeers {
-		if err := a.EthNode.RemoveTrustedPeer(ctx, peerID); err != nil {
-			errors = append(errors, err)
-		}
-		if err := a.EthNode.DisconnectPeer(ctx, peerID); err != nil {
-			errors = append(errors, err)
-		}
 	}
 
 	if len(errors) > 0 {

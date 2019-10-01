@@ -55,6 +55,7 @@ type Options struct {
 		NodeHost       string `long:"enode.host" description:"Override just the host component of reported enode:// URI. Useful for overriding network routing."`
 		Payout         string `long:"payout" description:"Ethereum wallet address to associate pool credits."`
 		MinPeers       int    `long:"min-peers" description:"Minimum number of peers to maintain." default:"3"`
+		StrictPeers    bool   `long:"strict-peers" description:"Disconnect peers that were not provided by the pool."`
 		UpdateInterval string `long:"update-interval" description:"Time between updates sent to pool, should be under 120s." default:"60s"`
 	} `command:"agent" description:"Connect as a node to a pool or another vipnode."`
 

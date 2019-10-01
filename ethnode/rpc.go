@@ -204,11 +204,17 @@ type PeerInfo struct {
 	} `json:"network"`
 }
 
+// EnodeID returns the encoded Ethereum Node ID (public key of the node)
 func (p *PeerInfo) EnodeID() string {
 	if len(p.Enode) <= 8+128 { // "enode://{128 ascii chars}@..."
 		return p.ID
 	}
 	return p.Enode[8 : 8+128]
+}
+
+// EnodeURI returns the full enode connection string: "enode://{128 ascii chars}@{remote address}:{port}"
+func (p *PeerInfo) EnodeURI() string {
+	return "enode://" + p.EnodeID() + "@" + p.Network.RemoteAddress
 }
 
 func (p *PeerInfo) IsFullNode() bool {
@@ -227,6 +233,15 @@ func (peers Peers) IDs() []string {
 	r := make([]string, 0, len(peers))
 	for _, peer := range peers {
 		r = append(r, peer.EnodeID())
+	}
+	return r
+}
+
+// URIs returns a list of connection EnodeURIs for the peers.
+func (peers Peers) URIs() []string {
+	r := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		r = append(r, peer.EnodeURI())
 	}
 	return r
 }
