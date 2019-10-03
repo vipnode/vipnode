@@ -9,7 +9,6 @@ import (
 	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/internal/fakenode"
 	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store"
 )
 
 func TestAgent(t *testing.T) {
@@ -34,9 +33,7 @@ func TestAgent(t *testing.T) {
 		t.Errorf("wrong number of peers: got %d; want %d", got, want)
 	}
 
-	p.Nodes = append(p.Nodes, store.Node{
-		URI: "enode://bar@127.0.0.1:30303",
-	})
+	p.AddNode("enode://bar@127.0.0.1:30303")
 
 	// Force update
 	if err := agent.UpdatePeers(context.Background(), p); err != nil {
@@ -56,14 +53,15 @@ func TestAgentStrictPeers(t *testing.T) {
 	node := fakenode.Node("foo")
 	agent := Agent{
 		EthNode:     node,
-		NumHosts:    5,
+		NumHosts:    100,
 		StrictPeers: true,
 	}
 
-	fakepeers := fakenode.FakePeers(15)
+	fakepeers := fakenode.FakePeers(30)
+	prefilled, fakepeers := fakepeers[0:10], fakepeers[10:]
 
 	// Prefill peers
-	node.FakePeers = fakepeers[:10]
+	node.FakePeers = prefilled
 
 	// Confirm peers
 	if peers, err := agent.EthNode.Peers(context.Background()); err != nil {
@@ -73,20 +71,19 @@ func TestAgentStrictPeers(t *testing.T) {
 	}
 
 	p := &pool.StaticPool{}
-	p.Nodes = append(
-		p.Nodes,
-		// New node
-		store.Node{URI: "enode://bar@127.0.0.1:30303"},
-		// Include a subset of the original
-		store.Node{URI: fakepeers[4].EnodeURI()},
-		store.Node{URI: fakepeers[5].EnodeURI()},
-		// Mismatch host
-		store.Node{URI: "enode://" + fakepeers[6].EnodeID() + "@42.42.42.42:30303"},
-	)
+	// New node
+	p.AddNode("enode://bar@1.1.1.1:30303")
+	// Include a subset of the original
+	p.AddNode(fakepeers[4].EnodeURI())
+	p.AddNode(fakepeers[5].EnodeURI())
+	// Mismatch host
+	p.AddNode("enode://" + fakepeers[6].EnodeID() + "@42.42.42.42:30303")
 
-	expectURIs := make([]string, 0, len(p.Nodes))
-	for _, n := range p.Nodes {
-		expectURIs = append(expectURIs, n.URI)
+	expectURIs := []string{
+		fakepeers[4].EnodeURI(),
+		fakepeers[5].EnodeURI(),
+		"enode://" + fakepeers[6].EnodeID() + "@42.42.42.42:30303",
+		"enode://bar@1.1.1.1:30303",
 	}
 
 	if err := agent.Start(p); err != nil {
@@ -108,17 +105,22 @@ func TestAgentStrictPeers(t *testing.T) {
 		t.Errorf("mismatched enode URIs:\n got: %s\nwant: %s", got, want)
 	}
 
-	// One more time, add more peers
+	// One more time, add more peers, change hostname of one, port of another
 	if err := node.ConnectPeer(context.Background(), fakepeers[11].EnodeURI()); err != nil {
 		t.Fatal(err)
 	}
 	if err := node.ConnectPeer(context.Background(), fakepeers[12].EnodeURI()); err != nil {
 		t.Fatal(err)
 	}
+
+	p.AddNode("enode://" + fakepeers[6].EnodeID() + "@1.2.3.4:30303") // Change host
+	p.AddNode("enode://bar@1.1.1.1:40404")                            // Change port
+
 	if peers, err := agent.EthNode.Peers(context.Background()); err != nil {
 		t.Fatal(err)
-	} else if got, want := len(peers), len(expectURIs)+2; got != want {
-		t.Errorf("wrong number of peers: got %d; want %d", got, want)
+	} else if got, want := ethnode.Peers(peers).URIs(), expectURIs; reflect.DeepEqual(got, want) {
+		// fakepeers[6] should have the old host (as defined in expectURIs)
+		t.Errorf("mismatched enode URIs:\n got: %s\nwant: %s", got, want)
 	}
 
 	// Force update
@@ -126,11 +128,18 @@ func TestAgentStrictPeers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Set should match the pool set
+	// Update expectURIs
+	expectURIs = []string{
+		fakepeers[4].EnodeURI(),
+		fakepeers[5].EnodeURI(),
+		"enode://" + fakepeers[6].EnodeID() + "@1.2.3.4:30303",
+		"enode://bar@1.1.1.1:40404",
+	}
+
+	// Set should match the pool set. This check only passes with StrictMode
+	// host checking.
 	if peers, err := agent.EthNode.Peers(context.Background()); err != nil {
 		t.Fatal(err)
-	} else if got, want := len(peers), len(expectURIs); got != want {
-		t.Errorf("wrong number of peers: got %d; want %d", got, want)
 	} else if got, want := ethnode.Peers(peers).URIs(), expectURIs; !reflect.DeepEqual(got, want) {
 		t.Errorf("mismatched enode URIs:\n got: %s\nwant: %s", got, want)
 	}
