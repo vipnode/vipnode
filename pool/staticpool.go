@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/vipnode/vipnode/ethnode"
 	"github.com/vipnode/vipnode/pool/store"
 )
 
@@ -13,16 +14,32 @@ var _ Pool = &StaticPool{}
 // StaticPool is a dummy implementation of a pool service that always returns
 // from the same set of host nodes. It does not do any signature checking.
 type StaticPool struct {
-	Nodes             []store.Node
+	nodeStore         map[store.NodeID]store.Node
 	LatestBlockNumber uint64
 }
 
 func (s *StaticPool) AddNode(nodeURI string) error {
-	// TODO: Parse ID etc?
-	s.Nodes = append(s.Nodes, store.Node{
+	if s.nodeStore == nil {
+		s.nodeStore = map[store.NodeID]store.Node{}
+	}
+	u, err := ethnode.ParseNodeURI(nodeURI)
+	if err != nil {
+		return err
+	}
+	n := store.Node{
+		ID:  store.NodeID(u.ID()),
 		URI: nodeURI,
-	})
+	}
+	s.nodeStore[n.ID] = n
 	return nil
+}
+
+func (s *StaticPool) nodes() []store.Node {
+	r := make([]store.Node, 0, len(s.nodeStore))
+	for _, node := range s.nodeStore {
+		r = append(r, node)
+	}
+	return r
 }
 
 func (s *StaticPool) Host(ctx context.Context, req HostRequest) (*HostResponse, error) {
@@ -30,18 +47,18 @@ func (s *StaticPool) Host(ctx context.Context, req HostRequest) (*HostResponse, 
 }
 
 func (s *StaticPool) Client(ctx context.Context, req ClientRequest) (*ClientResponse, error) {
-	return &ClientResponse{Hosts: s.Nodes}, nil
+	return &ClientResponse{Hosts: s.nodes()}, nil
 }
 
 func (s *StaticPool) Connect(ctx context.Context, req ConnectRequest) (*ConnectResponse, error) {
 	return &ConnectResponse{
 		PoolVersion: "staticpool",
-		Hosts:       s.Nodes,
+		Hosts:       s.nodes(),
 	}, nil
 }
 
 func (s *StaticPool) Peer(ctx context.Context, req PeerRequest) (*PeerResponse, error) {
-	return &PeerResponse{Peers: s.Nodes}, nil
+	return &PeerResponse{Peers: s.nodes()}, nil
 }
 
 func (s *StaticPool) Disconnect(ctx context.Context) error {
@@ -50,7 +67,16 @@ func (s *StaticPool) Disconnect(ctx context.Context) error {
 
 func (s *StaticPool) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
 	s.LatestBlockNumber = req.BlockNumber
-	return &UpdateResponse{}, nil
+
+	r := make([]string, 0, len(s.nodeStore))
+	for _, n := range s.nodes() {
+		r = append(r, n.URI)
+	}
+
+	return &UpdateResponse{
+		ActivePeers:       r,
+		LatestBlockNumber: s.LatestBlockNumber,
+	}, nil
 }
 
 func (s *StaticPool) Withdraw(ctx context.Context) error {
