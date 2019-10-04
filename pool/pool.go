@@ -104,8 +104,14 @@ type UpdateResponse struct {
 	Balance *store.Balance `json:"balance,omitempty"`
 	// InvalidPeers are peers who should be disconnected from, such as when a peer
 	// stops reporting connectivity from their side.
+	// FIXME: These are presently just Node IDs, but they will be changed to
+	// enode:// strings in a future version.
+	// Use ethnode.ParseNodeURI(peerID).ID() to parse defensively.
 	InvalidPeers []string `json:"invalid_peers"`
-	// ActivePeers are peers that the pool knows about and is tracking usage for.
+	// ActivePeers are peers' enode:// strings as the pool knows about and is
+	// tracking usage for. The pool might know the same node ID under a
+	// different host route than the agent node is connected. StrictPeering can
+	// be used to make sure routing is matching.
 	ActivePeers []string `json:"active_peers"`
 	// LatestBlockNumber is the highest block number that the pool knows about.
 	LatestBlockNumber uint64 `json:"latest_block_number"`

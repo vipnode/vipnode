@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"reflect"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -83,18 +83,24 @@ func (n *FakeNode) RemoveTrustedPeer(ctx context.Context, nodeID string) error {
 }
 func (n *FakeNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 	n.Calls = append(n.Calls, Call("ConnectPeer", nodeURI))
-	uri, err := url.Parse(nodeURI)
+	uri, err := ethnode.ParseNodeURI(nodeURI)
 	if err != nil {
 		return err
 	}
+	for _, p := range n.FakePeers {
+		if p.ID == uri.ID() {
+			// Already present, skip
+			return nil
+		}
+	}
 	p := ethnode.PeerInfo{
-		ID:   uri.User.Username(),
+		ID:   uri.ID(),
 		Caps: []string{"fake/1", "eth/62", "eth/63", "les/2"},
 		Protocols: map[string]json.RawMessage{
 			"fake": json.RawMessage("{}"),
 		},
 	}
-	p.Network.RemoteAddress = uri.Host
+	p.Network.RemoteAddress = uri.RemoteAddress()
 	n.FakePeers = append(n.FakePeers, p)
 	return nil
 }
@@ -106,11 +112,14 @@ func (n *FakeNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 			n.FakePeers = append(n.FakePeers[:i], n.FakePeers[i+1:]...)
 		}
 	}
-	// Not found, nothing to do
 	return nil
 }
 func (n *FakeNode) Peers(ctx context.Context) ([]ethnode.PeerInfo, error) {
-	return n.FakePeers, nil
+	r := n.FakePeers[:]
+	sort.Slice(r, func(i, j int) bool {
+		return r[i].ID < r[j].ID
+	})
+	return r, nil
 }
 func (n *FakeNode) BlockNumber(ctx context.Context) (uint64, error) {
 	return n.FakeBlockNumber, nil
@@ -122,7 +131,7 @@ func FakePeers(num int) []ethnode.PeerInfo {
 		p := ethnode.PeerInfo{
 			ID: fmt.Sprintf("%0128x", i),
 		}
-		p.Network.RemoteAddress = fmt.Sprintf("127.0.1.%d:30303", i)
+		p.Network.RemoteAddress = fmt.Sprintf("192.0.2.%d:30303", i) // Remote-ish IP addresses, but still reserved.
 		peers = append(peers, p)
 	}
 	return peers

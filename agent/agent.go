@@ -237,23 +237,27 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 	logger.Printf("Pool update: peers=%d active=%d invalid=%d block=%d balance=%s", len(peers), len(update.ActivePeers), len(update.InvalidPeers), blockNumber, balance.String())
 
 	if a.StrictPeers {
-		lookup := make(map[string]struct{}, len(update.ActivePeers))
-		for _, peerID := range update.ActivePeers {
-			lookup[peerID] = struct{}{}
+		lookup := make(map[string]string, len(update.ActivePeers))
+		for _, p := range update.ActivePeers {
+			uri, err := ethnode.ParseNodeURI(p)
+			if err != nil {
+				logger.Printf("Failed to parse active peer enode from pool %q: %s", err, p)
+				continue
+			}
+			lookup[uri.ID()] = uri.RemoteAddress()
 		}
 
 		// Mark any non-active peers as invalid. These should be a superset of
 		// the original update.InvalidPeers, so we truncate it first.
 		update.InvalidPeers = update.InvalidPeers[:0]
 		for _, p := range peers {
-			if _, ok := lookup[p.EnodeID()]; ok {
-				// FIXME: If we can get the ActivePeers' intended URI, we can
-				// compare the remote host address as well. Right now we just
-				// compare the EnodeID.
-
+			uri, err := ethnode.ParseNodeURI(p.EnodeURI())
+			if err != nil {
+				logger.Printf("Failed to parse peer enode %q: %s", err, p.EnodeURI())
+			} else if remoteAddr, ok := lookup[uri.ID()]; ok && uri.RemoteAddress() == remoteAddr {
 				continue // Local peer matching active peer on pool
 			}
-			update.InvalidPeers = append(update.InvalidPeers, p.EnodeID())
+			update.InvalidPeers = append(update.InvalidPeers, p.EnodeURI())
 		}
 
 		if len(update.InvalidPeers) > 0 {
@@ -263,7 +267,13 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 
 	// Disconnect from invalid peers
 	var errors []error
-	for _, peerID := range update.InvalidPeers {
+	for _, p := range update.InvalidPeers {
+		peerID := p
+		if uri, err := ethnode.ParseNodeURI(p); err != nil {
+			logger.Printf("Failed to parse invalid peer enode %q: %s", err, p)
+		} else {
+			peerID = uri.ID()
+		}
 		if err := a.EthNode.RemoveTrustedPeer(ctx, peerID); err != nil {
 			errors = append(errors, err)
 		}
