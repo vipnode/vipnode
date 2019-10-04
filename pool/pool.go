@@ -104,9 +104,9 @@ type UpdateResponse struct {
 	Balance *store.Balance `json:"balance,omitempty"`
 	// InvalidPeers are peers who should be disconnected from, such as when a peer
 	// stops reporting connectivity from their side.
-	// FIXME: These are presently just Node IDs, but they will be changed to
+	// FIXME: These are presently just Node IDs, but they may be changed to
 	// enode:// strings in a future version.
-	// Use ethnode.ParseNodeURI(peerID).ID() to parse defensively.
+	// Use ethnode.ParseNodeURI(peerID) to parse defensively.
 	InvalidPeers []string `json:"invalid_peers"`
 	// ActivePeers are peers' enode:// strings as the pool knows about and is
 	// tracking usage for. The pool might know the same node ID under a
