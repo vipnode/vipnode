@@ -9,7 +9,7 @@
 
 # Builder environment
 FROM golang:alpine AS builder
-RUN apk update && apk --no-cache add git gcc build-base
+RUN apk update && apk --no-cache add git gcc build-base musl-dev linux-headers
 
 # Build the source
 COPY . /go/src/vipnode
