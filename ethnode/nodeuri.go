@@ -44,21 +44,39 @@ func (u *NodeURI) ID() string {
 	return u.User.Username()
 }
 
-// HostPort returns the remote host:port component required to connect to the
-// node, if included in the enode URI. If no remote address is provided, then
-// empty string is returned.
-func (u *NodeURI) RemoteAddress() string {
+func (u *NodeURI) hasRemote() bool {
 	if u.User == nil {
-		return ""
+		return false
 	}
 
 	// Future versions of Ethereum might support DNS-resolved hostnames instead
 	// of IPs, so we avoid stripping out hosts.
 	if hostname := (*url.URL)(u).Hostname(); hostname == "localhost" {
-		return ""
+		return false
 	} else if ip := net.ParseIP(hostname); ip.IsUnspecified() || ip.IsLoopback() {
+		return false
+	}
+
+	return true
+}
+
+// RemoteAddress returns the remote host:port component required to connect to
+// the node, if included in the enode URI. If no remote address is provided,
+// then empty string is returned.
+func (u *NodeURI) RemoteAddress() string {
+	if !u.hasRemote() {
 		return ""
 	}
 
 	return u.Host
+}
+
+// RemoteHost returns the host of the remote NodeURI, if a remote address is
+// defined.  Otherwise empty string is returned.
+func (u *NodeURI) RemoteHost() string {
+	if !u.hasRemote() {
+		return ""
+	}
+
+	return (*url.URL)(u).Hostname()
 }

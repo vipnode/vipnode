@@ -133,7 +133,7 @@ func TestAgentStrictPeers(t *testing.T) {
 		fakepeers[4].EnodeURI(),
 		fakepeers[5].EnodeURI(),
 		"enode://" + fakepeers[6].EnodeID() + "@1.2.3.4:30303",
-		"enode://bar@1.1.1.1:40404",
+		"enode://bar@1.1.1.1:30303", // Port is not checked
 	}
 
 	// Set should match the pool set. This check only passes with StrictMode
