@@ -261,7 +261,7 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 		}
 
 		if len(update.InvalidPeers) > 0 {
-			logger.Printf("Disconnecting from mismatched StrictPeers: %d", len(update.InvalidPeers))
+			logger.Printf("Disconnecting from %d mismatched StrictPeers: %q", len(update.InvalidPeers), update.InvalidPeers)
 		}
 	}
 
