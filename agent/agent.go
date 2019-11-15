@@ -244,7 +244,7 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 				logger.Printf("Failed to parse active peer enode from pool %q: %s", err, p)
 				continue
 			}
-			lookup[uri.ID()] = uri.RemoteAddress()
+			lookup[uri.ID()] = uri.RemoteHost()
 		}
 
 		// Mark any non-active peers as invalid. These should be a superset of
@@ -254,7 +254,7 @@ func (a *Agent) UpdatePeers(ctx context.Context, p pool.Pool) error {
 			uri, err := ethnode.ParseNodeURI(p.EnodeURI())
 			if err != nil {
 				logger.Printf("Failed to parse peer enode %q: %s", err, p.EnodeURI())
-			} else if remoteAddr, ok := lookup[uri.ID()]; ok && uri.RemoteAddress() == remoteAddr {
+			} else if remoteAddr, ok := lookup[uri.ID()]; ok && uri.RemoteHost() == remoteAddr {
 				continue // Local peer matching active peer on pool
 			}
 			update.InvalidPeers = append(update.InvalidPeers, p.EnodeURI())
