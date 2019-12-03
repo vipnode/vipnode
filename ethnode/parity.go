@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 var _ EthNode = &parityNode{}
@@ -76,23 +77,23 @@ func (n *parityNode) Kind() NodeKind {
 func (n *parityNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 	// Parity doesn't have a way to just add peers, so we overload
 	// addReservedPeer for this.
-	return n.AddTrustedPeer(ctx, nodeURI)
+	return n.AddTrustedPeer(ctx, parityNodeID(nodeURI))
 }
 
 func (n *parityNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 	// Parity doesn't have a way to drop a specific peer, so we overload
 	// removeReservedPeer for this.
-	return n.RemoveTrustedPeer(ctx, nodeID)
+	return n.RemoveTrustedPeer(ctx, parityNodeID(nodeID))
 }
 
 func (n *parityNode) AddTrustedPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "parity_addReservedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "parity_addReservedPeer", parityNodeID(nodeID))
 }
 
 func (n *parityNode) RemoveTrustedPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "parity_removeReservedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "parity_removeReservedPeer", parityNodeID(nodeID))
 }
 
 func (n *parityNode) Peers(ctx context.Context) ([]PeerInfo, error) {
@@ -129,4 +130,14 @@ func filterActivePeers(peers []parityPeerInfo) ([]PeerInfo, error) {
 	}
 
 	return activePeers, nil
+}
+
+// parityNodeID fixes nodeIDs with an enode:// scheme and an empty host.
+// FIXME: We should supply a fully qualified enode:// string instead of nodeIDs
+// in the future and not need this.
+func parityNodeID(nodeID string) string {
+	if strings.HasPrefix(nodeID, "enode://") {
+		return nodeID
+	}
+	return "enode://" + nodeID + "@[::]:30303"
 }
