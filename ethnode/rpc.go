@@ -10,6 +10,26 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// CompatibilityError is returned when a node fails a compatibility check, such
+// as the version is outdated or it's running in a mode that is not compatible
+// with ethnode.
+type CompatibilityError struct {
+	Err         error
+	Explanation string
+}
+
+func (err CompatibilityError) Error() string {
+	return err.Err.Error()
+}
+
+func (err CompatibilityError) Unwrap() error {
+	return err.Err
+}
+
+func (err CompatibilityError) Explain() string {
+	return err.Explanation
+}
+
 // NodeKind represents the different kinds of node implementations we know about.
 type NodeKind int
 
