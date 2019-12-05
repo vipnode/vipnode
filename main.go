@@ -178,6 +178,9 @@ func findRPC(rpcPath string) (ethnode.EthNode, error) {
 	node, err := ethnode.Dial(ctx, rpcPath)
 	cancel()
 	if err != nil {
+		if _, ok := err.(interface{ Explain() string }); ok {
+			return nil, err
+		}
 		err = ErrExplain{
 			err,
 			fmt.Sprintf(`Could not find the RPC path of the running Ethereum node (such as Geth or Parity). Tried "%s". Make sure your node is running with RPC enabled. You can specify the path with the --rpc="..." flag.`, rpcPath),
@@ -349,30 +352,46 @@ func main() {
 		exit(3, "Connection closed.\n")
 	}
 
-	switch typedErr := err.(type) {
-	case net.Error:
-		err = ErrExplain{err, `Disconnected from server unexpectedly. Could be a connectivity issue or the server is down. Try again?`}
-	case interface{ ErrorCode() int }:
-		switch typedErr.ErrorCode() {
-		case jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams:
-			err = ErrExplain{err, `Missing a required RPC method. Make sure your Ethereum node is up to date.`}
-		case jsonrpc2.ErrCodeInternal:
-			if err.Error() == (pool.NoHostNodesError{}).Error() {
-				err = ErrExplain{err, `The pool does not have any hosts who are ready to serve your kind of client right now. Try again later or contact the pool operator for help.`}
-				break
-			}
-			fallthrough
-		default:
-			err = ErrExplain{err, fmt.Sprintf(`Unexpected RPC error occurred: %T (code %d). Please open an issue at https://github.com/vipnode/vipnode`, typedErr, typedErr.ErrorCode())}
-		}
-	case ErrExplain:
-		// All good.
-	default:
-		err = ErrExplain{err, fmt.Sprintf(`Error type %T is missing an explanation. Please open an issue at https://github.com/vipnode/vipnode`, err)}
+	if err != nil {
+		exit(2, "%s failed: %s\n", cmd, explainError(err))
+	}
+}
+
+// explainError cycles through known errors and annotates them with additional
+// explanation and instructions for display. It will unwrap wrapped errors
+// until it finds one that it knows about.
+func explainError(err error) error {
+	if err == nil {
+		return nil
 	}
 
-	if err != nil {
-		exit(2, "%s failed: %s\n", cmd, err)
+	currentErr := err
+	for {
+		switch typedErr := currentErr.(type) {
+		case ErrExplain:
+			// All good, this is what we want.
+			return typedErr
+		case interface{ Explain() string }:
+			return ErrExplain{err, typedErr.Explain()}
+		case net.Error:
+			return ErrExplain{err, `Disconnected from server unexpectedly. Could be a connectivity issue or the server is down. Try again?`}
+		case interface{ ErrorCode() int }:
+			switch typedErr.ErrorCode() {
+			case jsonrpc2.ErrCodeMethodNotFound, jsonrpc2.ErrCodeInvalidParams:
+				return ErrExplain{err, `Missing a required RPC method. Make sure your Ethereum node is up to date.`}
+			case jsonrpc2.ErrCodeInternal:
+				if err.Error() == (pool.NoHostNodesError{}).Error() {
+					return ErrExplain{err, `The pool does not have any hosts who are ready to serve your kind of client right now. Try again later or contact the pool operator for help.`}
+				}
+				fallthrough
+			default:
+				return ErrExplain{err, fmt.Sprintf(`Unexpected RPC error occurred: %T (code %d). Please open an issue at https://github.com/vipnode/vipnode`, typedErr, typedErr.ErrorCode())}
+			}
+		case interface{ Unwrap() error }:
+			currentErr = typedErr.Unwrap()
+		default:
+			return ErrExplain{err, fmt.Sprintf(`Error type %T is missing an explanation. Please open an issue at https://github.com/vipnode/vipnode`, err)}
+		}
 	}
 }
 

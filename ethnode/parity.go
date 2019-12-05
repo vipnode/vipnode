@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 var _ EthNode = &parityNode{}
@@ -76,23 +77,23 @@ func (n *parityNode) Kind() NodeKind {
 func (n *parityNode) ConnectPeer(ctx context.Context, nodeURI string) error {
 	// Parity doesn't have a way to just add peers, so we overload
 	// addReservedPeer for this.
-	return n.AddTrustedPeer(ctx, nodeURI)
+	return n.AddTrustedPeer(ctx, parityNodeID(nodeURI))
 }
 
 func (n *parityNode) DisconnectPeer(ctx context.Context, nodeID string) error {
 	// Parity doesn't have a way to drop a specific peer, so we overload
 	// removeReservedPeer for this.
-	return n.RemoveTrustedPeer(ctx, nodeID)
+	return n.RemoveTrustedPeer(ctx, parityNodeID(nodeID))
 }
 
 func (n *parityNode) AddTrustedPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "parity_addReservedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "parity_addReservedPeer", parityNodeID(nodeID))
 }
 
 func (n *parityNode) RemoveTrustedPeer(ctx context.Context, nodeID string) error {
 	var result interface{}
-	return n.client.CallContext(ctx, &result, "parity_removeReservedPeer", nodeID)
+	return n.client.CallContext(ctx, &result, "parity_removeReservedPeer", parityNodeID(nodeID))
 }
 
 func (n *parityNode) Peers(ctx context.Context) ([]PeerInfo, error) {
@@ -112,6 +113,17 @@ func (n *parityNode) Enode(ctx context.Context) (string, error) {
 	return result, nil
 }
 
+func (n *parityNode) CheckCompatible(ctx context.Context) error {
+	var result interface{}
+	if err := n.client.CallContext(ctx, &result, "parity_enode"); err != nil {
+		return parityWrapModuleError(err, "parity_enode", "parity")
+	}
+	if err := n.client.CallContext(ctx, &result, "parity_addReservedPeer", ""); err != nil {
+		return parityWrapModuleError(err, "parity_addReservedPeer", "parity_set")
+	}
+	return nil
+}
+
 // filterActivePeers filters out any peers that have not completed the
 // handshake yet. In Parity, these are peers without any specified Protocols.
 func filterActivePeers(peers []parityPeerInfo) ([]PeerInfo, error) {
@@ -129,4 +141,27 @@ func filterActivePeers(peers []parityPeerInfo) ([]PeerInfo, error) {
 	}
 
 	return activePeers, nil
+}
+
+// parityNodeID fixes nodeIDs with an enode:// scheme and an empty host.
+// FIXME: We should supply a fully qualified enode:// string instead of nodeIDs
+// in the future and not need this.
+func parityNodeID(nodeID string) string {
+	if strings.HasPrefix(nodeID, "enode://") {
+		return nodeID
+	}
+	return "enode://" + nodeID + "@[::]:30303"
+}
+
+func parityWrapModuleError(err error, method string, module string) error {
+	if err == nil {
+		return nil
+	}
+	if jsonErr, ok := err.(interface{ ErrorCode() int }); ok && jsonErr.ErrorCode() == errCodeMethodNotFound {
+		return CompatibilityError{
+			Err:         err,
+			Explanation: fmt.Sprintf(`Parity RPC method %q is not available, add %q to allowed RPC modules. For example, run parity with the flag --ipc-apis="safe,parity_set"`, method, module),
+		}
+	}
+	return err
 }
