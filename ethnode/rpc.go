@@ -277,15 +277,15 @@ type EthNode interface {
 	UserAgent() UserAgent
 	// Enode returns this node's enode://...
 	Enode(ctx context.Context) (string, error)
-	// AddTrustedPeer adds a nodeID to a set of nodes that can always connect, even
+	// AddTrustedPeer adds a node to a set of nodes that can always connect, even
 	// if the maximum number of connections is reached.
-	AddTrustedPeer(ctx context.Context, nodeID string) error
-	// RemoveTrustedPeer removes a nodeID from the trusted node set.
-	RemoveTrustedPeer(ctx context.Context, nodeID string) error
+	AddTrustedPeer(ctx context.Context, nodeURI string) error
+	// RemoveTrustedPeer removes a node from the trusted node set.
+	RemoveTrustedPeer(ctx context.Context, nodeURI string) error
 	// ConnectPeer prompts a connection to the given nodeURI.
 	ConnectPeer(ctx context.Context, nodeURI string) error
-	// DisconnectPeer disconnects from the given nodeID, if connected.
-	DisconnectPeer(ctx context.Context, nodeID string) error
+	// DisconnectPeer disconnects from the given node, if connected.
+	DisconnectPeer(ctx context.Context, nodeURI string) error
 	// Peers returns the list of connected peers
 	Peers(ctx context.Context) ([]PeerInfo, error)
 	// BlockNumber returns the current sync'd block number.

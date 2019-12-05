@@ -80,3 +80,8 @@ func (u *NodeURI) RemoteHost() string {
 
 	return (*url.URL)(u).Hostname()
 }
+
+// String returns a fully qualified enode:// URI
+func (u *NodeURI) String() string {
+	return (*url.URL)(u).String()
+}
