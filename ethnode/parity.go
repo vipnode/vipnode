@@ -119,7 +119,10 @@ func (n *parityNode) CheckCompatible(ctx context.Context) error {
 		return parityWrapModuleError(err, "parity_enode", "parity")
 	}
 	if err := n.client.CallContext(ctx, &result, "parity_addReservedPeer", ""); err != nil {
-		return parityWrapModuleError(err, "parity_addReservedPeer", "parity_set")
+		err = parityWrapModuleError(err, "parity_addReservedPeer", "parity_set")
+		if _, ok := err.(CompatibilityError); ok {
+			return err
+		}
 	}
 	return nil
 }
