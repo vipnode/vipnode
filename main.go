@@ -67,6 +67,7 @@ type Options struct {
 		AllowOrigin     string `long:"allow-origin" description:"Include Access-Control-Allow-Origin header for CORS."`
 		RestrictNetwork string `long:"restrict-network" description:"Restrict nodes to a single Ethereum network, such as: mainnet, rinkeby, goerli"`
 		MaxRequestHosts int    `long:"max-request-hosts" description:"Maximum number of hosts a node is allowed to request."`
+		InvalidNode     string `long:"invalid-node" description:"Regexp to mark peers as invalid if the node client matches."`
 		Contract        struct {
 			RPC        string `long:"rpc" description:"Path or URL of an Ethereum RPC provider for payment contract operations. Must match the network of the contract."`
 			Addr       string `long:"address" description:"Deployed contract address, prefixed with network name scheme. (Example: \"rinkeby://0xb2f8987986259facdc539ac1745f7a0b395972b1\")"`
