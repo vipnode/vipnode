@@ -198,6 +198,7 @@ type PeerInfo struct {
 
 // EthNode is the normalized interface between different kinds of nodes.
 type EthNode interface {
+	NodeRPC() *rpc.Client
 	ContractBackend() bind.ContractBackend
 
 	// Kind returns the kind of node this is.
@@ -228,18 +229,20 @@ func RemoteNode(client *rpc.Client) (EthNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	node := baseNode{
+		agent:  *agent,
+		client: client,
+	}
 	switch agent.Kind {
 	case Parity:
 		return &parityNode{
-			agent:  *agent,
-			client: client,
+			baseNode: node,
 		}, nil
 	default:
 		// Treat everything else as Geth
 		// FIXME: Is this a bad idea?
 		node := &gethNode{
-			agent:  *agent,
-			client: client,
+			baseNode: node,
 		}
 		ctx := context.TODO()
 		if err := node.CheckCompatible(ctx); err != nil {

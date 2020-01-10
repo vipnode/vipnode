@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/ethereum/go-ethereum/rpc"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/vipnode/vipnode/ethnode"
@@ -43,6 +45,10 @@ type FakeNode struct {
 
 func (n *FakeNode) ContractBackend() bind.ContractBackend {
 	return &ethclient.Client{}
+}
+
+func (n *FakeNode) NodeRPC() *rpc.Client {
+	return &rpc.Client{}
 }
 
 func (n *FakeNode) UserAgent() ethnode.UserAgent {
