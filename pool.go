@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/OpenPeeDeeP/xdg"
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -59,9 +59,7 @@ func runPool(options Options) error {
 		if err != nil {
 			return err
 		}
-		badgerOpts := badger.DefaultOptions
-		badgerOpts.Dir = dir
-		badgerOpts.ValueDir = dir
+		badgerOpts := badger.DefaultOptions(dir)
 		storeDriver, err = badgerStore.Open(badgerOpts)
 		if err != nil {
 			return err

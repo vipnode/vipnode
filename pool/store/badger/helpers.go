@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 )
 
 func hasKey(txn *badger.Txn, key []byte) bool {
@@ -36,8 +36,10 @@ func setExpiringItem(txn *badger.Txn, key []byte, val interface{}, expire time.D
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(val); err != nil {
 		return err
+
 	}
-	return txn.SetWithTTL(key, buf.Bytes(), expire)
+	entry := badger.NewEntry(key, buf.Bytes()).WithTTL(expire)
+	return txn.SetEntry(entry)
 }
 
 // loopItem iterates over a prefix and decodes into `into`

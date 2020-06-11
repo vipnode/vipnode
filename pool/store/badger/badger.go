@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/vipnode/vipnode/pool/store"
 )
 

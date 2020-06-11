@@ -1,24 +1,19 @@
 package badger
 
 import (
-	"io/ioutil"
 	"math/big"
-	"os"
 	"reflect"
 	"testing"
 
-	"github.com/dgraph-io/badger"
-	"github.com/dgraph-io/badger/options"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/vipnode/vipnode/pool/store"
 )
 
 type badgerTemp struct {
 	*badgerStore
-	Dir string
 }
 
 func (s badgerTemp) Close() error {
-	defer os.RemoveAll(s.Dir)
 	return s.badgerStore.Close()
 }
 
@@ -45,24 +40,13 @@ func (s badgerTesting) Close() error {
 }
 
 func OpenTemp() (*badgerTemp, error) {
-	dir, err := ioutil.TempDir("", "vipnodetest")
-	if err != nil {
-		return nil, err
-	}
-
-	// Memory-only settings from here: https://github.com/dgraph-io/badger/issues/377#issuecomment-424422144
-	opts := badger.LSMOnlyOptions
-	opts.TableLoadingMode = options.LoadToRAM
-	opts.ValueLogLoadingMode = options.MemoryMap
-	opts.Dir = dir
-	opts.ValueDir = dir
+	opts := badger.DefaultOptions("").WithInMemory(true)
 
 	s, err := Open(opts)
 	if err != nil {
-		os.RemoveAll(dir)
 		return nil, err
 	}
-	return &badgerTemp{s, dir}, nil
+	return &badgerTemp{s}, nil
 }
 
 func TestBadgerHelpers(t *testing.T) {
