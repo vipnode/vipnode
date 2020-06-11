@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
 )
 
 // WebSocketDial returns a Codec that wraps a client-side connection with JSON

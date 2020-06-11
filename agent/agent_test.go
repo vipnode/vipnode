@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/internal/fakenode"
-	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/internal/fakenode"
+	"github.com/vipnode/vipnode/v2/pool"
 )
 
 func TestAgent(t *testing.T) {

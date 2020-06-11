@@ -3,7 +3,7 @@ package memory
 import (
 	"testing"
 
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 func TestMemoryStore(t *testing.T) {

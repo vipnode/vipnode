@@ -8,11 +8,11 @@ import (
 	"os/signal"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/agent"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool"
+	"github.com/vipnode/vipnode/v2/agent"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool"
 
-	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
+	ws "github.com/vipnode/vipnode/v2/jsonrpc2/ws/gorilla"
 )
 
 // defaultClientNode is the value used when `vipnode client` is run without additional args.

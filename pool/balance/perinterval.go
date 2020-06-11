@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 // PayPerInterval creates a balance Manager which implements a pay-per-interval scheme.

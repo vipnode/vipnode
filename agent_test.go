@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/agent"
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/v2/agent"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/internal/keygen"
 	"golang.org/x/sync/errgroup"
 )
 

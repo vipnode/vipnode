@@ -23,13 +23,13 @@ import (
 	"github.com/alexcesaro/log/golog"
 	"github.com/ethereum/go-ethereum/crypto"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/vipnode/vipnode/agent"
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/internal/fakenode"
-	"github.com/vipnode/vipnode/internal/pretty"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/payment"
+	"github.com/vipnode/vipnode/v2/agent"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/internal/fakenode"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/payment"
 )
 
 // Version of the binary, assigned during build.

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/request"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/request"
 )
 
 // Remote returns a RemotePool abstraction which proxies an RPC pool client but

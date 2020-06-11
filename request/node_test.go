@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/internal/keygen"
+	"github.com/vipnode/vipnode/v2/internal/keygen"
 )
 
 func TestNodeRequest(t *testing.T) {

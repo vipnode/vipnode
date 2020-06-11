@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 type balanceItem struct {

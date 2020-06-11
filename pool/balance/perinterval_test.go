@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vipnode/vipnode/pool/store"
-	"github.com/vipnode/vipnode/pool/store/memory"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store/memory"
 )
 
 func TestPerIntervalCredit(t *testing.T) {

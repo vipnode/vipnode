@@ -3,7 +3,7 @@ package ws
 import (
 	"net/http"
 
-	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
 )
 
 // Upgrader takes an HTTP request, upgrades it to a websocket server and

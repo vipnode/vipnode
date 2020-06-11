@@ -1,4 +1,4 @@
-module github.com/vipnode/vipnode
+module github.com/vipnode/vipnode/v2
 
 go 1.12
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/vipnode/vipnode/internal/pretty"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
 )
 
 type rwc struct {

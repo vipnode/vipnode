@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/vipnode/vipnode/ethnode"
+	"github.com/vipnode/vipnode/v2/ethnode"
 )
 
 type call struct {

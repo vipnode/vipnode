@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/dgraph-io/badger/v2"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 type badgerTemp struct {

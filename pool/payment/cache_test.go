@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 func TestBalanceCache(t *testing.T) {
