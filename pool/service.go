@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/internal/pretty"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool/balance"
-	"github.com/vipnode/vipnode/pool/store"
-	"github.com/vipnode/vipnode/request"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool/balance"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	"github.com/vipnode/vipnode/v2/request"
 )
 
 // defaultRequestNumHosts is the default number of hosts to

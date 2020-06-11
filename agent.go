@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/agent"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store"
-	"github.com/vipnode/vipnode/pool/store/memory"
+	"github.com/vipnode/vipnode/v2/agent"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	ws "github.com/vipnode/vipnode/v2/jsonrpc2/ws/gorilla"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store/memory"
 )
 
 var minUpdateInterval = time.Second * 5

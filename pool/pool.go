@@ -3,8 +3,8 @@ package pool
 import (
 	"context"
 
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 // ConnectRequest is a base request done when a vipnode agent connects to a pool.

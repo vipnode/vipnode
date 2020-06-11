@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 // Type assert for Pool implementation.

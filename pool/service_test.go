@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/internal/keygen"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool/store/memory"
-	"github.com/vipnode/vipnode/request"
+	"github.com/vipnode/vipnode/v2/internal/keygen"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool/store/memory"
+	"github.com/vipnode/vipnode/v2/request"
 )
 
 func TestPoolInstance(t *testing.T) {

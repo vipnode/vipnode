@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/vipnode/vipnode/internal/pretty"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
 )
 
 // normalizeNodeURI takes an enode:// URI string and some defaults to replace any missing components.

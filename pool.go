@@ -16,20 +16,20 @@ import (
 	"time"
 
 	"github.com/OpenPeeDeeP/xdg"
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/internal/pretty"
-	ws "github.com/vipnode/vipnode/jsonrpc2/ws/gorilla"
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/balance"
-	"github.com/vipnode/vipnode/pool/payment"
-	"github.com/vipnode/vipnode/pool/status"
-	"github.com/vipnode/vipnode/pool/store"
-	badgerStore "github.com/vipnode/vipnode/pool/store/badger"
-	memoryStore "github.com/vipnode/vipnode/pool/store/memory"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
+	ws "github.com/vipnode/vipnode/v2/jsonrpc2/ws/gorilla"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/balance"
+	"github.com/vipnode/vipnode/v2/pool/payment"
+	"github.com/vipnode/vipnode/v2/pool/status"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	badgerStore "github.com/vipnode/vipnode/v2/pool/store/badger"
+	memoryStore "github.com/vipnode/vipnode/v2/pool/store/memory"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -59,9 +59,7 @@ func runPool(options Options) error {
 		if err != nil {
 			return err
 		}
-		badgerOpts := badger.DefaultOptions
-		badgerOpts.Dir = dir
-		badgerOpts.ValueDir = dir
+		badgerOpts := badger.DefaultOptions(dir)
 		storeDriver, err = badgerStore.Open(badgerOpts)
 		if err != nil {
 			return err

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
 )
 
 type rwc struct {

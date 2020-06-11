@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store"
-	"github.com/vipnode/vipnode/request"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	"github.com/vipnode/vipnode/v2/request"
 )
 
 // ErrWithdrawDisabled is returned when the PaymentService is initialized in read-only mode.

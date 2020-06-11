@@ -1,6 +1,6 @@
 package balance
 
-import "github.com/vipnode/vipnode/pool/store"
+import "github.com/vipnode/vipnode/v2/pool/store"
 
 // NoBalance always returns an empty balance
 type NoBalance struct{}

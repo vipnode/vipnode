@@ -3,7 +3,7 @@ package badger
 import (
 	"testing"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 )
 
 func TestMigration(t *testing.T) {

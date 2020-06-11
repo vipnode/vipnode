@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/jsonrpc2/ws"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/jsonrpc2/ws"
 )
 
 type wsHandler interface {

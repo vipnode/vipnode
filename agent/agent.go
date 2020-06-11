@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vipnode/vipnode/ethnode"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/vipnode/vipnode/v2/ethnode"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 const defaultNumHosts = 3

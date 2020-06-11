@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/dgraph-io/badger"
-	"github.com/vipnode/vipnode/pool/store"
+	"github.com/dgraph-io/badger/v2"
+	"github.com/vipnode/vipnode/v2/pool/store"
 )
 
 // TODO: Set reasonable expiration values?

@@ -13,17 +13,17 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/vipnode/vipnode/agent"
-	"github.com/vipnode/vipnode/internal/fakecluster"
-	"github.com/vipnode/vipnode/internal/fakenode"
-	"github.com/vipnode/vipnode/internal/keygen"
-	"github.com/vipnode/vipnode/internal/pretty"
-	"github.com/vipnode/vipnode/jsonrpc2"
-	"github.com/vipnode/vipnode/pool"
-	"github.com/vipnode/vipnode/pool/balance"
-	"github.com/vipnode/vipnode/pool/status"
-	"github.com/vipnode/vipnode/pool/store"
-	"github.com/vipnode/vipnode/pool/store/memory"
+	"github.com/vipnode/vipnode/v2/agent"
+	"github.com/vipnode/vipnode/v2/internal/fakecluster"
+	"github.com/vipnode/vipnode/v2/internal/fakenode"
+	"github.com/vipnode/vipnode/v2/internal/keygen"
+	"github.com/vipnode/vipnode/v2/internal/pretty"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/pool"
+	"github.com/vipnode/vipnode/v2/pool/balance"
+	"github.com/vipnode/vipnode/v2/pool/status"
+	"github.com/vipnode/vipnode/v2/pool/store"
+	"github.com/vipnode/vipnode/v2/pool/store/memory"
 )
 
 func TestPoolHostClient(t *testing.T) {

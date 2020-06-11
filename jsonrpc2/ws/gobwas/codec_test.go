@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/vipnode/vipnode/jsonrpc2"
+	"github.com/vipnode/vipnode/v2/jsonrpc2"
 )
 
 func TestWebSocketCodec(t *testing.T) {
