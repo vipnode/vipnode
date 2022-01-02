@@ -9,7 +9,7 @@ Vipnode creates an economic incentive to run full nodes and serve light clients.
 * Connect your light client to the Ethereum network instantly, with time-metered fees. 
 * Hosting a full node? Join a vipnode pool and earn money for every vipnode client your node serves.
 
-**Status**: Stable release. **Participation payout is currently using Rinkeby money,** [subscribe to the newsletter for updates](https://tinyletter.com/vipnode).
+**Status**: Stable testnet release, but future work is suspended. **Participation payout is currently using Rinkeby money,** [subscribe to the newsletter for updates](https://tinyletter.com/vipnode).
 
 ## Quickstart
 
