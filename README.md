@@ -48,7 +48,7 @@ While exploring, try using the `-vv` flag for extra verbose output.
 Clients pay a small fee per minute of being connected to a vipnode host. When you connect to a pool for the first time, you'll get a welcome message with instructions.
 
 1. Run a local geth in light mode, something like:
-    `geth --syncmode=light --rpc --nodiscover --verbosity 7`
+    `geth --syncmode=light --http --nodiscover --verbosity 7`
 2. `vipnode agent -vv`
 
 It should automatically find the RPC and nodekey. If it doesn't, it will fail with a useful error message for how to provide those paths.
@@ -59,7 +59,7 @@ It should automatically find the RPC and nodekey. If it doesn't, it will fail wi
 Hosts earn a small fee per minute of being connected to a vipnode client.
 
 1. Run a local geth in full mode with lightserv enabled, something like:
-    `geth --lightserv=60 --rpc`
+    `geth --light.serve=60 --http`
 2. `vipnode agent -vv --payout=$(MYWALLET)`
 
 
