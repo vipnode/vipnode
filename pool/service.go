@@ -53,7 +53,9 @@ type VipnodePool struct {
 	MaxRequestHosts     int                                     // MaxRequestHosts is the maximum number of hosts a client is allowed to request (0 is unlimited)
 	RestrictNetwork     ethnode.NetworkID                       // TODO: Wire this up
 	BlockNumberProvider func(ethnode.NetworkID) (uint64, error) // BlockNumberProvider returns the latest block number that is known for the given network.
-	skipWhitelist       bool                                    // skipWhitelist is used for testing.
+	CheckPeer           func(ethnode.PeerInfo) bool             // CheckPeer is a callback that can return false to mark a peer as invalid
+
+	skipWhitelist bool // skipWhitelist is used for testing.
 
 	mu               sync.Mutex
 	remoteHosts      map[store.NodeID]jsonrpc2.Service
@@ -172,6 +174,14 @@ func (p *VipnodePool) Update(ctx context.Context, sig string, nodeID string, non
 	for _, peerNode := range active {
 		resp.ActivePeers = append(resp.ActivePeers, peerNode.URI)
 	}
+	if p.CheckPeer != nil {
+		for _, peer := range req.PeerInfo {
+			if !p.CheckPeer(peer) {
+				resp.InvalidPeers = append(resp.InvalidPeers, peer.EnodeID())
+			}
+		}
+	}
+
 	if p.BlockNumberProvider != nil {
 		resp.LatestBlockNumber, err = p.BlockNumberProvider(p.RestrictNetwork)
 		if err != nil {

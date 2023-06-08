@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -211,6 +212,20 @@ func runPool(options Options) error {
 			return 0, err
 		}
 		return stats.LatestBlockNumber, nil
+	}
+
+	if options.Pool.InvalidNode != "" {
+		re, err := regexp.Compile(options.Pool.InvalidNode)
+		if err != nil {
+			return ErrExplain{err, `Failed to compile --invalid-nodes regular expression`}
+		}
+		p.CheckPeer = func(peer ethnode.PeerInfo) bool {
+			if re.MatchString(peer.Name) {
+				logger.Debugf("Invalid peer matched %q: %s", peer.Name, peer.EnodeURI())
+				return false
+			}
+			return true
+		}
 	}
 
 	handler := &server{
